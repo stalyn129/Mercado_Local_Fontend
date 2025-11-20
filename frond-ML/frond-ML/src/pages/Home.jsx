@@ -14,7 +14,7 @@ export default function Home() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const demoImages = [
+   const demoImages = [
     "https://i.imgur.com/2XzQmK5.jpeg",
     "https://i.imgur.com/81nqHKl.jpeg",
     "https://i.imgur.com/8pQ9o5Z.jpeg",
@@ -29,6 +29,10 @@ export default function Home() {
     "https://i.imgur.com/WYo05oG.jpeg",
     "https://i.imgur.com/2XzQmK5.jpeg",
     "https://i.imgur.com/81nqHKl.jpeg",
+    "https://i.imgur.com/8pQ9o5Z.jpeg",
+    "https://i.imgur.com/kWq2b4U.jpeg",
+    "https://i.imgur.com/YeRXJ7P.jpeg",
+    "https://i.imgur.com/WYo05oG.jpeg",
   ];
 
   const homeStyle = {
