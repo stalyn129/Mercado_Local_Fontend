@@ -3,74 +3,79 @@ import logo from "../assets/Logo2.png"
 import { useNavigate } from "react-router-dom";
 
 export default function LoginModal() {
-    const [email, setEmail] = useState("")
-    const [password, setPassword] = useState("")
-    const [rememberMe, setRememberMe] = useState(false)
-    const [showPassword, setShowPassword] = useState(false)
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState("")
-    const navigate = useNavigate();
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [rememberMe, setRememberMe] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const navigate = useNavigate();
 
-    const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080/"
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
-    // Función para cerrar y volver al home
-    const handleClose = () => {
-        navigate("/");
-    };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault()
-        setError("")
-        setLoading(true)
+  // Función para cerrar y volver al home
+  const handleClose = () => {
+    navigate("/");
+  };
 
-        try {
-            const response = await fetch(`${API_BASE_URL}/auth/login`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    email,
-                    password,
-                    rememberMe,
-                }),
-            })
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
-            const data = await response.json()
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                correo: email,
+                contrasena: password
+            }),
+        });
 
-            if (!response.ok) {
-                throw new Error(data.message || "Error al iniciar sesión")
-            }
-
-            if (rememberMe) {
-                localStorage.setItem("authToken", data.token)
-                localStorage.setItem("user", JSON.stringify(data.user))
-            } else {
-                sessionStorage.setItem("authToken", data.token)
-                sessionStorage.setItem("user", JSON.stringify(data.user))
-            }
-
-            // Después de login exitoso, redirigir al home
-            navigate("/");
-        } catch (err) {
-            setError(err.message)
-        } finally {
-            setLoading(false)
+        if (!response.ok) {
+            const errorData = await response.text();
+            throw new Error(errorData || "Error al iniciar sesión");
         }
+
+        const data = await response.json();
+
+        // Guardar token
+        localStorage.setItem("authToken", data.token);
+        localStorage.setItem("user", JSON.stringify(data));
+
+        // Redirección según ROL
+        if (data.rol === "VENDEDOR") {
+            navigate("/vendedor");
+        } else if (data.rol === "ADMIN") {
+            navigate("/admin");
+        } else {
+            navigate("/");
+        }
+
+    } catch (err) {
+        console.error(err);
+        setError(err.message);
+    } finally {
+        setLoading(false);
     }
+  };
 
-    const handleGoogleLogin = () => {
-        window.location.href = `${API_BASE_URL}/oauth2/authorization/google`
-    }
+  const handleGoogleLogin = () => {
+    window.location.href = `${API_BASE_URL}/oauth2/authorization/google`
+  }
 
-    // Función para ir al registro
-    const handleGoToRegister = () => {
-        navigate("/register");
-    };
+  // Función para ir al registro
+  const handleGoToRegister = () => {
+    navigate("/register");
+  };
 
-    return (
-        <>
-            <style>{`
+  return (
+    <>
+      <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Comfortaa:wght@400;500;600&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap');
 
@@ -415,111 +420,111 @@ export default function LoginModal() {
         }
       `}</style>
 
-            <div className="modal-overlay-mlai" onClick={handleClose}>
-                <div className="modal-box-mlai" onClick={(e) => e.stopPropagation()}>
-                    <button className="close-btn-mlai" onClick={handleClose}>
-                        ✕
-                    </button>
+      <div className="modal-overlay-mlai" onClick={handleClose}>
+        <div className="modal-box-mlai" onClick={(e) => e.stopPropagation()}>
+          <button className="close-btn-mlai" onClick={handleClose}>
+            ✕
+          </button>
 
-                    <div
-                        style={{
-                            width: "140px",
-                            height: "140px",
-                            margin: "0 auto 20px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                        }}
-                    >
-                        <img
-                            src={logo || "/placeholder.svg"}
-                            alt="Logo Mercado Local-IA"
-                            style={{
-                                width: "100%",
-                                height: "100%",
-                                objectFit: "contain",
-                            }}
-                        />
-                    </div>
+          <div
+            style={{
+              width: "140px",
+              height: "140px",
+              margin: "0 auto 20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <img
+              src={logo || "/placeholder.svg"}
+              alt="Logo Mercado Local-IA"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+              }}
+            />
+          </div>
 
-                    <h2 className="modal-title-mlai">Mercado Local-IA</h2>
-                    <p className="modal-subtitle-mlai">Bienvenido de vuelta</p>
+          <h2 className="modal-title-mlai">Mercado Local-IA</h2>
+          <p className="modal-subtitle-mlai">Bienvenido de vuelta</p>
 
-                    {error && <div className="error-message-mlai">⚠️ {error}</div>}
+          {error && <div className="error-message-mlai">⚠️ {error}</div>}
 
-                    <form onSubmit={handleSubmit}>
-                        <div className="form-group-mlai">
-                            <label className="form-label-mlai">Correo electrónico</label>
-                            <div className="input-wrapper-mlai">
-                                <input
-                                    type="email"
-                                    className="input-field-mlai"
-                                    placeholder="tu@correo.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                />
-                                <span className="input-icon-mlai">📧</span>
-                            </div>
-                        </div>
-
-                        <div className="form-group-mlai">
-                            <label className="form-label-mlai">Contraseña</label>
-                            <div className="input-wrapper-mlai">
-                                <input
-                                    type={showPassword ? "text" : "password"}
-                                    className="input-field-mlai"
-                                    placeholder="••••••••"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                />
-                                <button
-                                    type="button"
-                                    className="toggle-password-mlai"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    aria-label="Mostrar contraseña"
-                                >
-                                    {showPassword ? "👁️" : "👁️‍🗨️"}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="options-row-mlai">
-                            <label className="checkbox-label-mlai">
-                                <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
-                                Recuérdame
-                            </label>
-                            <button type="button" className="forgot-btn-mlai" onClick={() => console.log("Forgot password")}>
-                                ¿Olvidaste tu contraseña?
-                            </button>
-                        </div>
-
-                        <button className="login-btn-mlai" type="submit" disabled={loading}>
-                            {loading ? "Iniciando sesión..." : "Iniciar sesión"}
-                        </button>
-                    </form>
-
-                    <div className="divider-mlai">
-                        <span>o continúa con</span>
-                    </div>
-
-                    <button className="google-btn-mlai" onClick={handleGoogleLogin} type="button">
-                        <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" />
-                        Iniciar sesión con Google
-                    </button>
-
-                    <div className="create-account-mlai">
-                        ¿No tienes cuenta?{" "}
-                        <button
-                            className="create-btn-mlai"
-                            onClick={handleGoToRegister}
-                        >
-                            Crear cuenta
-                        </button>
-                    </div>
-                </div>
+          <form onSubmit={handleSubmit}>
+            <div className="form-group-mlai">
+              <label className="form-label-mlai">Correo electrónico</label>
+              <div className="input-wrapper-mlai">
+                <input
+                  type="email"
+                  className="input-field-mlai"
+                  placeholder="tu@correo.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+                <span className="input-icon-mlai">📧</span>
+              </div>
             </div>
-        </>
-    )
+
+            <div className="form-group-mlai">
+              <label className="form-label-mlai">Contraseña</label>
+              <div className="input-wrapper-mlai">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  className="input-field-mlai"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className="toggle-password-mlai"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label="Mostrar contraseña"
+                >
+                  {showPassword ? "👁️" : "👁️‍🗨️"}
+                </button>
+              </div>
+            </div>
+
+            <div className="options-row-mlai">
+              <label className="checkbox-label-mlai">
+                <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+                Recuérdame
+              </label>
+              <button type="button" className="forgot-btn-mlai" onClick={() => console.log("Forgot password")}>
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+
+            <button className="login-btn-mlai" type="submit" disabled={loading}>
+              {loading ? "Iniciando sesión..." : "Iniciar sesión"}
+            </button>
+          </form>
+
+          <div className="divider-mlai">
+            <span>o continúa con</span>
+          </div>
+
+          <button className="google-btn-mlai" onClick={handleGoogleLogin} type="button">
+            <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" alt="Google" />
+            Iniciar sesión con Google
+          </button>
+
+          <div className="create-account-mlai">
+            ¿No tienes cuenta?{" "}
+            <button
+              className="create-btn-mlai"
+              onClick={handleGoToRegister}
+            >
+              Crear cuenta
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  )
 }

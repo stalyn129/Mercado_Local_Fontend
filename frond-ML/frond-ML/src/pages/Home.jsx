@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
 export default function Home() {
@@ -533,8 +532,6 @@ export default function Home() {
           }
         }
       `}</style>
-
-      <Navbar />
 
       <div style={homeStyle}>
         {/* HERO SECTION CON PARALLAX */}

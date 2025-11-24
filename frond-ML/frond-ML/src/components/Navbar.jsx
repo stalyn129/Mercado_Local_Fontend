@@ -6,6 +6,27 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
 
+  // Función para obtener el usuario desde localStorage
+  const getUsuario = () => {
+    try {
+      const userData = localStorage.getItem("usuario");
+      return userData ? JSON.parse(userData) : null;
+    } catch (error) {
+      console.error("Error al obtener usuario:", error);
+      return null;
+    }
+  };
+
+  const user = getUsuario();
+
+  // Función para cerrar sesión
+  const handleCerrarSesion = () => {
+    localStorage.removeItem("usuario");
+    localStorage.removeItem("token");
+    setIsMenuOpen(false);
+    navigate("/");
+  };
+
   const styles = {
     navbar: {
       background: "rgba(255, 255, 255, 0.5)",
@@ -51,6 +72,7 @@ export default function Navbar() {
       listStyle: "none",
       margin: "0",
       padding: "0",
+      alignItems: "center",
     },
     navLink: {
       textDecoration: "none",
@@ -60,6 +82,7 @@ export default function Navbar() {
       transition: "all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
       display: "inline-block",
       padding: "0.4rem 0",
+      cursor: "pointer",
     },
     rightSection: {
       display: "flex",
@@ -90,6 +113,29 @@ export default function Navbar() {
       display: "inline-block",
       cursor: "pointer",
       background: "transparent",
+    },
+    userTag: {
+      color: "#3a5a40",
+      fontSize: "0.9rem",
+      fontWeight: "600",
+      padding: "0.5rem 1rem",
+      background: "rgba(244, 232, 193, 0.3)",
+      borderRadius: "6px",
+      display: "flex",
+      alignItems: "center",
+      gap: "0.5rem",
+      whiteSpace: "nowrap",
+    },
+    logoutBtn: {
+      color: "#d32f2f",
+      fontSize: "0.85rem",
+      fontWeight: "600",
+      padding: "0.5rem 1rem",
+      border: "1.5px solid #d32f2f",
+      borderRadius: "6px",
+      background: "transparent",
+      cursor: "pointer",
+      transition: "all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
     },
     hamburger: {
       display: "none",
@@ -159,6 +205,15 @@ export default function Navbar() {
         padding: 0.5rem 1rem !important;
         font-size: 0.8rem !important;
       }
+
+      .user-tag {
+        display: none !important;
+      }
+
+      .logout-btn {
+        font-size: 0.75rem !important;
+        padding: 0.4rem 0.8rem !important;
+      }
     }
 
     @media (max-width: 480px) {
@@ -174,7 +229,7 @@ export default function Navbar() {
         font-size: 1rem !important;
       }
 
-      .login-btn {
+      .login-btn, .logout-btn {
         display: none !important;
       }
     }
@@ -191,6 +246,11 @@ export default function Navbar() {
   const handleLoginClick = (e) => {
     e.preventDefault();
     navigate("/loginmodal");
+    setIsMenuOpen(false);
+  };
+
+  const handleNavigate = (path) => {
+    navigate(path);
     setIsMenuOpen(false);
   };
 
@@ -238,67 +298,129 @@ export default function Navbar() {
                 Explorar
               </a>
             </li>
+
+            {/* Links dinámicos según rol */}
+            {user && user.rol === "Vendedor" && (
+              <li>
+                <a
+                  onClick={() => handleNavigate("/vendedor")}
+                  style={styles.navLink}
+                  className="nav-link"
+                  onMouseEnter={(e) => (e.target.style.color = "#3a5a40")}
+                  onMouseLeave={(e) => (e.target.style.color = "#666")}
+                >
+                  Dashboard
+                </a>
+              </li>
+            )}
+
+            {user && user.rol === "Administrador" && (
+              <li>
+                <a
+                  onClick={() => handleNavigate("/admin")}
+                  style={styles.navLink}
+                  className="nav-link"
+                  onMouseEnter={(e) => (e.target.style.color = "#3a5a40")}
+                  onMouseLeave={(e) => (e.target.style.color = "#666")}
+                >
+                  Gestión
+                </a>
+              </li>
+            )}
           </ul>
         </div>
 
         <div style={styles.rightSection} className="right-section">
-          <button
-            style={styles.iconButton}
-            className="icon-button"
-            title="Favoritos"
-            aria-label="Favoritos"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "#3a5a40";
-              e.currentTarget.style.transform = "scale(1.2)";
-              e.currentTarget.style.background = "rgba(244, 232, 193, 0.3)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "#333";
-              e.currentTarget.style.transform = "scale(1)";
-              e.currentTarget.style.background = "none";
-            }}
-          >
-            ♡
-          </button>
+          {/* Mostrar iconos solo si hay usuario (cualquier rol) */}
+          {user && (
+            <>
+              <button
+                style={styles.iconButton}
+                className="icon-button"
+                title="Favoritos"
+                aria-label="Favoritos"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "#3a5a40";
+                  e.currentTarget.style.transform = "scale(1.2)";
+                  e.currentTarget.style.background = "rgba(244, 232, 193, 0.3)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "#333";
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.background = "none";
+                }}
+              >
+                ♡
+              </button>
 
-          <button
-            style={styles.iconButton}
-            className="icon-button"
-            title="Carrito"
-            aria-label="Carrito"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "#3a5a40";
-              e.currentTarget.style.transform = "scale(1.2)";
-              e.currentTarget.style.background = "rgba(244, 232, 193, 0.3)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "#333";
-              e.currentTarget.style.transform = "scale(1)";
-              e.currentTarget.style.background = "none";
-            }}
-          >
-            🛒
-          </button>
+              <button
+                style={styles.iconButton}
+                className="icon-button"
+                title="Carrito"
+                aria-label="Carrito"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "#3a5a40";
+                  e.currentTarget.style.transform = "scale(1.2)";
+                  e.currentTarget.style.background = "rgba(244, 232, 193, 0.3)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "#333";
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.background = "none";
+                }}
+              >
+                🛒
+              </button>
+            </>
+          )}
 
-          <button
-            onClick={handleLoginClick}
-            style={styles.loginBtn}
-            className="login-btn"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#3a5a40";
-              e.currentTarget.style.color = "#fff";
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "0 6px 16px rgba(58, 90, 64, 0.15)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "#3a5a40";
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          >
-            Iniciar Sesión
-          </button>
+          {/* Mostrar botón de login o info de usuario */}
+          {!user ? (
+            <button
+              onClick={handleLoginClick}
+              style={styles.loginBtn}
+              className="login-btn"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#3a5a40";
+                e.currentTarget.style.color = "#fff";
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 6px 16px rgba(58, 90, 64, 0.15)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "#3a5a40";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+            >
+              Iniciar Sesión
+            </button>
+          ) : (
+            <>
+              <div style={styles.userTag} className="user-tag">
+                👤 {user.nombre} {user.apellido}
+              </div>
+              <button
+                onClick={handleCerrarSesion}
+                style={styles.logoutBtn}
+                className="logout-btn"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#d32f2f";
+                  e.currentTarget.style.color = "#fff";
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 6px 16px rgba(211, 47, 47, 0.15)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "#d32f2f";
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                Cerrar Sesión
+              </button>
+            </>
+          )}
 
           <button
             style={styles.hamburger}
@@ -317,6 +439,7 @@ export default function Navbar() {
         </div>
       </nav>
 
+      {/* Menú móvil */}
       {isMenuOpen && (
         <div style={styles.mobileMenu} className="mobile-menu">
           <a
@@ -337,20 +460,66 @@ export default function Navbar() {
           >
             Explorar
           </a>
-          <button
-            onClick={handleLoginClick}
-            style={{ ...styles.loginBtn, textAlign: "center", marginTop: "0.5rem" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#3a5a40";
-              e.currentTarget.style.color = "#fff";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "#3a5a40";
-            }}
-          >
-            Iniciar Sesión
-          </button>
+
+          {/* Links móviles según rol */}
+          {user && user.rol === "Vendedor" && (
+            <a
+              onClick={() => handleNavigate("/vendedor")}
+              style={styles.navLink}
+              onMouseEnter={(e) => (e.target.style.color = "#3a5a40")}
+              onMouseLeave={(e) => (e.target.style.color = "#666")}
+            >
+              Dashboard
+            </a>
+          )}
+
+          {user && user.rol === "Administrador" && (
+            <a
+              onClick={() => handleNavigate("/admin")}
+              style={styles.navLink}
+              onMouseEnter={(e) => (e.target.style.color = "#3a5a40")}
+              onMouseLeave={(e) => (e.target.style.color = "#666")}
+            >
+              Gestión
+            </a>
+          )}
+
+          {!user ? (
+            <button
+              onClick={handleLoginClick}
+              style={{ ...styles.loginBtn, textAlign: "center", marginTop: "0.5rem" }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#3a5a40";
+                e.currentTarget.style.color = "#fff";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "#3a5a40";
+              }}
+            >
+              Iniciar Sesión
+            </button>
+          ) : (
+            <>
+              <div style={{ ...styles.userTag, justifyContent: "center", marginTop: "0.5rem" }}>
+                👤 {user.nombre} {user.apellido}
+              </div>
+              <button
+                onClick={handleCerrarSesion}
+                style={{ ...styles.logoutBtn, textAlign: "center", width: "100%" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#d32f2f";
+                  e.currentTarget.style.color = "#fff";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "#d32f2f";
+                }}
+              >
+                Cerrar Sesión
+              </button>
+            </>
+          )}
         </div>
       )}
     </>
