@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import Footer from "../components/Footer";
 
 export default function DashboardVendedor() {
   const [user, setUser] = useState(null);
@@ -206,6 +207,10 @@ export default function DashboardVendedor() {
           background: linear-gradient(135deg, #8fac96 0%, #7a9c86 100%);
         }
 
+        .btn-gestionar-productos {
+          background: linear-gradient(135deg, #7a9c86 0%, #6a8c76 100%);
+        }
+
         .btn-gestionar {
           background: linear-gradient(135deg, #6b8e6e 0%, #5a7d5d 100%);
         }
@@ -326,50 +331,15 @@ export default function DashboardVendedor() {
           opacity: 0.7;
         }
 
-        /* FOOTER */
-        .footer {
-          background: linear-gradient(135deg, #3a5a40 0%, #2d4833 100%);
-          color: white;
-          padding: 50px 60px 25px;
-          margin-top: 60px;
-        }
-
-        .footer-content {
-          max-width: 1400px;
-          margin: 0 auto;
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 40px;
-          margin-bottom: 30px;
-        }
-
-        .footer-section h3 {
-          font-family: "Playfair Display", serif;
-          font-size: 22px;
-          margin-bottom: 18px;
-        }
-
-        .footer-section p,
-        .footer-section a {
-          color: rgba(255, 255, 255, 0.85);
-          text-decoration: none;
-          display: block;
-          margin-bottom: 10px;
-          transition: all 0.3s ease;
-          font-size: 15px;
-        }
-
-        .footer-section a:hover {
-          color: white;
-          padding-left: 5px;
-        }
-
-        .footer-bottom {
+        .empty-state {
           text-align: center;
-          padding-top: 25px;
-          border-top: 1px solid rgba(255, 255, 255, 0.2);
-          color: rgba(255, 255, 255, 0.7);
-          font-size: 14px;
+          padding: 40px;
+          color: #666;
+        }
+
+        .empty-state-icon {
+          font-size: 48px;
+          margin-bottom: 15px;
         }
 
         @media (max-width: 1024px) {
@@ -393,10 +363,6 @@ export default function DashboardVendedor() {
 
           .action-buttons {
             grid-template-columns: 1fr;
-          }
-
-          .footer {
-            padding: 40px 20px 20px;
           }
         }
       `}</style>
@@ -439,6 +405,9 @@ export default function DashboardVendedor() {
             <div className="action-buttons">
               <button className="action-btn btn-agregar" onClick={() => navigate('/vendedor/agregar-producto')}>
                 ➕ Agregar Producto
+              </button>
+              <button className="action-btn btn-gestionar-productos" onClick={() => navigate('/vendedor/gestionar-productos')}>
+                📦 Gestionar Productos
               </button>
               <button className="action-btn btn-gestionar" onClick={() => navigate('/vendedor/pedidos')}>
                 📋 Gestionar Pedidos
@@ -493,34 +462,7 @@ export default function DashboardVendedor() {
       </div>
 
       {/* FOOTER */}
-      <footer className="footer">
-        <div className="footer-content">
-          <div className="footer-section">
-            <h3>Mercado Local-IA</h3>
-            <p>Conectando vendedores locales con compradores de toda la región.</p>
-          </div>
-          <div className="footer-section">
-            <h3>Enlaces Rápidos</h3>
-            <a href="/vendedor">Inicio</a>
-            <a href="/vendedor/productos">Mis Productos</a>
-            <a href="/vendedor/pedidos">Pedidos</a>
-          </div>
-          <div className="footer-section">
-            <h3>Soporte</h3>
-            <a href="/ayuda">Centro de Ayuda</a>
-            <a href="/contacto">Contacto</a>
-            <a href="/faq">Preguntas Frecuentes</a>
-          </div>
-          <div className="footer-section">
-            <h3>Legal</h3>
-            <a href="/terminos">Términos y Condiciones</a>
-            <a href="/privacidad">Política de Privacidad</a>
-          </div>
-        </div>
-        <div className="footer-bottom">
-          © 2024 Mercado Local-IA. Todos los derechos reservados.
-        </div>
-      </footer>
+      <Footer />
     </>
   );
 }
