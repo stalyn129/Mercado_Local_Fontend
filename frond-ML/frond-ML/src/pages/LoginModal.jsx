@@ -25,42 +25,42 @@ export default function LoginModal() {
     setLoading(true);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/auth/login`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                correo: email,
-                contrasena: password
-            }),
-        });
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          correo: email,
+          contrasena: password
+        }),
+      });
 
-        if (!response.ok) {
-            const errorData = await response.text();
-            throw new Error(errorData || "Error al iniciar sesión");
-        }
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(errorData || "Error al iniciar sesión");
+      }
 
-        const data = await response.json();
+      const data = await response.json();
 
-        // Guardar token
-        localStorage.setItem("authToken", data.token);
-        localStorage.setItem("user", JSON.stringify(data));
+      // Guardar token USER
+      localStorage.setItem("authToken", data.token);
+      localStorage.setItem("user", JSON.stringify(data));
 
-        // Redirección según ROL
-        if (data.rol === "VENDEDOR") {
-            navigate("/vendedor");
-        } else if (data.rol === "ADMIN") {
-            navigate("/admin");
-        } else {
-            navigate("/");
-        }
+      // Redirección según ROL
+      if (data.rol === "VENDEDOR") {
+        navigate("/vendedor");
+      } else if (data.rol === "ADMIN") {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
 
     } catch (err) {
-        console.error(err);
-        setError(err.message);
+      console.error(err);
+      setError(err.message);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 

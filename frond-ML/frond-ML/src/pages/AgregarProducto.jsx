@@ -1,15 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 
 export default function AgregarProducto() {
-  const navigate = useNavigate();
   const fileInputRef = useRef(null);
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+  const API_URL = "http://localhost:8080";
 
   const [categorias, setCategorias] = useState([]);
   const [subcategorias, setSubcategorias] = useState([]);
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
 
   const [form, setForm] = useState({
     nombreProducto: "",
@@ -19,26 +18,26 @@ export default function AgregarProducto() {
     unidad: "kg",
     estadoProducto: "Disponible",
     idCategoria: "",
-    idSubcategoria: "",
-    imagenProducto: ""
+    idSubcategoria: ""
   });
 
+  // ✅ CAMBIO AQUÍ: Usar "user" y "authToken" (lo mismo que guarda LoginModal)
   const user = JSON.parse(localStorage.getItem("user"));
   const token = localStorage.getItem("authToken");
 
   useEffect(() => {
+    // Validar autenticación y rol
     if (!user || user.rol !== "VENDEDOR") {
-      navigate("/login");
+      alert("❌ Debes iniciar sesión como vendedor");
+      window.location.href = "/login";
+      return;
     }
-  }, []);
 
-  useEffect(() => {
     const cargarCategorias = async () => {
       try {
         const response = await fetch(`${API_URL}/categorias/listar`);
         if (!response.ok) throw new Error(`Error: ${response.status}`);
         const data = await response.json();
-        console.log("Categorías cargadas:", data);
         setCategorias(Array.isArray(data) ? data : data.data || []);
       } catch (err) {
         console.error("Error cargando categorías:", err);
@@ -46,7 +45,7 @@ export default function AgregarProducto() {
       }
     };
     cargarCategorias();
-  }, [API_URL]);
+  }, []);
 
   useEffect(() => {
     if (!form.idCategoria) {
@@ -59,7 +58,6 @@ export default function AgregarProducto() {
         const response = await fetch(`${API_URL}/subcategorias/categoria/${form.idCategoria}`);
         if (!response.ok) throw new Error(`Error: ${response.status}`);
         const data = await response.json();
-        console.log("Subcategorías cargadas:", data);
         setSubcategorias(Array.isArray(data) ? data : data.data || []);
       } catch (err) {
         console.error("Error cargando subcategorías:", err);
@@ -67,7 +65,7 @@ export default function AgregarProducto() {
       }
     };
     cargarSubcategorias();
-  }, [form.idCategoria, API_URL]);
+  }, [form.idCategoria]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -77,10 +75,13 @@ export default function AgregarProducto() {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Guardar el archivo para subirlo después
+    setSelectedImageFile(file);
+
+    // Mostrar preview local
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result);
-      setForm({ ...form, imagenProducto: reader.result });
     };
     reader.readAsDataURL(file);
   };
@@ -90,25 +91,59 @@ export default function AgregarProducto() {
   };
 
   const handleSubmit = async () => {
+    // Validar campos obligatorios
     if (!form.nombreProducto || !form.precioProducto || !form.stockProducto || !form.idSubcategoria) {
       alert("Por favor complete todos los campos obligatorios");
       return;
     }
 
+    // Validar imagen
+    if (!selectedImageFile) {
+      alert("Por favor seleccione una imagen del producto");
+      return;
+    }
+
+    // Validar usuario
+    if (!user || (!user.id && !user.idUsuario && !user.idVendedor)) {
+      alert("❌ Error: No se pudo identificar el usuario. Por favor, inicie sesión nuevamente.");
+      return;
+    }
+
     setLoading(true);
 
-    const body = {
-      nombreProducto: form.nombreProducto,
-      descripcionProducto: form.descripcionProducto,
-      precioProducto: parseFloat(form.precioProducto),
-      stockProducto: parseInt(form.stockProducto),
-      idSubcategoria: parseInt(form.idSubcategoria),
-      imagenProducto: form.imagenProducto,
-      idUsuario: user.id_usuario
-
-    };
-
     try {
+      // ✅ PASO 1: Subir la imagen primero
+      console.log("📤 Subiendo imagen...");
+      const formData = new FormData();
+      formData.append("file", selectedImageFile);
+
+      const uploadResponse = await fetch(`${API_URL}/uploads/producto`, {
+        method: "POST",
+        body: formData
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Error al subir la imagen");
+      }
+
+      const imageUrl = await uploadResponse.text();
+      console.log("✅ Imagen subida:", imageUrl);
+
+      // ✅ PASO 2: Crear el producto con la URL de la imagen
+      console.log("📦 Creando producto...");
+      const body = {
+        idUsuario: user.id || user.idUsuario,
+        idVendedor: user.id || user.idVendedor,
+        idSubcategoria: parseInt(form.idSubcategoria),
+        nombreProducto: form.nombreProducto,
+        descripcionProducto: form.descripcionProducto,
+        precioProducto: parseFloat(form.precioProducto),
+        stockProducto: parseInt(form.stockProducto),
+        imagenProducto: imageUrl  // ← Solo la URL, no base64
+      };
+
+      console.log("📦 Payload enviado:", body);
+
       const response = await fetch(`${API_URL}/productos/crear`, {
         method: "POST",
         headers: {
@@ -119,15 +154,31 @@ export default function AgregarProducto() {
       });
 
       if (response.ok) {
+        const result = await response.json();
+        console.log("✅ Producto creado:", result);
         alert("✅ Producto creado correctamente");
-        navigate("/vendedor/productos");
+        
+        // Resetear formulario
+        setForm({
+          nombreProducto: "",
+          descripcionProducto: "",
+          precioProducto: "",
+          stockProducto: "",
+          unidad: "kg",
+          estadoProducto: "Disponible",
+          idCategoria: "",
+          idSubcategoria: ""
+        });
+        setImagePreview(null);
+        setSelectedImageFile(null);
       } else {
         const error = await response.text();
-        alert(`❌ Error: ${error}`);
+        console.error("❌ Error del servidor:", error);
+        alert(`❌ Error al crear producto: ${error}`);
       }
     } catch (error) {
-      console.error("Error:", error);
-      alert("❌ Error al crear el producto");
+      console.error("❌ Error en la petición:", error);
+      alert(`❌ Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -179,7 +230,6 @@ export default function AgregarProducto() {
           margin-bottom: 40px;
         }
 
-        /* IMAGEN SECTION */
         .image-upload-section {
           display: flex;
           flex-direction: column;
@@ -281,7 +331,6 @@ export default function AgregarProducto() {
           display: none;
         }
 
-        /* FORM FIELDS */
         .form-right {
           display: flex;
           flex-direction: column;
@@ -377,7 +426,6 @@ export default function AgregarProducto() {
           padding-left: 36px;
         }
 
-        /* BOTONES */
         .form-actions {
           display: flex;
           justify-content: center;
@@ -432,6 +480,40 @@ export default function AgregarProducto() {
           transform: translateY(-2px);
         }
 
+        .loading-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.7);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999;
+          gap: 20px;
+        }
+
+        .loading-spinner {
+          width: 60px;
+          height: 60px;
+          border: 5px solid rgba(255, 255, 255, 0.3);
+          border-top-color: white;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+          color: white;
+          font-size: 18px;
+          font-weight: 600;
+        }
+
         @media (max-width: 768px) {
           .agregar-producto-page {
             padding: 30px 16px;
@@ -473,6 +555,13 @@ export default function AgregarProducto() {
       `}</style>
 
       <div className="agregar-producto-page">
+        {loading && (
+          <div className="loading-overlay">
+            <div className="loading-spinner"></div>
+            <div className="loading-text">Guardando producto...</div>
+          </div>
+        )}
+
         <h1 className="page-title">📦 Agregar Producto</h1>
 
         <div className="form-container">
@@ -666,7 +755,7 @@ export default function AgregarProducto() {
             <button
               type="button"
               className="cancel-btn"
-              onClick={() => navigate('/vendedor')}
+              onClick={() => window.history.back()}
             >
               Cancelar
             </button>
