@@ -188,7 +188,7 @@ export default function AgregarProducto() {
     }
   };
 
-  const gridLayout = screenSize === "desktop" ? "1fr 1.2fr" : "1fr";
+  const gridLayout = screenSize === "desktop" ? "0.9fr 1.3fr" : "1fr";
 
   return (
     <>
@@ -205,26 +205,26 @@ export default function AgregarProducto() {
         .agregar-producto-page {
           min-height: 100vh;
           background: linear-gradient(135deg, #faf8f3 0%, #f5f0e8 100%);
-          padding: clamp(20px, 5vw, 50px);
+          padding: clamp(16px, 3vw, 30px);
           font-family: "Comfortaa", sans-serif;
         }
 
         .page-title {
           font-family: "Playfair Display", serif;
-          font-size: clamp(28px, 6vw, 42px);
+          font-size: clamp(24px, 5vw, 36px);
           font-weight: 700;
           color: #2d3e32;
           text-align: center;
-          margin-bottom: clamp(30px, 5vw, 50px);
+          margin-bottom: clamp(20px, 3vw, 30px);
           text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
         .form-container {
-          max-width: 1200px;
+          max-width: 1400px;
           margin: 0 auto;
           background: white;
-          border-radius: clamp(16px, 4vw, 28px);
-          padding: clamp(20px, 5vw, 50px);
+          border-radius: clamp(16px, 3vw, 24px);
+          padding: clamp(20px, 3vw, 40px);
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
           border: 1px solid rgba(107, 142, 110, 0.05);
         }
@@ -232,14 +232,14 @@ export default function AgregarProducto() {
         .form-grid {
           display: grid;
           grid-template-columns: ${gridLayout};
-          gap: clamp(20px, 5vw, 50px);
-          margin-bottom: 40px;
+          gap: clamp(25px, 4vw, 45px);
+          margin-bottom: 25px;
         }
 
         .image-upload-section {
           display: flex;
           flex-direction: column;
-          gap: clamp(15px, 3vw, 25px);
+          gap: clamp(12px, 2vw, 18px);
           position: sticky;
           top: 20px;
           height: fit-content;
@@ -249,7 +249,7 @@ export default function AgregarProducto() {
           width: 100%;
           aspect-ratio: 1;
           background: linear-gradient(135deg, #f0f5f3 0%, #e8f0ed 100%);
-          border-radius: 20px;
+          border-radius: 16px;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -259,7 +259,7 @@ export default function AgregarProducto() {
           border: 3px dashed #6b8e6e;
           transition: all 0.3s ease;
           cursor: pointer;
-          max-height: 500px;
+          max-height: 400px;
         }
 
         .image-preview-box:hover:not(.has-image) {
@@ -344,17 +344,17 @@ export default function AgregarProducto() {
         .form-right {
           display: flex;
           flex-direction: column;
-          gap: clamp(28px, 5vw, 42px);
+          gap: clamp(20px, 3.5vw, 32px);
         }
 
         .form-section {
           display: flex;
           flex-direction: column;
-          gap: clamp(24px, 4vw, 32px);
-          padding: clamp(24px, 4vw, 32px);
+          gap: clamp(18px, 3vw, 24px);
+          padding: clamp(20px, 3.5vw, 28px);
           background: #fafaf8;
-          border-radius: 14px;
-          border-left: 4px solid #6b8e6e;
+          border-radius: 12px;
+          border-left: 3px solid #6b8e6e;
           transition: all 0.3s ease;
         }
 
@@ -363,12 +363,13 @@ export default function AgregarProducto() {
         }
 
         .form-section-title {
-          font-size: clamp(14px, 3vw, 18px);
+          font-size: clamp(14px, 2.8vw, 17px);
           font-weight: 700;
           color: #2d3e32;
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 10px;
+          margin-bottom: 4px;
         }
 
         .section-icon {
@@ -378,13 +379,14 @@ export default function AgregarProducto() {
         .form-group {
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: 8px;
         }
 
         .form-label {
           font-size: clamp(12px, 2.5vw, 14px);
           font-weight: 600;
           color: #4a6050;
+          margin-bottom: 2px;
         }
 
         .required-mark {
@@ -419,21 +421,21 @@ export default function AgregarProducto() {
         }
 
         .form-textarea {
-          min-height: clamp(80px, 20vh, 110px);
+          min-height: clamp(75px, 16vh, 95px);
           resize: vertical;
           font-family: "Comfortaa", sans-serif;
         }
 
         .form-row {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: clamp(20px, 4vw, 32px);
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: clamp(18px, 3vw, 28px);
         }
 
         .form-row-3 {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-          gap: clamp(20px, 4vw, 32px);
+          grid-template-columns: 1.2fr 1fr 0.9fr;
+          gap: clamp(18px, 3vw, 28px);
         }
 
         .price-input-wrapper {
@@ -458,9 +460,9 @@ export default function AgregarProducto() {
           display: flex;
           flex-wrap: wrap;
           justify-content: center;
-          gap: clamp(12px, 3vw, 20px);
-          margin-top: clamp(25px, 5vw, 40px);
-          padding-top: clamp(25px, 5vw, 40px);
+          gap: clamp(12px, 3vw, 16px);
+          margin-top: clamp(20px, 3vw, 30px);
+          padding-top: clamp(20px, 3vw, 30px);
           border-top: 2px solid #f0f0f0;
         }
 
@@ -585,6 +587,12 @@ export default function AgregarProducto() {
             width: 100%;
           }
         }
+
+        @media (min-width: 641px) and (max-width: 900px) {
+          .form-row-3 {
+            grid-template-columns: 1fr 1fr;
+          }
+        }
       `}</style>
 
       <div className="agregar-producto-page">
@@ -636,28 +644,11 @@ export default function AgregarProducto() {
 
             {/* DERECHA - FORMULARIO */}
             <div className="form-right">
-              {/* Descripción */}
-              <div className="form-section">
-                <h3 className="form-section-title">
-                  <span className="section-icon">📝</span>
-                  Descripción del Producto
-                </h3>
-                <div className="form-group">
-                  <textarea
-                    className="form-textarea"
-                    name="descripcionProducto"
-                    placeholder="Describe las características, origen, ingredientes, etc. de tu producto..."
-                    value={form.descripcionProducto}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-
               {/* Información Básica */}
               <div className="form-section">
                 <h3 className="form-section-title">
                   <span className="section-icon">ℹ️</span>
-                  Información Básica
+                  Información del Producto
                 </h3>
                 
                 <div className="form-group">
@@ -675,6 +666,17 @@ export default function AgregarProducto() {
                   />
                 </div>
 
+                <div className="form-group">
+                  <label className="form-label">Descripción</label>
+                  <textarea
+                    className="form-textarea"
+                    name="descripcionProducto"
+                    placeholder="Describe las características, origen, ingredientes, etc..."
+                    value={form.descripcionProducto}
+                    onChange={handleChange}
+                  />
+                </div>
+
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">
@@ -688,7 +690,7 @@ export default function AgregarProducto() {
                       required
                     >
                       <option value="">
-                        {categorias.length === 0 ? "Cargando categorías..." : "Seleccione Categoría"}
+                        {categorias.length === 0 ? "Cargando..." : "Seleccione"}
                       </option>
                       {categorias.map(c => (
                         <option key={c.idCategoria || c.id} value={c.idCategoria || c.id}>
@@ -712,10 +714,10 @@ export default function AgregarProducto() {
                     >
                       <option value="">
                         {!form.idCategoria 
-                          ? "Seleccione primero una categoría" 
+                          ? "Seleccione categoría" 
                           : subcategorias.length === 0 
-                          ? "Cargando subcategorías..." 
-                          : "Seleccione Subcategoría"}
+                          ? "Cargando..." 
+                          : "Seleccione"}
                       </option>
                       {subcategorias.map(s => (
                         <option key={s.idSubcategoria || s.id} value={s.idSubcategoria || s.id}>
@@ -755,7 +757,22 @@ export default function AgregarProducto() {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Unidad de Medida</label>
+                    <label className="form-label">
+                      Stock <span className="required-mark">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      name="stockProducto"
+                      placeholder="100"
+                      value={form.stockProducto}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Unidad</label>
                     <select
                       className="form-select"
                       name="unidad"
@@ -768,25 +785,10 @@ export default function AgregarProducto() {
                       <option value="litro">litro</option>
                     </select>
                   </div>
-
-                  <div className="form-group">
-                    <label className="form-label">
-                      Stock Disponible <span className="required-mark">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      name="stockProducto"
-                      placeholder="100"
-                      value={form.stockProducto}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Estado del Producto</label>
+                  <label className="form-label">Estado</label>
                   <select
                     className="form-select"
                     name="estadoProducto"

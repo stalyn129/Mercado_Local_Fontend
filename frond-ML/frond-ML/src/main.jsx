@@ -11,6 +11,8 @@ import Login from "./pages/LoginModal.jsx";
 import DashboardVendedor from "./pages/DashboardVendedor.jsx";
 import DashboardAdmin from "./pages/DashboardAdmin.jsx";
 import AgregarProducto from "./pages/AgregarProducto.jsx";  // ← ✔ IMPORT CORRECTO
+import GestionarProductos from "./pages/GestionarProductos.jsx";
+
 
 import NotFound from "./pages/NotFound.jsx";
 
@@ -36,6 +38,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 
       {/* ✔ NUEVA RUTA DEL VENDEDOR */}
       <Route path="/vendedor/agregar-producto" element={<AgregarProducto />} />
+      <Route path="/vendedor/gestionar-productos" element={<GestionarProductos />} />
+
 
       {/* 404 */}
       <Route path="*" element={<NotFound />} />

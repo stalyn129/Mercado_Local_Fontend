@@ -45,7 +45,14 @@ export default function LoginModal() {
 
       // Guardar token USER
       localStorage.setItem("authToken", data.token);
-      localStorage.setItem("user", JSON.stringify(data));
+      localStorage.setItem("user", JSON.stringify({
+        token: data.token,
+        idUsuario: data.idUsuario,
+        rol: data.rol,
+        idVendedor: data.idVendedor,
+        idConsumidor: data.idConsumidor
+      }));
+
 
       // Redirección según ROL
       if (data.rol === "VENDEDOR") {

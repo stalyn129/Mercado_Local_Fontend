@@ -19,7 +19,7 @@ export default function Register() {
     ruc: "",
     direccionEmpresa: "",
     telefonoEmpresa: "",
-    descripcionEmpresa: ""
+    descripcion: ""
   });
   
   const [showPassword, setShowPassword] = useState(false);
@@ -51,23 +51,33 @@ export default function Register() {
         if (ok) {
           setMessage({ type: "success", text: "¡Registro exitoso! Bienvenido 🎉" });
           
-          if (data.token) localStorage.setItem("token", data.token);
+          // Guardar en localStorage
+          if (data.token) localStorage.setItem("authToken", data.token);
           if (data.rol) localStorage.setItem("rol", data.rol);
           if (data.idUsuario) localStorage.setItem("idUsuario", data.idUsuario);
           if (data.idVendedor) localStorage.setItem("idVendedor", data.idVendedor);
           if (data.idConsumidor) localStorage.setItem("idConsumidor", data.idConsumidor);
           
+          // Guardar objeto user completo
+          const user = {
+            id: data.idUsuario,
+            rol: data.rol,
+            idVendedor: data.idVendedor,
+            idConsumidor: data.idConsumidor
+          };
+          localStorage.setItem("user", JSON.stringify(user));
+          
           setForm({
             nombre: "", apellido: "", correo: "", contrasena: "", fechaNacimiento: "", idRol: 3,
             cedula: "", direccion: "", telefono: "",
-            nombreEmpresa: "", ruc: "", direccionEmpresa: "", telefonoEmpresa: "", descripcionEmpresa: ""
+            nombreEmpresa: "", ruc: "", direccionEmpresa: "", telefonoEmpresa: "", descripcion: ""
           });
           
           setTimeout(() => {
             if (data.rol === "VENDEDOR") {
               window.location.href = "/vendedor";
             } else if (data.rol === "CONSUMIDOR") {
-              window.location.href = "/consumidor";
+              window.location.href = "/";
             } else {
               window.location.href = "/";
             }
@@ -825,7 +835,7 @@ export default function Register() {
 
                 <div className="input-group">
                   <label className="input-label">Descripción del negocio</label>
-                  <textarea name="descripcionEmpresa" value={form.descripcionEmpresa} onChange={handleChange} className="form-input form-textarea" placeholder="Venta de verduras frescas y productos orgánicos..." />
+                  <textarea name="descripcion" value={form.descripcion} onChange={handleChange} className="form-input form-textarea" placeholder="Venta de verduras frescas y productos orgánicos..." />
                 </div>
               </div>
             )}
