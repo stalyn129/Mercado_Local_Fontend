@@ -44,6 +44,42 @@ export default function GestionarProductos() {
     }
   };
 
+  const eliminarProducto = async (idProducto, nombreProducto) => {
+    // Mostrar confirmación
+    const confirmar = window.confirm(
+      `¿Estás seguro de eliminar el producto "${nombreProducto}"?\n\nEsta acción no se puede deshacer.`
+    );
+
+    if (!confirmar) {
+      return; // El usuario canceló
+    }
+
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      
+      const res = await fetch(`${API_URL}/productos/${idProducto}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${user.token}`,
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (res.ok) {
+        // Eliminar el producto del estado sin recargar
+        setProductos(productos.filter(p => p.idProducto !== idProducto));
+        alert(`✅ Producto "${nombreProducto}" eliminado exitosamente`);
+        console.log("🗑️ Producto eliminado:", idProducto);
+      } else {
+        const error = await res.json();
+        alert(`❌ Error al eliminar: ${error.message || "Inténtalo de nuevo"}`);
+      }
+    } catch (e) {
+      console.error("❌ Error al eliminar producto:", e);
+      alert("❌ Error de conexión. Verifica tu red e intenta nuevamente.");
+    }
+  };
+
   return (
     <div style={{ 
       minHeight: "100vh",
@@ -173,7 +209,7 @@ export default function GestionarProductos() {
             <table style={{ 
               width: "100%", 
               borderCollapse: "collapse",
-              minWidth: "900px"
+              minWidth: "1000px"
             }}>
               <thead>
                 <tr style={{ 
@@ -186,6 +222,7 @@ export default function GestionarProductos() {
                   <th style={{ padding: "20px 16px", textAlign: "left", fontSize: "14px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Precio</th>
                   <th style={{ padding: "20px 16px", textAlign: "left", fontSize: "14px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Stock</th>
                   <th style={{ padding: "20px 16px", textAlign: "left", fontSize: "14px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Categoría</th>
+                  <th style={{ padding: "20px 16px", textAlign: "left", fontSize: "14px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Subcategoría</th>
                   <th style={{ padding: "20px 16px", textAlign: "center", fontSize: "14px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Acciones</th>
                 </tr>
               </thead>
@@ -193,7 +230,7 @@ export default function GestionarProductos() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="6" style={{ 
+                    <td colSpan="7" style={{ 
                       textAlign: "center", 
                       padding: "80px 20px",
                       color: "#6B7F69",
@@ -213,7 +250,7 @@ export default function GestionarProductos() {
                   </tr>
                 ) : productos.length === 0 ? (
                   <tr>
-                    <td colSpan="6" style={{ 
+                    <td colSpan="7" style={{ 
                       textAlign: "center", 
                       padding: "80px 20px" 
                     }}>
@@ -286,14 +323,27 @@ export default function GestionarProductos() {
                           {p.stockProducto} unidades
                         </span>
                       </td>
+                      
+                      {/* 🔥 NUEVA COLUMNA: CATEGORÍA */}
+                      <td style={{ 
+                        padding: "16px",
+                        color: "#2D3E2B",
+                        fontSize: "14px",
+                        fontWeight: "600"
+                      }}>
+                        {p.nombreCategoria || "—"}
+                      </td>
+                      
+                      {/* 🔥 NUEVA COLUMNA: SUBCATEGORÍA */}
                       <td style={{ 
                         padding: "16px",
                         color: "#6B7F69",
                         fontSize: "14px",
                         fontWeight: "500"
                       }}>
-                        {p.nombreSubcategoria}
+                        {p.nombreSubcategoria || "—"}
                       </td>
+                      
                       <td style={{ 
                         padding: "16px",
                         textAlign: "center"
@@ -335,7 +385,9 @@ export default function GestionarProductos() {
                             ✏️ Editar
                           </button>
 
-                          <button style={{ 
+                          <button 
+                            onClick={() => eliminarProducto(p.idProducto, p.nombreProducto)}
+                            style={{ 
                             background: "#FFF0F2",
                             color: "#DA3E52",
                             border: "2px solid #DA3E52",
