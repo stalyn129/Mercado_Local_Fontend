@@ -17,15 +17,17 @@ import DashboardVendedor from "./pages/DashboardVendedor.jsx";
 import AgregarProducto from "./pages/AgregarProducto.jsx";
 import GestionarProductos from "./pages/GestionarProductos.jsx";
 import EditarProducto from "./pages/EditarProducto.jsx";
-import GestionarPedidos from "./pages/GestionarPedidos.jsx";  
+import GestionarPedidos from "./pages/GestionarPedidos.jsx";
 import AnalisisVentas from "./pages/AnalisisVentas.jsx";
 import ResenasVendedor from "./pages/ResenasVendedor.jsx";
 
+// Consumidor
+import ExplorarProductos from "./pages/ExplorarProductos.jsx";
 
-// Admin
+// Panel Admin
 import DashboardAdmin from "./pages/DashboardAdmin.jsx";
 
-// Error 404
+// 404
 import NotFound from "./pages/NotFound.jsx";
 
 // Estilos globales
@@ -35,6 +37,7 @@ import "./styles/fonts.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <BrowserRouter>
+
     <Navbar />
 
     <Routes>
@@ -48,16 +51,19 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <Route path="/vendedor/agregar-producto" element={<AgregarProducto />} />
       <Route path="/vendedor/gestionar-productos" element={<GestionarProductos />} />
       <Route path="/vendedor/editar-producto/:id" element={<EditarProducto />} />
-      <Route path="/vendedor/pedidos" element={<GestionarPedidos />} />  
+      <Route path="/vendedor/pedidos" element={<GestionarPedidos />} />
       <Route path="/vendedor/analisis" element={<AnalisisVentas />} />
       <Route path="/vendedor/resenas" element={<ResenasVendedor />} />
 
+      {/* Consumidor */}
+      <Route path="/explorar" element={<ExplorarProductos />} />
 
-      {/* Panel Admin */}
+      {/* Admin */}
       <Route path="/admin" element={<DashboardAdmin />} />
 
       {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
+
   </BrowserRouter>
 );
