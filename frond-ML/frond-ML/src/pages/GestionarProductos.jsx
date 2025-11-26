@@ -303,32 +303,34 @@ export default function GestionarProductos() {
                           gap: "10px",
                           justifyContent: "center"
                         }}>
-                          <button style={{ 
-                            background: "#FFF9E6",
-                            color: "#F5C744",
-                            border: "2px solid #F5C744",
-                            padding: "10px 18px",
-                            borderRadius: "10px",
-                            cursor: "pointer",
-                            fontWeight: "700",
-                            fontSize: "13px",
-                            transition: "all 0.3s ease",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "6px"
-                          }}
-                          onMouseEnter={(e) => {
-                            e.target.style.background = "#F5C744";
-                            e.target.style.color = "white";
-                            e.target.style.transform = "translateY(-2px)";
-                            e.target.style.boxShadow = "0 4px 12px rgba(245, 199, 68, 0.3)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.background = "#FFF9E6";
-                            e.target.style.color = "#F5C744";
-                            e.target.style.transform = "translateY(0)";
-                            e.target.style.boxShadow = "none";
-                          }}
+                          <button 
+                            onClick={() => window.location.href = `/vendedor/editar-producto/${p.idProducto}`}
+                            style={{ 
+                              background: "#FFF9E6",
+                              color: "#F5C744",
+                              border: "2px solid #F5C744",
+                              padding: "10px 18px",
+                              borderRadius: "10px",
+                              cursor: "pointer",
+                              fontWeight: "700",
+                              fontSize: "13px",
+                              transition: "all 0.3s ease",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px"
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.background = "#F5C744";
+                              e.target.style.color = "white";
+                              e.target.style.transform = "translateY(-2px)";
+                              e.target.style.boxShadow = "0 4px 12px rgba(245, 199, 68, 0.3)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.background = "#FFF9E6";
+                              e.target.style.color = "#F5C744";
+                              e.target.style.transform = "translateY(0)";
+                              e.target.style.boxShadow = "none";
+                            }}
                           >
                             ✏️ Editar
                           </button>

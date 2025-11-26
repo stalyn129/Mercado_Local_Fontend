@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
 
 export default function DashboardVendedor() {
@@ -12,8 +11,7 @@ export default function DashboardVendedor() {
     productosDisponibles: 0
   });
   const [pedidosRecientes, setPedidosRecientes] = useState([]);
-  const navigate = useNavigate();
-  const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+  const API_BASE_URL = "http://localhost:8080";
 
   useEffect(() => {
     // Verificar autenticación
@@ -21,13 +19,14 @@ export default function DashboardVendedor() {
     const token = localStorage.getItem("authToken");
 
     if (!userData || !token || userData.rol !== "VENDEDOR") {
-      navigate("/login");
+      window.location.href = "/loginmodal";
       return;
     }
 
     setUser(userData);
-    cargarDatos(token, userData.id);
-  }, [navigate]);
+    // 🔥 CORRECCIÓN: usar idVendedor en lugar de id
+    cargarDatos(token, userData.idVendedor);
+  }, []);
 
   const cargarDatos = async (token, vendedorId) => {
     setLoading(true);
@@ -63,7 +62,6 @@ export default function DashboardVendedor() {
 
       if (pedidosResponse.ok) {
         const pedidosData = await pedidosResponse.json();
-        // Transformar datos al formato esperado
         const pedidosFormateados = pedidosData.map(pedido => ({
           id: pedido.id,
           numero: pedido.numero || pedido.id,
@@ -86,374 +84,350 @@ export default function DashboardVendedor() {
   };
 
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Comfortaa:wght@400;500;600&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap');
+    <div style={{ 
+      minHeight: "100vh",
+      background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)",
+      fontFamily: "inherit"
+    }}>
+      <div style={{ 
+        maxWidth: "1400px", 
+        margin: "0 auto", 
+        padding: "40px 20px",
+        paddingBottom: "80px"
+      }}>
+        
+        {/* Header Mejorado */}
+        <div style={{ 
+          background: "white",
+          borderRadius: "20px",
+          padding: "48px 32px",
+          marginBottom: "40px",
+          boxShadow: "0 4px 20px rgba(90, 143, 72, 0.12)",
+          textAlign: "center",
+          position: "relative",
+          overflow: "hidden"
+        }}>
+          <div style={{
+            position: "absolute",
+            top: "-50px",
+            right: "-50px",
+            width: "200px",
+            height: "200px",
+            background: "linear-gradient(135deg, #ECF2E3 0%, #DDE8D0 100%)",
+            borderRadius: "50%",
+            opacity: "0.5",
+            zIndex: "0"
+          }}></div>
+          <div style={{
+            position: "absolute",
+            bottom: "-30px",
+            left: "-30px",
+            width: "150px",
+            height: "150px",
+            background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
+            borderRadius: "50%",
+            opacity: "0.1",
+            zIndex: "0"
+          }}></div>
 
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
+          <div style={{ position: "relative", zIndex: "1" }}>
+            <div style={{
+              fontSize: "56px",
+              marginBottom: "16px",
+              filter: "drop-shadow(0 4px 8px rgba(90, 143, 72, 0.2))"
+            }}>
+              📊
+            </div>
+            <h1 style={{ 
+              fontSize: "42px", 
+              fontWeight: "800", 
+              color: "#2D3E2B",
+              marginBottom: "12px",
+              letterSpacing: "-0.5px",
+              lineHeight: "1.2"
+            }}>
+              Tablero Analítico
+            </h1>
+            <p style={{ 
+              color: "#6B7F69", 
+              fontSize: "16px",
+              margin: 0,
+              maxWidth: "600px",
+              marginLeft: "auto",
+              marginRight: "auto"
+            }}>
+              Gestiona tus ventas, productos y pedidos en un solo lugar
+            </p>
+          </div>
+        </div>
 
-        .dashboard-vendedor-container {
-          min-height: 100vh;
-          background: #faf8f3;
-          font-family: "Comfortaa", sans-serif;
-          padding: 40px 60px;
-        }
-
-        .dashboard-title {
-          font-family: "Playfair Display", serif;
-          font-size: 42px;
-          font-weight: 700;
-          color: #4a6050;
-          text-align: center;
-          margin-bottom: 40px;
-        }
-
-        /* ESTADÍSTICAS */
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-          gap: 25px;
-          margin-bottom: 40px;
-        }
-
-        .stat-card {
-          padding: 35px;
-          border-radius: 24px;
-          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-          transition: all 0.3s ease;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .stat-card::before {
-          content: "";
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 4px;
-          background: rgba(255, 255, 255, 0.3);
-        }
-
-        .stat-card:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-        }
-
-        .stat-card.ingresos {
-          background: linear-gradient(135deg, #f9d94a 0%, #f5c542 100%);
-        }
-
-        .stat-card.pedidos {
-          background: linear-gradient(135deg, #6b8e6e 0%, #5a7d5d 100%);
-          color: white;
-        }
-
-        .stat-card.productos {
-          background: linear-gradient(135deg, #5f8a7d 0%, #4f7a6d 100%);
-          color: white;
-        }
-
-        .stat-label {
-          font-size: 18px;
-          font-weight: 600;
-          margin-bottom: 10px;
-          opacity: 0.95;
-        }
-
-        .stat-value {
-          font-size: 52px;
-          font-weight: 700;
-          font-family: "Poppins", sans-serif;
-          line-height: 1;
-        }
-
-        /* BOTONES DE ACCIÓN */
-        .action-buttons {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 20px;
-          margin-bottom: 40px;
-        }
-
-        .action-btn {
-          padding: 20px 30px;
-          border-radius: 16px;
-          border: none;
-          font-weight: 600;
-          font-size: 16px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          font-family: "Comfortaa", sans-serif;
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-          color: white;
-        }
-
-        .action-btn:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
-        }
-
-        .btn-agregar {
-          background: linear-gradient(135deg, #8fac96 0%, #7a9c86 100%);
-        }
-
-        .btn-gestionar-productos {
-          background: linear-gradient(135deg, #7a9c86 0%, #6a8c76 100%);
-        }
-
-        .btn-gestionar {
-          background: linear-gradient(135deg, #6b8e6e 0%, #5a7d5d 100%);
-        }
-
-        .btn-analisis {
-          background: linear-gradient(135deg, #90aa99 0%, #7f9a89 100%);
-        }
-
-        .btn-resenas {
-          background: linear-gradient(135deg, #a0b8a8 0%, #90a898 100%);
-        }
-
-        /* CONTENIDO */
-        .content-section {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 30px;
-          margin-bottom: 40px;
-        }
-
-        .section-box {
-          background: white;
-          border-radius: 24px;
-          padding: 35px;
-          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
-        }
-
-        .section-title {
-          font-family: "Playfair Display", serif;
-          font-size: 28px;
-          font-weight: 700;
-          color: #4a6050;
-          margin-bottom: 25px;
-        }
-
-        /* PEDIDOS RECIENTES */
-        .pedido-item {
-          background: #f9f7f2;
-          border-radius: 14px;
-          padding: 20px;
-          margin-bottom: 15px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          transition: all 0.3s ease;
-          border-left: 4px solid transparent;
-        }
-
-        .pedido-item:hover {
-          transform: translateX(5px);
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-          border-left-color: #6b8e6e;
-        }
-
-        .pedido-info {
-          display: flex;
-          flex-direction: column;
-          gap: 5px;
-        }
-
-        .pedido-numero {
-          font-weight: 700;
-          color: #2d3e32;
-          font-size: 17px;
-        }
-
-        .pedido-cliente {
-          color: #666;
-          font-size: 14px;
-        }
-
-        .pedido-middle {
-          display: flex;
-          align-items: center;
-          gap: 15px;
-        }
-
-        .pedido-status {
-          padding: 8px 18px;
-          border-radius: 20px;
-          font-weight: 600;
-          font-size: 13px;
-        }
-
-        .status-enviado {
-          background: #c2dbc2;
-          color: #2d5a2d;
-        }
-
-        .status-pendiente {
-          background: #f9d94a;
-          color: #8a6f0f;
-        }
-
-        .pedido-precio {
-          font-weight: 700;
-          font-size: 19px;
-          color: #2d3e32;
-        }
-
-        /* ANALÍTICA PLACEHOLDER */
-        .chart-placeholder {
-          background: linear-gradient(135deg, #e8f5ea 0%, #d2e8d5 100%);
-          height: 350px;
-          border-radius: 16px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          font-size: 18px;
-          color: #4a6050;
-          font-weight: 600;
-          gap: 15px;
-        }
-
-        .chart-icon {
-          font-size: 72px;
-          opacity: 0.7;
-        }
-
-        .empty-state {
-          text-align: center;
-          padding: 40px;
-          color: #666;
-        }
-
-        .empty-state-icon {
-          font-size: 48px;
-          margin-bottom: 15px;
-        }
-
-        @media (max-width: 1024px) {
-          .content-section {
-            grid-template-columns: 1fr;
-          }
-        }
-
-        @media (max-width: 768px) {
-          .dashboard-vendedor-container {
-            padding: 30px 20px;
-          }
-
-          .dashboard-title {
-            font-size: 32px;
-          }
-
-          .stats-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .action-buttons {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
-
-      <div className="dashboard-vendedor-container">
-        <h1 className="dashboard-title">Tablero Analítico</h1>
-
-        {/* MOSTRAR ERROR SI EXISTE */}
+        {/* Error Message */}
         {error && (
-          <div className="error-container">
+          <div style={{
+            background: "#FFF0F2",
+            border: "2px solid #DA3E52",
+            borderRadius: "12px",
+            padding: "16px 24px",
+            marginBottom: "30px",
+            color: "#DA3E52",
+            fontWeight: "600",
+            textAlign: "center"
+          }}>
             ⚠️ {error}
           </div>
         )}
 
-        {/* MOSTRAR LOADING O CONTENIDO */}
+        {/* Loading State */}
         {loading ? (
-          <div className="loading-container">
-            <div className="loading-spinner"></div>
-            <span className="loading-text">Cargando datos...</span>
+          <div style={{ 
+            textAlign: "center", 
+            padding: "80px 20px",
+            color: "#6B7F69"
+          }}>
+            <div style={{ 
+              display: "inline-block",
+              width: "50px",
+              height: "50px",
+              border: "5px solid #ECF2E3",
+              borderTop: "5px solid #5A8F48",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite"
+            }}></div>
+            <p style={{ marginTop: "20px", fontSize: "16px", fontWeight: "600" }}>
+              Cargando datos...
+            </p>
           </div>
         ) : (
           <>
-            {/* ESTADÍSTICAS */}
-            <div className="stats-grid">
-              <div className="stat-card ingresos">
-                <div className="stat-label">Ingresos Totales</div>
-                <div className="stat-value">${stats.ingresosTotales.toFixed(2)}</div>
+            {/* Estadísticas */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: "24px",
+              marginBottom: "40px"
+            }}>
+              <div style={{
+                background: "linear-gradient(135deg, #F9D94A 0%, #F5C542 100%)",
+                borderRadius: "20px",
+                padding: "32px",
+                boxShadow: "0 8px 24px rgba(249, 217, 74, 0.3)",
+                transition: "transform 0.3s ease, box-shadow 0.3s ease"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-5px)";
+                e.currentTarget.style.boxShadow = "0 12px 32px rgba(249, 217, 74, 0.4)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 8px 24px rgba(249, 217, 74, 0.3)";
+              }}>
+                <div style={{ fontSize: "16px", fontWeight: "600", color: "#2D3E2B", marginBottom: "12px" }}>
+                  💰 Ingresos Totales
+                </div>
+                <div style={{ fontSize: "40px", fontWeight: "800", color: "#2D3E2B" }}>
+                  ${stats.ingresosTotales.toFixed(2)}
+                </div>
               </div>
-              <div className="stat-card pedidos">
-                <div className="stat-label">Pedidos</div>
-                <div className="stat-value">{stats.pedidos}</div>
+
+              <div style={{
+                background: "linear-gradient(135deg, #6B8E6E 0%, #5A7D5D 100%)",
+                borderRadius: "20px",
+                padding: "32px",
+                color: "white",
+                boxShadow: "0 8px 24px rgba(107, 142, 110, 0.3)",
+                transition: "transform 0.3s ease, box-shadow 0.3s ease"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-5px)";
+                e.currentTarget.style.boxShadow = "0 12px 32px rgba(107, 142, 110, 0.4)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 8px 24px rgba(107, 142, 110, 0.3)";
+              }}>
+                <div style={{ fontSize: "16px", fontWeight: "600", marginBottom: "12px", opacity: "0.95" }}>
+                  📦 Pedidos
+                </div>
+                <div style={{ fontSize: "40px", fontWeight: "800" }}>
+                  {stats.pedidos}
+                </div>
               </div>
-              <div className="stat-card productos">
-                <div className="stat-label">Productos Disponibles</div>
-                <div className="stat-value">{stats.productosDisponibles}</div>
+
+              <div style={{
+                background: "linear-gradient(135deg, #5F8A7D 0%, #4F7A6D 100%)",
+                borderRadius: "20px",
+                padding: "32px",
+                color: "white",
+                boxShadow: "0 8px 24px rgba(95, 138, 125, 0.3)",
+                transition: "transform 0.3s ease, box-shadow 0.3s ease"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-5px)";
+                e.currentTarget.style.boxShadow = "0 12px 32px rgba(95, 138, 125, 0.4)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 8px 24px rgba(95, 138, 125, 0.3)";
+              }}>
+                <div style={{ fontSize: "16px", fontWeight: "600", marginBottom: "12px", opacity: "0.95" }}>
+                  🛒 Productos Disponibles
+                </div>
+                <div style={{ fontSize: "40px", fontWeight: "800" }}>
+                  {stats.productosDisponibles}
+                </div>
               </div>
             </div>
 
-            {/* BOTONES DE ACCIÓN */}
-            <div className="action-buttons">
-              <button className="action-btn btn-agregar" onClick={() => navigate('/vendedor/agregar-producto')}>
-                ➕ Agregar Producto
-              </button>
-              <button className="action-btn btn-gestionar-productos" onClick={() => navigate('/vendedor/gestionar-productos')}>
-                📦 Gestionar Productos
-              </button>
-              <button className="action-btn btn-gestionar" onClick={() => navigate('/vendedor/pedidos')}>
-                📋 Gestionar Pedidos
-              </button>
-              <button className="action-btn btn-analisis" onClick={() => navigate('/vendedor/analisis')}>
-                📊 Análisis de Ventas
-              </button>
-              <button className="action-btn btn-resenas" onClick={() => navigate('/vendedor/resenas')}>
-                ⭐ Reseñas
-              </button>
+            {/* Botones de Acción */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: "16px",
+              marginBottom: "40px"
+            }}>
+              {[
+                { text: "➕ Agregar Producto", color: "#8FAC96", url: "/vendedor/agregar-producto" },
+                { text: "📦 Gestionar Productos", color: "#7A9C86", url: "/vendedor/gestionar-productos" },
+                { text: "📋 Gestionar Pedidos", color: "#6B8E6E", url: "/vendedor/pedidos" },
+                { text: "📊 Análisis de Ventas", color: "#90AA99", url: "/vendedor/analisis" },
+                { text: "⭐ Reseñas", color: "#A0B8A8", url: "/vendedor/resenas" }
+              ].map((btn, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => window.location.href = btn.url}
+                  style={{
+                    background: btn.color,
+                    color: "white",
+                    border: "none",
+                    borderRadius: "14px",
+                    padding: "18px 24px",
+                    fontSize: "15px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    transition: "all 0.3s ease",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = "translateY(-3px)";
+                    e.target.style.boxShadow = "0 8px 20px rgba(0,0,0,0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+                  }}
+                >
+                  {btn.text}
+                </button>
+              ))}
             </div>
 
-            {/* CONTENIDO */}
-            <div className="content-section">
-              {/* PEDIDOS RECIENTES */}
-              <div className="section-box">
-                <h2 className="section-title">Pedidos Recientes</h2>
+            {/* Contenido Principal */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(500px, 1fr))",
+              gap: "30px"
+            }}>
+              {/* Pedidos Recientes */}
+              <div style={{
+                background: "white",
+                borderRadius: "20px",
+                padding: "32px",
+                boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)"
+              }}>
+                <h2 style={{
+                  fontSize: "24px",
+                  fontWeight: "700",
+                  color: "#2D3E2B",
+                  marginBottom: "24px"
+                }}>
+                  📋 Pedidos Recientes
+                </h2>
+                
                 {pedidosRecientes.length > 0 ? (
                   pedidosRecientes.map((pedido) => (
-                    <div key={pedido.id} className="pedido-item">
-                      <div className="pedido-info">
-                        <span className="pedido-numero"># {pedido.numero}</span>
-                        <span className="pedido-cliente">{pedido.cliente}</span>
+                    <div key={pedido.id} style={{
+                      background: "#FAFCF8",
+                      borderRadius: "12px",
+                      padding: "20px",
+                      marginBottom: "12px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      transition: "all 0.3s ease",
+                      borderLeft: "4px solid transparent"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateX(5px)";
+                      e.currentTarget.style.borderLeftColor = "#6B8E6E";
+                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.1)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateX(0)";
+                      e.currentTarget.style.borderLeftColor = "transparent";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}>
+                      <div>
+                        <div style={{ fontWeight: "700", color: "#2D3E2B", fontSize: "16px" }}>
+                          #{pedido.numero}
+                        </div>
+                        <div style={{ color: "#6B7F69", fontSize: "13px", marginTop: "4px" }}>
+                          {pedido.cliente}
+                        </div>
                       </div>
-                      <div className="pedido-middle">
-                        <span className={`pedido-status status-${pedido.estado.toLowerCase()}`}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                        <span style={{
+                          background: pedido.estado.toLowerCase() === "enviado" ? "#C2DBC2" : "#FFF3E0",
+                          color: pedido.estado.toLowerCase() === "enviado" ? "#2D5A2D" : "#F5C744",
+                          padding: "6px 14px",
+                          borderRadius: "20px",
+                          fontSize: "12px",
+                          fontWeight: "700"
+                        }}>
                           {pedido.estado}
                         </span>
+                        <span style={{ fontWeight: "800", fontSize: "18px", color: "#2D3E2B" }}>
+                          ${pedido.total.toFixed(2)}
+                        </span>
                       </div>
-                      <span className="pedido-precio">${pedido.total.toFixed(2)}</span>
                     </div>
                   ))
                 ) : (
-                  <div className="empty-state">
-                    <div className="empty-state-icon">📦</div>
-                    <p>No hay pedidos recientes</p>
+                  <div style={{ textAlign: "center", padding: "40px", color: "#6B7F69" }}>
+                    <div style={{ fontSize: "48px", marginBottom: "16px" }}>📦</div>
+                    <p style={{ fontWeight: "600" }}>No hay pedidos recientes</p>
                   </div>
                 )}
               </div>
 
-              {/* ANALÍTICA */}
-              <div className="section-box">
-                <h2 className="section-title">Analítica</h2>
-                <div className="chart-placeholder">
-                  <div className="chart-icon">📊</div>
-                  <span>Gráficos de ventas y estadísticas</span>
+              {/* Analítica */}
+              <div style={{
+                background: "white",
+                borderRadius: "20px",
+                padding: "32px",
+                boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)"
+              }}>
+                <h2 style={{
+                  fontSize: "24px",
+                  fontWeight: "700",
+                  color: "#2D3E2B",
+                  marginBottom: "24px"
+                }}>
+                  📈 Analítica
+                </h2>
+                <div style={{
+                  background: "linear-gradient(135deg, #E8F5EA 0%, #D2E8D5 100%)",
+                  height: "300px",
+                  borderRadius: "16px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "16px"
+                }}>
+                  <div style={{ fontSize: "64px", opacity: "0.7" }}>📊</div>
+                  <span style={{ fontSize: "16px", fontWeight: "600", color: "#4A6050" }}>
+                    Gráficos de ventas y estadísticas
+                  </span>
                 </div>
               </div>
             </div>
@@ -461,8 +435,14 @@ export default function DashboardVendedor() {
         )}
       </div>
 
-      {/* FOOTER */}
       <Footer />
-    </>
+
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
   );
 }
