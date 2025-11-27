@@ -51,14 +51,15 @@ export default function AgregarProducto() {
         const response = await fetch(`${API_URL}/categorias/listar`);
         if (!response.ok) throw new Error(`Error: ${response.status}`);
         const data = await response.json();
+        console.log("✅ Categorías cargadas:", data);
         setCategorias(Array.isArray(data) ? data : data.data || []);
       } catch (err) {
-        console.error("Error cargando categorías:", err);
+        console.error("❌ Error cargando categorías:", err);
         setCategorias([]);
       }
     };
     cargarCategorias();
-  }, []);
+  }, []); // ✅ Sin dependencias adicionales
 
   useEffect(() => {
     if (!form.idCategoria) {
@@ -119,32 +120,39 @@ export default function AgregarProducto() {
     setLoading(true);
 
     try {
+      // PASO 1: Subir la imagen y obtener la URL
       console.log("📤 Subiendo imagen...");
       const formData = new FormData();
       formData.append("file", selectedImageFile);
 
       const uploadResponse = await fetch(`${API_URL}/uploads/producto`, {
         method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        },
         body: formData
       });
 
       if (!uploadResponse.ok) {
-        throw new Error("Error al subir la imagen");
+        const errorText = await uploadResponse.text();
+        throw new Error(`Error al subir imagen: ${errorText}`);
       }
 
       const imageUrl = await uploadResponse.text();
       console.log("✅ Imagen subida:", imageUrl);
 
+      // PASO 2: Crear el producto con JSON (incluyendo URL de imagen)
       console.log("📦 Creando producto...");
       const body = {
-        idUsuario: user.id || user.idUsuario,
-        idVendedor: user.id || user.idVendedor,
+        idUsuario: user.idUsuario || user.idVendedor || user.id,
+        idVendedor: user.idVendedor || user.idUsuario || user.id,
         idSubcategoria: parseInt(form.idSubcategoria),
         nombreProducto: form.nombreProducto,
         descripcionProducto: form.descripcionProducto,
         precioProducto: parseFloat(form.precioProducto),
         stockProducto: parseInt(form.stockProducto),
-        imagenProducto: imageUrl
+        unidad: form.unidad,
+        imagenProducto: imageUrl // ✅ URL de la imagen
       };
 
       console.log("📦 Payload enviado:", body);
