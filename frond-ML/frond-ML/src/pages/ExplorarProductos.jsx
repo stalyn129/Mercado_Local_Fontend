@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useCarrito } from "../context/CarritoContext.jsx";
 import Footer from "../components/Footer";
 
 export default function ExplorarProductos() {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+  const navigate = useNavigate();
+  const { agregarCarrito } = useCarrito();
 
   // ==================== STATES ====================
   const [productos, setProductos] = useState([]);
@@ -350,6 +354,7 @@ export default function ExplorarProductos() {
               {productosFiltrados.map(p => (
                 <div
                   key={p.idProducto}
+                  onClick={() => navigate(`/producto/${p.idProducto}`)}
                   style={{
                     background: "white",
                     borderRadius: "16px",
@@ -436,6 +441,7 @@ export default function ExplorarProductos() {
                       </div>
 
                       <button
+                        onClick={() => agregarCarrito(p)}
                         style={{
                           width: "100%",
                           padding: "14px",

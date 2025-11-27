@@ -40,7 +40,8 @@ export default function EditarProducto() {
         subcategoria: typeof data.subcategoria === 'object' && data.subcategoria !== null
           ? data.subcategoria
           : { idSubcategoria: data.idSubcategoria },
-        idCategoria: data.subcategoria?.idCategoria || data.idCategoria
+        idCategoria: data.subcategoria?.idCategoria || data.idCategoria,
+        unidad: data.unidad || "kg" // Asegurar que tenga un valor por defecto
       };
       
       setProducto(productoNormalizado);
@@ -83,6 +84,7 @@ export default function EditarProducto() {
     formData.append("descripcionProducto", producto.descripcionProducto);
     formData.append("precioProducto", producto.precioProducto);
     formData.append("stockProducto", producto.stockProducto);
+    formData.append("unidad", producto.unidad); // ✅ Agregar unidad
     formData.append("idSubcategoria", producto.subcategoria.idSubcategoria);
     formData.append("idUsuario", vendedor.idUsuario);
 
@@ -373,6 +375,12 @@ export default function EditarProducto() {
           gap: clamp(18px, 3vw, 28px);
         }
 
+        .form-row-3 {
+          display: grid;
+          grid-template-columns: 1.2fr 1fr 0.9fr;
+          gap: clamp(18px, 3vw, 28px);
+        }
+
         .price-input-wrapper {
           position: relative;
         }
@@ -469,7 +477,8 @@ export default function EditarProducto() {
             max-height: 300px;
           }
 
-          .form-row {
+          .form-row,
+          .form-row-3 {
             grid-template-columns: 1fr;
           }
 
@@ -480,6 +489,12 @@ export default function EditarProducto() {
           .save-btn,
           .cancel-btn {
             width: 100%;
+          }
+        }
+
+        @media (min-width: 641px) and (max-width: 900px) {
+          .form-row-3 {
+            grid-template-columns: 1fr 1fr;
           }
         }
       `}</style>
@@ -679,7 +694,7 @@ export default function EditarProducto() {
                     >
                       <option value="">
                         {producto.idCategoria 
-                          ? "Seleccione categoría" 
+                          ? "Seleccione subcategoría" 
                           : "Seleccione categoría"}
                       </option>
                       {subcategorias.map(s => (
@@ -699,7 +714,7 @@ export default function EditarProducto() {
                   Precio y Disponibilidad
                 </h3>
                 
-                <div className="form-row">
+                <div className="form-row-3">
                   <div className="form-group">
                     <label className="form-label">
                       Precio <span className="required-mark">*</span>
@@ -728,6 +743,21 @@ export default function EditarProducto() {
                       value={producto.stockProducto || ""} 
                       onChange={(e) => setProducto({...producto, stockProducto: e.target.value})}
                     />
+                  </div>
+
+                  {/* ✅ NUEVO CAMPO UNIDAD */}
+                  <div className="form-group">
+                    <label className="form-label">Unidad</label>
+                    <select
+                      className="form-select"
+                      value={producto.unidad || "kg"}
+                      onChange={(e) => setProducto({...producto, unidad: e.target.value})}
+                    >
+                      <option value="kg">kg</option>
+                      <option value="lb">lb</option>
+                      <option value="unidad">unidad</option>
+                      <option value="litro">litro</option>
+                    </select>
                   </div>
                 </div>
               </div>
