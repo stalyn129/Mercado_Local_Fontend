@@ -4,8 +4,11 @@ import Footer from "../components/Footer";
 export default function Home() {
   const [searchValue, setSearchValue] = useState("");
   const [hoveredIndex, setHoveredIndex] = useState(null);
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
   const [scrollY, setScrollY] = useState(0);
+  
+  // 🔥 NUEVO: Estado para productos del backend
+  const [productos, setProductos] = useState([]);
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -13,7 +16,18 @@ export default function Home() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-   const demoImages = [
+  // 🔥 NUEVO: Fetch de productos reales desde el backend
+  useEffect(() => {
+    fetch("http://localhost:8080/productos/top") 
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("📦 Productos cargados desde backend:", data);
+        setProductos(data);
+      })
+      .catch((err) => console.log("❌ Error cargando productos:", err));
+  }, []);
+
+  const demoImages = [
     "https://i.imgur.com/2XzQmK5.jpeg",
     "https://i.imgur.com/81nqHKl.jpeg",
     "https://i.imgur.com/8pQ9o5Z.jpeg",
@@ -146,22 +160,24 @@ export default function Home() {
   };
 
   const gridItemStyle = (index) => ({
-    borderRadius: "16px",
+    borderRadius: "20px",
     overflow: "hidden",
-    boxShadow: "0 6px 20px rgba(0, 0, 0, 0.1)",
-    transition: "all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.12)",
+    transition: "all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
     cursor: "pointer",
     position: "relative",
     backgroundColor: "#fff",
     animation: `slideIn 0.6s ease-out ${index * 0.08}s forwards`,
     opacity: 0,
     transformOrigin: "center",
+    border: "3px solid transparent",
   });
 
   const gridItemHoverStyle = {
-    transform: "translateY(-16px) scale(1.02)",
-    boxShadow: "0 20px 48px rgba(107, 142, 78, 0.28)",
-    filter: "brightness(1.08)",
+    transform: "translateY(-20px) scale(1.05) rotateZ(2deg)",
+    boxShadow: "0 25px 60px rgba(107, 142, 78, 0.35)",
+    filter: "brightness(1.1) saturate(1.2)",
+    borderColor: "#6b8e4e",
   };
 
   const imageWrapperStyle = {
@@ -175,22 +191,26 @@ export default function Home() {
     height: "100%",
     objectFit: "cover",
     display: "block",
-    transition: "transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+    transition: "transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
+    filter: "saturate(0.95)",
   };
 
   const imageBadgeStyle = {
     position: "absolute",
-    top: "12px",
-    right: "12px",
-    background: "rgba(107, 142, 78, 0.9)",
+    top: "14px",
+    right: "14px",
+    background: "linear-gradient(135deg, rgba(107, 142, 78, 0.95) 0%, rgba(90, 122, 61, 0.95) 100%)",
     color: "#fff",
-    padding: "0.4rem 0.8rem",
-    borderRadius: "20px",
-    fontSize: "0.75rem",
-    fontWeight: "700",
+    padding: "8px 16px",
+    borderRadius: "25px",
+    fontSize: "0.85rem",
+    fontWeight: "800",
     opacity: 0,
-    transition: "opacity 0.3s ease",
-    backdropFilter: "blur(8px)",
+    transition: "all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+    backdropFilter: "blur(10px)",
+    boxShadow: "0 6px 20px rgba(107, 142, 78, 0.4)",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
   };
 
   const imageOverlayStyle = {
@@ -199,9 +219,22 @@ export default function Home() {
     left: "0",
     right: "0",
     bottom: "0",
-    background: "linear-gradient(135deg, rgba(107, 142, 78, 0.05) 0%, rgba(58, 90, 64, 0.1) 100%)",
+    background: "linear-gradient(135deg, rgba(107, 142, 78, 0.1) 0%, rgba(58, 90, 64, 0.2) 100%)",
     opacity: 0,
-    transition: "opacity 0.3s ease",
+    transition: "opacity 0.4s ease",
+  };
+
+  // 🔥 NUEVO: Estilo para info del producto que aparece al hover
+  const productInfoOverlayStyle = {
+    position: "absolute",
+    bottom: "0",
+    left: "0",
+    right: "0",
+    background: "linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.5) 70%, transparent 100%)",
+    padding: "20px 16px 16px",
+    transform: "translateY(100%)",
+    transition: "transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+    backdropFilter: "blur(8px)",
   };
 
   const getImageHeight = (index) => {
@@ -210,7 +243,7 @@ export default function Home() {
   };
 
   const modalStyle = {
-    display: selectedImage !== null ? "flex" : "none",
+    display: selectedProduct !== null ? "flex" : "none",
     position: "fixed",
     top: "0",
     left: "0",
@@ -220,18 +253,23 @@ export default function Home() {
     zIndex: "2000",
     alignItems: "center",
     justifyContent: "center",
-    backdropFilter: "blur(6px)",
+    backdropFilter: "blur(8px)",
     animation: "fadeIn 0.3s ease",
+    padding: "20px",
   };
 
   const modalContentStyle = {
     position: "relative",
-    maxWidth: "90vh",
+    maxWidth: "900px",
+    width: "100%",
     maxHeight: "90vh",
-    borderRadius: "20px",
+    borderRadius: "24px",
     overflow: "hidden",
     boxShadow: "0 25px 60px rgba(0, 0, 0, 0.5)",
-    animation: "scaleIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+    animation: "modalSlideIn 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+    background: "white",
+    display: "flex",
+    flexDirection: "row",
   };
 
   const closeButtonStyle = {
@@ -311,6 +349,26 @@ export default function Home() {
           }
         }
 
+        @keyframes modalSlideIn {
+          from {
+            transform: scale(0.9) translateY(50px);
+            opacity: 0;
+          }
+          to {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+          }
+        }
+
+        @keyframes pulse {
+          0%, 100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.05);
+          }
+        }
+
         .hero-section {
           animation: slideInUp 0.6s ease-out;
         }
@@ -335,15 +393,78 @@ export default function Home() {
         .grid-item:nth-child(14) { animation-delay: 1.56s !important; }
 
         .grid-item:hover .grid-image {
-          transform: scale(1.12) !important;
+          transform: scale(1.2) rotate(3deg) !important;
+          filter: saturate(1.1) brightness(1.05) !important;
         }
 
         .grid-item:hover .image-badge {
           opacity: 1 !important;
+          transform: translateY(-4px) scale(1.1) !important;
         }
 
         .grid-item:hover .image-overlay {
           opacity: 1 !important;
+        }
+
+        .grid-item:hover .product-info-overlay {
+          transform: translateY(0) !important;
+        }
+
+        .grid-item::before {
+          content: '';
+          position: absolute;
+          top: -2px;
+          left: -2px;
+          right: -2px;
+          bottom: -2px;
+          background: linear-gradient(135deg, #6b8e4e, #f4e8c1, #3a5a40);
+          border-radius: 22px;
+          opacity: 0;
+          transition: opacity 0.4s ease;
+          z-index: -1;
+        }
+
+        .grid-item:hover::before {
+          opacity: 1;
+          animation: borderGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes borderGlow {
+          0%, 100% {
+            filter: brightness(1);
+          }
+          50% {
+            filter: brightness(1.3);
+          }
+        }
+
+        @keyframes shimmer {
+          0% {
+            background-position: -1000px 0;
+          }
+          100% {
+            background-position: 1000px 0;
+          }
+        }
+
+        .grid-item::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.3),
+            transparent
+          );
+          transition: left 0.6s ease;
+        }
+
+        .grid-item:hover::after {
+          left: 100%;
         }
 
         input::placeholder {
@@ -459,7 +580,17 @@ export default function Home() {
 
           .modal-content {
             max-width: 95vw !important;
-            max-height: 95vh !important;
+            flex-direction: column !important;
+          }
+
+          .modal-image-section {
+            width: 100% !important;
+            height: 300px !important;
+          }
+
+          .modal-info-section {
+            width: 100% !important;
+            max-height: none !important;
           }
 
           .decor-line {
@@ -536,31 +667,60 @@ export default function Home() {
       <div style={homeStyle}>
         {/* HERO SECTION CON PARALLAX */}
         <div style={heroStyle} className="hero-section">
-          {/* FONDO CON IMÁGENES MOVIBLES */}
+          {/* FONDO CON IMÁGENES MOVIBLES - PRODUCTOS REALES O DEMO */}
           <div style={heroBackgroundStyle} className="hero-background">
-            {demoImages.slice(0, 12).map((img, i) => (
-              <div
-                key={`bg-${i}`}
-                style={{
-                  borderRadius: "12px",
-                  overflow: "hidden",
-                  height: "150px",
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-                  position: "relative",
-                }}
-              >
-                <img
-                  src={img}
-                  alt="fondo"
+            {/* 🔥 Si hay productos del backend, mostrarlos, sino usar demo */}
+            {(productos.length > 0 ? productos.slice(0, 12) : demoImages.slice(0, 12)).map((item, i) => {
+              const imgSrc = productos.length > 0 ? item.imagenProducto : item;
+              return (
+                <div
+                  key={`bg-${i}`}
                   style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    filter: "saturate(0.8) brightness(0.9)",
+                    borderRadius: "12px",
+                    overflow: "hidden",
+                    height: "150px",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                    position: "relative",
+                    transition: "transform 0.3s ease",
                   }}
-                />
-              </div>
-            ))}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "scale(1.05)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "scale(1)";
+                  }}
+                >
+                  <img
+                    src={imgSrc}
+                    alt={productos.length > 0 ? item.nombreProducto : "fondo"}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      filter: "saturate(0.8) brightness(0.9)",
+                    }}
+                  />
+                  {/* Badge opcional para productos reales */}
+                  {productos.length > 0 && (
+                    <div style={{
+                      position: "absolute",
+                      bottom: "8px",
+                      left: "8px",
+                      background: "rgba(107, 142, 78, 0.85)",
+                      color: "white",
+                      padding: "4px 10px",
+                      borderRadius: "12px",
+                      fontSize: "0.7rem",
+                      fontWeight: "700",
+                      backdropFilter: "blur(4px)",
+                      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+                    }}>
+                      ${item.precioProducto}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* CONTENIDO CENTRAL */}
@@ -631,71 +791,104 @@ export default function Home() {
           </p>
 
           <div style={productGridStyle} className="product-grid">
-            {demoImages.map((img, i) => (
-              <div
-                key={i}
-                style={
-                  hoveredIndex === i
-                    ? { ...gridItemStyle(i), ...gridItemHoverStyle }
-                    : gridItemStyle(i)
-                }
-                className="grid-item"
-                onMouseEnter={() => setHoveredIndex(i)}
-                onMouseLeave={() => setHoveredIndex(null)}
-                onClick={() => setSelectedImage(i)}
-              >
+            {/* 🔥 Si aún no hay respuesta, mostramos 12 imágenes de demo */}
+            {productos.length === 0 &&
+              demoImages.slice(0, 12).map((img, i) => (
                 <div
-                  style={{
-                    ...imageWrapperStyle,
-                    height: `${getImageHeight(i)}px`,
-                  }}
+                  key={i}
+                  style={
+                    hoveredIndex === i
+                      ? { ...gridItemStyle(i), ...gridItemHoverStyle }
+                      : gridItemStyle(i)
+                  }
+                  className="grid-item"
                 >
-                  <img
-                    src={img}
-                    alt="producto"
-                    style={imageStyle}
-                    className="grid-image"
-                  />
-                  <div style={imageOverlayStyle} className="image-overlay"></div>
                   <div
-                    style={imageBadgeStyle}
-                    className="image-badge"
+                    style={{
+                      ...imageWrapperStyle,
+                      height: `${getImageHeight(i)}px`,
+                    }}
                   >
-                    Ver más
+                    <img src={img} style={imageStyle} className="grid-image" alt="demo" />
+                    <div style={imageBadgeStyle} className="image-badge">
+                      🌱 Producto Demo
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+
+            {/* 🔥 Cuando el backend responde, mostramos productos reales */}
+            {productos.length > 0 &&
+              productos.map((p, i) => (
+                <div
+                  key={p.idProducto}
+                  style={
+                    hoveredIndex === i
+                      ? { ...gridItemStyle(i), ...gridItemHoverStyle }
+                      : gridItemStyle(i)
+                  }
+                  className="grid-item"
+                  onMouseEnter={() => setHoveredIndex(i)}
+                  onMouseLeave={() => setHoveredIndex(null)}
+                  onClick={() => setSelectedProduct(p)}
+                >
+                  <div
+                    style={{
+                      ...imageWrapperStyle,
+                      height: `${getImageHeight(i)}px`,
+                    }}
+                  >
+                    <img
+                      src={p.imagenProducto}
+                      alt={p.nombreProducto}
+                      style={imageStyle}
+                      className="grid-image"
+                    />
+
+                    <div style={imageOverlayStyle} className="image-overlay"></div>
+
+                    <div style={imageBadgeStyle} className="image-badge">
+                      ⭐ Ver más
+                    </div>
+                  </div>
+                </div>
+              ))}
           </div>
         </div>
       </div>
 
-      {/* MODAL VISUALIZADOR */}
-      <div
-        style={modalStyle}
-        onClick={() => setSelectedImage(null)}
-      >
+      {/* MODAL VISUALIZADOR MEJORADO CON DATOS REALES */}
+      <div style={modalStyle} onClick={() => setSelectedProduct(null)}>
         <div
           style={modalContentStyle}
           className="modal-content"
           onClick={(e) => e.stopPropagation()}
         >
-          {selectedImage !== null && (
+          {selectedProduct && (
             <>
-              <img
-                src={demoImages[selectedImage]}
-                alt="producto grande"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
-                }}
-              />
+              {/* BOTÓN CERRAR */}
               <button
-                style={closeButtonStyle}
+                style={{
+                  position: "absolute",
+                  top: "20px",
+                  right: "20px",
+                  background: "rgba(255, 255, 255, 0.95)",
+                  border: "none",
+                  width: "50px",
+                  height: "50px",
+                  borderRadius: "50%",
+                  fontSize: "1.8rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.3s ease",
+                  boxShadow: "0 6px 20px rgba(0, 0, 0, 0.2)",
+                  zIndex: "2001",
+                  fontWeight: "bold",
+                }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "#6b8e4e";
+                  e.currentTarget.style.background = "#DA3E52";
                   e.currentTarget.style.color = "#fff";
                   e.currentTarget.style.transform = "scale(1.15) rotate(90deg)";
                 }}
@@ -704,10 +897,292 @@ export default function Home() {
                   e.currentTarget.style.color = "#333";
                   e.currentTarget.style.transform = "scale(1) rotate(0deg)";
                 }}
-                onClick={() => setSelectedImage(null)}
+                onClick={() => setSelectedProduct(null)}
               >
                 ✕
               </button>
+
+              {/* SECCIÓN IZQUIERDA: IMAGEN */}
+              <div
+                className="modal-image-section"
+                style={{
+                  width: "45%",
+                  background: "linear-gradient(135deg, #f5f2e8 0%, #faf7ef 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "30px",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                {/* Decoración de fondo */}
+                <div style={{
+                  position: "absolute",
+                  top: "-50px",
+                  right: "-50px",
+                  width: "150px",
+                  height: "150px",
+                  background: "rgba(107, 142, 78, 0.1)",
+                  borderRadius: "50%",
+                }}></div>
+                <div style={{
+                  position: "absolute",
+                  bottom: "-30px",
+                  left: "-30px",
+                  width: "120px",
+                  height: "120px",
+                  background: "rgba(244, 232, 193, 0.3)",
+                  borderRadius: "50%",
+                }}></div>
+
+                <img
+                  src={selectedProduct.imagenProducto}
+                  alt={selectedProduct.nombreProducto}
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: "100%",
+                    objectFit: "contain",
+                    borderRadius: "16px",
+                    boxShadow: "0 12px 40px rgba(0, 0, 0, 0.15)",
+                    position: "relative",
+                    zIndex: "1",
+                    animation: "pulse 2s ease-in-out infinite",
+                  }}
+                />
+
+                {/* Badge de stock */}
+                {selectedProduct.stockProducto > 0 && (
+                  <div style={{
+                    position: "absolute",
+                    top: "30px",
+                    left: "30px",
+                    background: selectedProduct.stockProducto > 10 
+                      ? "linear-gradient(135deg, #6b8e4e 0%, #5a7a3d 100%)" 
+                      : "linear-gradient(135deg, #F5C744 0%, #E6B526 100%)",
+                    color: "white",
+                    padding: "8px 16px",
+                    borderRadius: "20px",
+                    fontSize: "0.85rem",
+                    fontWeight: "700",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+                    zIndex: "2",
+                  }}>
+                    {selectedProduct.stockProducto > 10 
+                      ? `✓ ${selectedProduct.stockProducto} disponibles` 
+                      : `⚡ Solo ${selectedProduct.stockProducto} disponibles`}
+                  </div>
+                )}
+              </div>
+
+              {/* SECCIÓN DERECHA: INFORMACIÓN */}
+              <div
+                className="modal-info-section"
+                style={{
+                  width: "55%",
+                  padding: "40px",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  background: "white",
+                  maxHeight: "90vh",
+                  overflowY: "auto",
+                }}
+              >
+                {/* Header: Categoría */}
+                <div>
+                  <div style={{
+                    display: "flex",
+                    gap: "8px",
+                    marginBottom: "16px",
+                    flexWrap: "wrap",
+                  }}>
+                    {selectedProduct.nombreCategoria && (
+                      <span style={{
+                        background: "#ECF2E3",
+                        color: "#3a5a40",
+                        padding: "6px 14px",
+                        borderRadius: "16px",
+                        fontSize: "0.8rem",
+                        fontWeight: "600",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                      }}>
+                        {selectedProduct.nombreCategoria}
+                      </span>
+                    )}
+                    {selectedProduct.nombreSubcategoria && (
+                      <span style={{
+                        background: "#F4E8C1",
+                        color: "#6b8e4e",
+                        padding: "6px 14px",
+                        borderRadius: "16px",
+                        fontSize: "0.8rem",
+                        fontWeight: "600",
+                      }}>
+                        {selectedProduct.nombreSubcategoria}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Nombre del producto */}
+                  <h2 style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: "2rem",
+                    fontWeight: "700",
+                    color: "#2D3E2B",
+                    marginBottom: "12px",
+                    lineHeight: "1.2",
+                  }}>
+                    {selectedProduct.nombreProducto}
+                  </h2>
+
+                  {/* Precio */}
+                  <div style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: "8px",
+                    marginBottom: "24px",
+                  }}>
+                    <span style={{
+                      fontSize: "2.5rem",
+                      fontWeight: "800",
+                      color: "#5A8F48",
+                      fontFamily: "'Poppins', sans-serif",
+                    }}>
+                      ${selectedProduct.precioProducto}
+                    </span>
+                    <span style={{
+                      fontSize: "1rem",
+                      color: "#6B7F69",
+                      fontWeight: "500",
+                    }}>
+                      {selectedProduct.unidadMedida || "por unidad"}
+                    </span>
+                  </div>
+
+                  {/* Separador decorativo */}
+                  <div style={{
+                    width: "60px",
+                    height: "3px",
+                    background: "linear-gradient(90deg, #6b8e4e 0%, #f4e8c1 100%)",
+                    borderRadius: "2px",
+                    marginBottom: "24px",
+                  }}></div>
+
+                  {/* Descripción */}
+                  {selectedProduct.descripcionProducto && (
+                    <div style={{ marginBottom: "24px" }}>
+                      <h3 style={{
+                        fontSize: "0.95rem",
+                        fontWeight: "700",
+                        color: "#2D3E2B",
+                        marginBottom: "10px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                      }}>
+                        Descripción
+                      </h3>
+                      <p style={{
+                        fontSize: "0.95rem",
+                        color: "#6B7F69",
+                        lineHeight: "1.7",
+                        fontFamily: "'Comfortaa', sans-serif",
+                      }}>
+                        {selectedProduct.descripcionProducto}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Información del vendedor */}
+                  {selectedProduct.nombreVendedor && (
+                    <div style={{
+                      background: "#FAFCF8",
+                      padding: "16px 20px",
+                      borderRadius: "12px",
+                      marginBottom: "24px",
+                      border: "2px solid #ECF2E3",
+                    }}>
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                      }}>
+                        <div style={{
+                          width: "48px",
+                          height: "48px",
+                          borderRadius: "50%",
+                          background: "linear-gradient(135deg, #6b8e4e 0%, #5a7a3d 100%)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "1.5rem",
+                          boxShadow: "0 4px 12px rgba(107, 142, 78, 0.3)",
+                        }}>
+                          🌾
+                        </div>
+                        <div>
+                          <p style={{
+                            fontSize: "0.75rem",
+                            color: "#6B7F69",
+                            marginBottom: "2px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
+                            fontWeight: "600",
+                          }}>
+                            Vendido por
+                          </p>
+                          <p style={{
+                            fontSize: "1rem",
+                            fontWeight: "700",
+                            color: "#2D3E2B",
+                            margin: 0,
+                          }}>
+                            {selectedProduct.nombreVendedor}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer: Botón de acción */}
+                <button
+                  style={{
+                    width: "100%",
+                    background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
+                    color: "white",
+                    padding: "18px 32px",
+                    fontWeight: "700",
+                    borderRadius: "14px",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: "1.1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "12px",
+                    boxShadow: "0 8px 24px rgba(90, 143, 72, 0.35)",
+                    transition: "all 0.3s ease",
+                    fontFamily: "'Poppins', sans-serif",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = "translateY(-3px)";
+                    e.target.style.boxShadow = "0 12px 32px rgba(90, 143, 72, 0.45)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow = "0 8px 24px rgba(90, 143, 72, 0.35)";
+                  }}
+                  onClick={() => {
+                    // Aquí puedes redirigir a la página de detalle del producto
+                    window.location.href = `/producto/${selectedProduct.idProducto}`;
+                  }}
+                >
+                  <span style={{ fontSize: "1.3rem" }}>🛒</span>
+                  Ver Producto Completo
+                </button>
+              </div>
             </>
           )}
         </div>
