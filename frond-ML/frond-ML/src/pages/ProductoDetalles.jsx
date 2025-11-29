@@ -41,8 +41,8 @@ export default function ProductoDetalle() {
   }
 
   const agregarFavorito = async () => {
-    const token = localStorage.getItem("token");
-    const usuario = JSON.parse(localStorage.getItem("usuario"));
+    const token = localStorage.getItem("authToken");
+    const usuario = JSON.parse(localStorage.getItem("user"));
     if (!token) return navigate("/login");
 
     const body = {
@@ -73,8 +73,8 @@ export default function ProductoDetalle() {
   };
 
   const comprarAhora = async () => {
-    const token = localStorage.getItem("token");
-    const usuario = JSON.parse(localStorage.getItem("usuario"));
+    const token = localStorage.getItem("authToken");
+    const usuario = JSON.parse(localStorage.getItem("user"));
 
     if (!token) return navigate("/login");
 
@@ -103,34 +103,38 @@ export default function ProductoDetalle() {
   };
 
   const enviarReseña = async () => {
-    const token = localStorage.getItem("token");
-    const usuario = JSON.parse(localStorage.getItem("usuario"));
+    const token = localStorage.getItem("authToken");
+    const usuario = JSON.parse(localStorage.getItem("user"));
 
-    if (!token) return alert("Debes iniciar sesión");
+    if (!token || !usuario?.idConsumidor) {
+      alert("Debes iniciar sesión como CONSUMIDOR");
+      return;
+    }
 
-    const body = {
-      idProducto: producto.idProducto,
-      idConsumidor: usuario.idConsumidor,
-      calificacion: Number(nuevaValoracion),
-      comentario: nuevoComentario
-    };
+    try {
+      const res = await fetch(`${API_URL}/valoraciones/crear`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          idProducto: producto.idProducto,
+          idConsumidor: usuario.idConsumidor,   // 🔥 AHORA SÍ EXISTE
+          calificacion: nuevaValoracion,
+          comentario: nuevoComentario
+        })
+      });
 
-    const res = await fetch(`${API_URL}/valoraciones/crear`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify(body)
-    });
+      if (!res.ok) throw new Error();
 
-    if (res.ok) {
-      alert("⭐ Reseña guardada");
+      alert("Reseña enviada 🎉");
       setNuevoComentario("");
       setNuevaValoracion(5);
-      getProducto(); // refresca sin recargar toda la página
-    } else {
-      alert("No se pudo registrar la reseña");
+      getProducto();
+
+    } catch (e) {
+      alert("Error al enviar reseña");
     }
   };
 
