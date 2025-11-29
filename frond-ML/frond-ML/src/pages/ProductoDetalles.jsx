@@ -17,17 +17,18 @@ export default function ProductoDetalle() {
   const [showReembolso, setShowReembolso] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const getProducto = async () => {
+    try {
+      const res = await fetch(`${API_URL}/productos/detalle/${id}`);
+      const data = await res.json();
+      setProducto(data);
+      setImgSeleccionada(data.imagenProducto);
+    } catch (err) {
+      console.log("Error obteniendo detalle:", err);
+    }
+  };
+
   useEffect(() => {
-    const getProducto = async () => {
-      try {
-        const res = await fetch(`${API_URL}/productos/detalle/${id}`);
-        const data = await res.json();
-        setProducto(data);
-        setImgSeleccionada(data.imagenProducto);
-      } catch (err) {
-        console.log("Error obteniendo detalle:", err);
-      }
-    };
     getProducto();
   }, [id]);
 
@@ -39,20 +40,78 @@ export default function ProductoDetalle() {
     );
   }
 
-  const handleFavorito = () => setFavorito(!favorito);
+  const agregarFavorito = async () => {
+    const token = localStorage.getItem("token");
+    const usuario = JSON.parse(localStorage.getItem("usuario"));
+    if (!token) return navigate("/login");
+
+    const body = {
+      idConsumidor: usuario.idConsumidor,
+      idProducto: producto.idProducto
+    };
+
+    const res = await fetch(`${API_URL}/favoritos/agregar`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (res.ok) {
+      setFavorito(true);
+      alert("Producto agregado a favoritos ❤️");
+    } else {
+      alert("No se pudo agregar a favoritos");
+    }
+  };
 
   const handleAddCarrito = () => {
     const token = localStorage.getItem("token");
     if (!token) return navigate("/login");
   };
 
+  const comprarAhora = async () => {
+    const token = localStorage.getItem("token");
+    const usuario = JSON.parse(localStorage.getItem("usuario"));
+
+    if (!token) return navigate("/login");
+
+    const body = {
+      idConsumidor: usuario.idConsumidor,
+      idVendedor: producto.idVendedor,
+      metodoPago: "TARJETA"
+    };
+
+    const res = await fetch(`${API_URL}/pedidos/comprar-ahora`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (res.ok) {
+      const pedido = await res.json();
+      alert("Compra realizada correctamente 🎉");
+      navigate(`/pedido/${pedido.idPedido}`);
+    } else {
+      alert("Error al procesar compra");
+    }
+  };
+
   const enviarReseña = async () => {
     const token = localStorage.getItem("token");
+    const usuario = JSON.parse(localStorage.getItem("usuario"));
+
     if (!token) return alert("Debes iniciar sesión");
-    
+
     const body = {
       idProducto: producto.idProducto,
-      calificacion: nuevaValoracion,
+      idConsumidor: usuario.idConsumidor,
+      calificacion: Number(nuevaValoracion),
       comentario: nuevoComentario
     };
 
@@ -66,10 +125,12 @@ export default function ProductoDetalle() {
     });
 
     if (res.ok) {
-      alert("Reseña registrada ✔");
+      alert("⭐ Reseña guardada");
       setNuevoComentario("");
       setNuevaValoracion(5);
-      window.location.reload();
+      getProducto(); // refresca sin recargar toda la página
+    } else {
+      alert("No se pudo registrar la reseña");
     }
   };
 
@@ -320,7 +381,7 @@ export default function ProductoDetalle() {
                 🛒 Carrito
               </button>
               <button
-                onClick={handleAddCarrito}
+                onClick={comprarAhora}
                 style={{
                   background: "#2D3E2B",
                   color: "white",
@@ -348,7 +409,7 @@ export default function ProductoDetalle() {
             {/* Botones Secundarios */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
               <button
-                onClick={handleFavorito}
+                onClick={agregarFavorito}
                 style={{
                   background: favorito ? "#FF7B9C" : "#FFE5E9",
                   color: favorito ? "white" : "#2D3E2B",

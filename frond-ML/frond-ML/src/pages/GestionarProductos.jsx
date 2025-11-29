@@ -57,7 +57,7 @@ export default function GestionarProductos() {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
       
-      const res = await fetch(`${API_URL}/productos/${idProducto}`, {
+      const res = await fetch(`${API_URL}/productos/eliminar/${idProducto}`, {
         method: "DELETE",
         headers: {
           "Authorization": `Bearer ${user.token}`,
@@ -67,12 +67,12 @@ export default function GestionarProductos() {
 
       if (res.ok) {
         // Eliminar el producto del estado sin recargar
-        setProductos(productos.filter(p => p.idProducto !== idProducto));
-        alert(`✅ Producto "${nombreProducto}" eliminado exitosamente`);
+        setProductos(prev => prev.filter(p => p.idProducto !== idProducto));
+        alert(`🗑️ Producto "${nombreProducto}" eliminado exitosamente`);
         console.log("🗑️ Producto eliminado:", idProducto);
       } else {
-        const error = await res.json();
-        alert(`❌ Error al eliminar: ${error.message || "Inténtalo de nuevo"}`);
+        const text = await res.text(); // para evitar error si no es JSON
+        alert(`❌ No se pudo eliminar: ${text || 'Error inesperado'}`);
       }
     } catch (e) {
       console.error("❌ Error al eliminar producto:", e);
