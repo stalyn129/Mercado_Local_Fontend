@@ -178,7 +178,7 @@ export default function ExplorarProductos() {
           {/* Buscador */}
           <input
             type="text"
-            placeholder="Buscar producto..."
+            placeholder="Buscar productos frescos..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             style={{

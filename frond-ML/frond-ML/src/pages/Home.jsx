@@ -27,6 +27,24 @@ export default function Home() {
       .catch((err) => console.log("❌ Error cargando productos:", err));
   }, []);
 
+  // 🔥 NUEVO: Función para realizar la búsqueda - Redirige a página de exploración
+  const realizarBusqueda = () => {
+    if (!searchValue.trim()) {
+      alert("Por favor ingresa un término de búsqueda");
+      return;
+    }
+
+    // Redirigir a la página de exploración con el término de búsqueda
+    window.location.href = `/explorar?q=${encodeURIComponent(searchValue.trim())}`;
+  };
+
+  // 🔥 NUEVO: Búsqueda al presionar Enter
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      realizarBusqueda();
+    }
+  };
+
   const demoImages = [
     "https://i.imgur.com/2XzQmK5.jpeg",
     "https://i.imgur.com/81nqHKl.jpeg",
@@ -736,6 +754,7 @@ export default function Home() {
                 placeholder="Buscar productos frescos..."
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
+                onKeyPress={handleKeyPress}
                 style={{
                   border: "none",
                   outline: "none",
@@ -748,7 +767,9 @@ export default function Home() {
                 }}
                 className="search-input"
               />
+
               <button
+                onClick={realizarBusqueda}
                 style={{
                   background: "linear-gradient(135deg, #6b8e4e 0%, #5a7a3d 100%)",
                   border: "none",
