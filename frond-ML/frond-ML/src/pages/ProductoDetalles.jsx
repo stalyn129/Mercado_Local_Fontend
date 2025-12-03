@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useCarrito } from "../context/CarritoContext.jsx";
 import Footer from "../components/Footer";
 
 export default function ProductoDetalle() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { agregarCarrito } = useCarrito();
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
   const [producto, setProducto] = useState(null);
@@ -68,37 +70,73 @@ export default function ProductoDetalle() {
   };
 
   const handleAddCarrito = () => {
-    const token = localStorage.getItem("token");
-    if (!token) return navigate("/login");
+    const usuario = JSON.parse(localStorage.getItem("user"));
+    const token = localStorage.getItem("authToken");
+
+    if (!usuario || !token) {
+      return navigate("/login");
+    }
+
+    agregarCarrito({
+      idProducto: producto.idProducto,
+      nombreProducto: producto.nombreProducto,
+      precioProducto: producto.precioProducto,
+      imagenProducto: producto.imagenProducto,
+      cantidad: cantidad,
+      idVendedor: producto.idVendedor
+    });
+
+    // Notificación flotante
+    alert("Producto añadido al carrito 🛒");
   };
 
   const comprarAhora = async () => {
     const token = localStorage.getItem("authToken");
     const usuario = JSON.parse(localStorage.getItem("user"));
 
-    if (!token) return navigate("/login");
+    if (!token || !usuario?.idConsumidor) {
+      return navigate("/login");
+    }
 
     const body = {
       idConsumidor: usuario.idConsumidor,
       idVendedor: producto.idVendedor,
-      metodoPago: "TARJETA"
+      metodoPago: "TARJETA",
+      detalles: [
+        {
+          idProducto: producto.idProducto,
+          cantidad: cantidad
+        }
+      ]
     };
 
-    const res = await fetch(`${API_URL}/pedidos/comprar-ahora`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify(body)
-    });
+    try {
+      const res = await fetch(`${API_URL}/pedidos/comprar-ahora`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
 
-    if (res.ok) {
+      if (!res.ok) {
+        console.log(await res.text());
+        return alert("Error al procesar compra");
+      }
+
       const pedido = await res.json();
+
+      console.log("RESPUESTA DEL PEDIDO =>", pedido);
+
       alert("Compra realizada correctamente 🎉");
+
+      // 🔥 Redirigimos a la vista PedidoDetalle.jsx
       navigate(`/pedido/${pedido.idPedido}`);
-    } else {
-      alert("Error al procesar compra");
+
+    } catch (err) {
+      console.error("Error:", err);
+      alert("Error inesperado en la compra");
     }
   };
 

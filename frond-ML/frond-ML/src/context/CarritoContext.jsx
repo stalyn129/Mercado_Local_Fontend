@@ -1,40 +1,40 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
-export const CarritoContext = createContext();
+const CarritoContext = createContext();
 
 export function CarritoProvider({ children }) {
-
   const [carrito, setCarrito] = useState(() => {
-    const guardado = localStorage.getItem("carrito");
-    return guardado ? JSON.parse(guardado) : [];
+    const saved = localStorage.getItem("carrito");
+    return saved ? JSON.parse(saved) : [];
   });
 
   useEffect(() => {
     localStorage.setItem("carrito", JSON.stringify(carrito));
   }, [carrito]);
 
-  const agregarCarrito = (producto) => {
-    setCarrito(prev => {
-      const existe = prev.find(p => p.idProducto === producto.idProducto);
-      if (existe) {
-        return prev.map(p => 
-          p.idProducto === producto.idProducto 
-            ? { ...p, cantidad: p.cantidad + 1 }
+  const agregarCarrito = (producto, cantidad) => {
+    setCarrito((prev) => {
+      const existente = prev.find((p) => p.idProducto === producto.idProducto);
+
+      if (existente) {
+        return prev.map((p) =>
+          p.idProducto === producto.idProducto
+            ? { ...p, cantidad: p.cantidad + cantidad }
             : p
         );
-      } 
-      return [...prev, { ...producto, cantidad: 1 }];
+      }
+
+      return [...prev, { ...producto, cantidad }];
     });
   };
 
+  const limpiarCarrito = () => setCarrito([]);
+
   return (
-    <CarritoContext.Provider value={{ carrito, agregarCarrito }}>
+    <CarritoContext.Provider value={{ carrito, agregarCarrito, limpiarCarrito }}>
       {children}
     </CarritoContext.Provider>
   );
 }
 
-// 🔥 Este es el hook que te estaba faltando
-export function useCarrito() {
-  return useContext(CarritoContext);
-}
+export const useCarrito = () => useContext(CarritoContext);
