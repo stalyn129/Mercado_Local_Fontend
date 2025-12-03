@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import Footer from "../components/Footer";
 
 export default function PedidoDetalle() {
-  // ⬅️ Importante: coincidencia exacta con la ruta
   const { idPedido } = useParams();
   const navigate = useNavigate();
 
@@ -12,40 +12,32 @@ export default function PedidoDetalle() {
   const [detalles, setDetalles] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 🔥 Estados nuevos
   const [metodoPago, setMetodoPago] = useState("EFECTIVO");
+  const [montoEfectivo, setMontoEfectivo] = useState("");
+  const [comprobante, setComprobante] = useState(null);
+  const [numTarjeta, setNumTarjeta] = useState("");
+  const [cvv, setCvv] = useState("");
+  const [fechaTarjeta, setFechaTarjeta] = useState("");
+  const [titular, setTitular] = useState("");
   const [finalizando, setFinalizando] = useState(false);
 
-  // =========================================
-  // CARGAR PEDIDO + DETALLES
-  // =========================================
   const cargarPedido = async () => {
     const token = localStorage.getItem("authToken");
-
-    if (!token) {
-      return navigate("/loginmodal");
-    }
+    if (!token) return navigate("/loginmodal");
 
     try {
-      // 1️⃣ Obtener pedido
       const resPedido = await fetch(`${API_URL}/pedidos/${idPedido}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!resPedido.ok) throw new Error("No se pudo cargar el pedido");
-
       const dataPedido = await resPedido.json();
 
-      // 2️⃣ Obtener detalles
       const resDetalles = await fetch(
         `${API_URL}/pedidos/${idPedido}/detalles`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-
-      if (!resDetalles.ok)
-        throw new Error("No se pudieron cargar los detalles");
 
       const dataDetalles = await resDetalles.json();
 
@@ -62,9 +54,6 @@ export default function PedidoDetalle() {
     cargarPedido();
   }, [idPedido]);
 
-  // =========================================
-  // FINALIZAR COMPRA
-  // =========================================
   const finalizarCompra = async () => {
     const token = localStorage.getItem("authToken");
     if (!token) return navigate("/loginmodal");
@@ -72,281 +61,577 @@ export default function PedidoDetalle() {
     setFinalizando(true);
 
     try {
+      let body;
+
+      if (metodoPago === "TRANSFERENCIA" || metodoPago === "TARJETA") {
+        body = new FormData();
+        body.append("metodoPago", metodoPago);
+
+        if (metodoPago === "TRANSFERENCIA" && comprobante) {
+          body.append("comprobante", comprobante);
+        }
+
+        if (metodoPago === "TARJETA") {
+          body.append("numTarjeta", numTarjeta);
+          body.append("cvv", cvv);
+          body.append("fechaTarjeta", fechaTarjeta);
+          body.append("titular", titular);
+        }
+      } else {
+        body = JSON.stringify({
+          metodoPago,
+          montoEfectivo,
+        });
+      }
+
       const res = await fetch(
-        `${API_URL}/pedidos/finalizar/${idPedido}?metodoPago=${metodoPago}`,
+        `${API_URL}/pedidos/finalizar/${idPedido}`,
         {
           method: "PUT",
-          headers: { Authorization: `Bearer ${token}` },
+          headers:
+            metodoPago === "EFECTIVO"
+              ? {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                }
+              : {
+                  Authorization: `Bearer ${token}`,
+                },
+          body,
         }
       );
 
       if (!res.ok) throw new Error("No se pudo finalizar el pedido");
 
       alert("🎉 Compra finalizada con éxito!");
-
-      navigate("/"); // redirige al home o donde quieras
+      navigate("/");
     } catch (err) {
       console.error("Error al finalizar:", err);
-      alert("❌ Error finalizando la compra");
+      alert("❌ Error finalizando compra");
     }
 
     setFinalizando(false);
   };
 
-  // =========================================
-  // LOADING
-  // =========================================
   if (loading) {
     return (
-      <div
-        style={{
-          padding: "50px",
-          fontSize: "28px",
-          textAlign: "center",
-          color: "#5A8F48",
-        }}
-      >
+      <div style={{ 
+        padding: "100px", 
+        textAlign: "center",
+        background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)",
+        minHeight: "100vh",
+        fontSize: "24px",
+        color: "#6B7F69"
+      }}>
         Cargando pedido...
       </div>
     );
   }
 
-  // =========================================
-  // ERROR
-  // =========================================
   if (!pedido) {
     return (
-      <div
-        style={{
-          padding: "50px",
-          fontSize: "22px",
-          textAlign: "center",
-          color: "#C0392B",
-        }}
-      >
-        Error cargando el pedido ❌
+      <div style={{
+        padding: "100px",
+        textAlign: "center",
+        background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)",
+        minHeight: "100vh"
+      }}>
+        <h2 style={{ color: "#2D3E2B" }}>❌ Error cargando pedido</h2>
+        <button 
+          onClick={() => navigate("/")}
+          style={{
+            marginTop: "20px",
+            padding: "12px 24px",
+            background: "#5A8F48",
+            color: "white",
+            border: "none",
+            borderRadius: "10px",
+            cursor: "pointer",
+            fontSize: "16px"
+          }}
+        >
+          Volver al inicio
+        </button>
       </div>
     );
   }
 
-  // =========================================
-  // VISTA PRINCIPAL
-  // =========================================
+  const estadoColors = {
+    PENDIENTE: "#F4B419",
+    PROCESANDO: "#4A90E2",
+    COMPLETADO: "#5A8F48",
+    CANCELADO: "#E74C3C"
+  };
+
   return (
     <div
       style={{
         background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)",
         minHeight: "100vh",
-        padding: "30px",
+        display: "flex",
+        flexDirection: "column"
       }}
     >
-      {/* Fuente */}
-      <style>
-        {`
-          @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&display=swap');
-        `}
-      </style>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&display=swap');
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        input:focus, select:focus {
+          outline: none;
+          border-color: #5A8F48 !important;
+          box-shadow: 0 0 0 3px rgba(90, 143, 72, 0.1);
+        }
 
-      {/* BOTÓN VOLVER */}
-      <button
-        onClick={() => navigate(-1)}
-        style={{
-          background: "white",
-          border: "none",
-          padding: "10px 18px",
-          borderRadius: "10px",
-          cursor: "pointer",
-          fontSize: "14px",
-          fontWeight: "600",
-          color: "#5A8F48",
-          marginBottom: "20px",
-          boxShadow: "0 2px 8px rgba(90, 143, 72, 0.1)",
-        }}
-      >
-        ← Volver
-      </button>
+        * {
+          box-sizing: border-box;
+        }
+      `}</style>
 
-      <div
-        style={{
-          maxWidth: "1000px",
-          margin: "0 auto",
-          background: "white",
-          borderRadius: "20px",
-          padding: "30px",
-          boxShadow: "0 8px 32px rgba(90, 143, 72, 0.12)",
-        }}
-      >
-        {/* TITULO */}
-        <h1
+      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "30px 20px", flex: "1", width: "100%" }}>
+        
+        <button
+          onClick={() => navigate(-1)}
           style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: "34px",
-            fontWeight: "900",
-            color: "#2D3E2B",
-            marginBottom: "10px",
+            background: "white",
+            border: "none",
+            padding: "10px 18px",
+            borderRadius: "10px",
+            cursor: "pointer",
+            fontSize: "14px",
+            fontWeight: "600",
+            color: "#5A8F48",
+            marginBottom: "20px",
+            boxShadow: "0 2px 8px rgba(90, 143, 72, 0.1)",
+            transition: "all 0.3s ease"
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = "translateX(-4px)";
+            e.target.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.2)";
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = "translateX(0)";
+            e.target.style.boxShadow = "0 2px 8px rgba(90, 143, 72, 0.1)";
           }}
         >
-          📦 Pedido #{pedido.idPedido}
-        </h1>
+          ← Volver
+        </button>
 
-        <p style={{ fontSize: "16px", color: "#6B7F69" }}>
-          Estado:{" "}
-          <strong style={{ color: "#2D3E2B" }}>{pedido.estadoPedido}</strong>
-        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 400px", gap: "25px", animation: "fadeIn 0.5s ease-out" }}>
+          
+          {/* COLUMNA IZQUIERDA - Productos y Detalles */}
+          <div>
+            {/* Header del Pedido */}
+            <div style={{
+              background: "white",
+              padding: "25px",
+              borderRadius: "16px",
+              boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)",
+              marginBottom: "20px"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <h1 style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontWeight: "900",
+                    margin: "0 0 6px 0",
+                    fontSize: "32px",
+                    color: "#2D3E2B"
+                  }}>
+                    📦 Pedido #{pedido.idPedido}
+                  </h1>
+                  <p style={{ 
+                    fontSize: "13px", 
+                    color: "#6B7F69",
+                    margin: 0
+                  }}>
+                    📅 {new Date(pedido.fechaPedido).toLocaleDateString('es-ES', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                </div>
+                <div style={{
+                  background: estadoColors[pedido.estadoPedido] || "#6B7F69",
+                  color: "white",
+                  padding: "8px 16px",
+                  borderRadius: "20px",
+                  fontWeight: "700",
+                  fontSize: "13px",
+                  whiteSpace: "nowrap"
+                }}>
+                  {pedido.estadoPedido}
+                </div>
+              </div>
+            </div>
 
-        <p style={{ fontSize: "16px", color: "#6B7F69" }}>
-          Fecha: {new Date(pedido.fechaPedido).toLocaleString()}
-        </p>
+            {/* Lista de Productos */}
+            <div style={{
+              background: "white",
+              padding: "25px",
+              borderRadius: "16px",
+              boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)"
+            }}>
+              <h2 style={{
+                fontFamily: "'Playfair Display', serif",
+                fontSize: "22px",
+                fontWeight: "700",
+                color: "#2D3E2B",
+                marginBottom: "18px",
+                marginTop: 0
+              }}>
+                🛒 Productos
+              </h2>
 
-        <hr style={{ margin: "25px 0", borderColor: "#ECF2E3" }} />
+              {detalles.map((d, i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: "#F9FBF7",
+                    padding: "16px",
+                    borderRadius: "12px",
+                    marginBottom: "12px",
+                    display: "flex",
+                    gap: "15px",
+                    alignItems: "center",
+                    transition: "all 0.3s ease"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.1)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  {/* Imagen del producto */}
+                  {d.producto?.imagenProducto && (
+                    <img 
+                      src={d.producto.imagenProducto}
+                      alt={d.producto.nombreProducto}
+                      style={{
+                        width: "70px",
+                        height: "70px",
+                        borderRadius: "10px",
+                        objectFit: "cover",
+                        flexShrink: 0
+                      }}
+                    />
+                  )}
 
-        {/* DETALLES */}
-        <h2
-          style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: "26px",
-            marginBottom: "15px",
-            color: "#2D3E2B",
-          }}
-        >
-          🛒 Detalles del pedido
-        </h2>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong style={{ 
+                      fontSize: "15px", 
+                      color: "#2D3E2B",
+                      display: "block",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap"
+                    }}>
+                      {d.producto?.nombreProducto || "Producto"}
+                    </strong>
+                    <p style={{ 
+                      margin: "4px 0 0 0", 
+                      fontSize: "13px", 
+                      color: "#6B7F69" 
+                    }}>
+                      Cantidad: {d.cantidad} • Precio: ${(d.subtotal / d.cantidad).toFixed(2)}
+                    </p>
+                  </div>
 
-        {detalles.length === 0 ? (
-          <p>No hay detalles.</p>
-        ) : (
-          detalles.map((d, i) => (
-            <div
-              key={i}
-              style={{
-                background: "#F9FBF7",
-                padding: "16px",
-                borderRadius: "12px",
+                  <div style={{
+                    fontSize: "17px",
+                    fontWeight: "700",
+                    color: "#5A8F48",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0
+                  }}>
+                    ${d.subtotal.toFixed(2)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* COLUMNA DERECHA - Resumen y Pago */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            
+            {/* Resumen de Compra */}
+            <div style={{
+              background: "linear-gradient(135deg, #F9D94A 0%, #F5C542 100%)",
+              padding: "22px",
+              borderRadius: "16px",
+              boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)"
+            }}>
+              <h2 style={{
+                fontFamily: "'Playfair Display', serif",
+                fontSize: "20px",
+                fontWeight: "700",
+                color: "#2D3E2B",
                 marginBottom: "14px",
+                marginTop: 0
+              }}>
+                💰 Resumen
+              </h2>
+              
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                <span style={{ fontSize: "14px", color: "#2D3E2B" }}>Subtotal:</span>
+                <span style={{ fontSize: "14px", fontWeight: "600", color: "#2D3E2B" }}>
+                  ${pedido.subtotal.toFixed(2)}
+                </span>
+              </div>
+              
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "14px" }}>
+                <span style={{ fontSize: "14px", color: "#2D3E2B" }}>IVA (15%):</span>
+                <span style={{ fontSize: "14px", fontWeight: "600", color: "#2D3E2B" }}>
+                  ${pedido.iva.toFixed(2)}
+                </span>
+              </div>
+              
+              <div style={{
+                borderTop: "2px solid rgba(45, 62, 43, 0.2)",
+                paddingTop: "14px",
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: "center",
+                alignItems: "center"
+              }}>
+                <span style={{ fontSize: "16px", fontWeight: "700", color: "#2D3E2B" }}>Total:</span>
+                <span style={{ fontSize: "26px", fontWeight: "900", color: "#2D3E2B" }}>
+                  ${pedido.total.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            {/* Método de Pago */}
+            <div style={{
+              background: "white",
+              padding: "22px",
+              borderRadius: "16px",
+              boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)"
+            }}>
+              <h2 style={{
+                fontFamily: "'Playfair Display', serif",
+                fontSize: "20px",
+                fontWeight: "700",
+                color: "#2D3E2B",
+                marginBottom: "14px",
+                marginTop: 0
+              }}>
+                💳 Método de pago
+              </h2>
+
+              <select
+                value={metodoPago}
+                onChange={(e) => setMetodoPago(e.target.value)}
+                style={{
+                  padding: "12px",
+                  width: "100%",
+                  borderRadius: "10px",
+                  border: "2px solid #ECF2E3",
+                  marginBottom: "16px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "#2D3E2B",
+                  cursor: "pointer",
+                  background: "white",
+                  transition: "all 0.3s ease"
+                }}
+              >
+                <option value="EFECTIVO">💵 Efectivo</option>
+                <option value="TRANSFERENCIA">🏦 Transferencia</option>
+                <option value="TARJETA">💳 Tarjeta</option>
+              </select>
+
+              {/* EFECTIVO */}
+              {metodoPago === "EFECTIVO" && (
+                <div style={{ animation: "fadeIn 0.3s ease-out" }}>
+                  <label style={{
+                    display: "block",
+                    fontWeight: "600",
+                    color: "#2D3E2B",
+                    marginBottom: "6px",
+                    fontSize: "13px"
+                  }}>
+                    Monto recibido:
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={montoEfectivo}
+                    onChange={(e) => setMontoEfectivo(e.target.value)}
+                    placeholder="Ej: 50.00"
+                    style={{
+                      padding: "12px",
+                      width: "100%",
+                      borderRadius: "10px",
+                      border: "2px solid #ECF2E3",
+                      fontSize: "14px",
+                      transition: "all 0.3s ease"
+                    }}
+                  />
+                  {montoEfectivo && parseFloat(montoEfectivo) >= pedido.total && (
+                    <p style={{
+                      marginTop: "8px",
+                      marginBottom: 0,
+                      color: "#5A8F48",
+                      fontSize: "13px",
+                      fontWeight: "600"
+                    }}>
+                      ✓ Cambio: ${(parseFloat(montoEfectivo) - pedido.total).toFixed(2)}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* TRANSFERENCIA */}
+              {metodoPago === "TRANSFERENCIA" && (
+                <div style={{ animation: "fadeIn 0.3s ease-out" }}>
+                  <label style={{
+                    display: "block",
+                    fontWeight: "600",
+                    color: "#2D3E2B",
+                    marginBottom: "6px",
+                    fontSize: "13px"
+                  }}>
+                    Subir comprobante:
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => setComprobante(e.target.files[0])}
+                    style={{
+                      padding: "10px",
+                      width: "100%",
+                      borderRadius: "10px",
+                      border: "2px solid #ECF2E3",
+                      background: "white",
+                      cursor: "pointer",
+                      fontSize: "13px"
+                    }}
+                  />
+                  {comprobante && (
+                    <p style={{
+                      marginTop: "8px",
+                      marginBottom: 0,
+                      color: "#5A8F48",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap"
+                    }}>
+                      ✓ {comprobante.name}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* TARJETA */}
+              {metodoPago === "TARJETA" && (
+                <div style={{ animation: "fadeIn 0.3s ease-out" }}>
+                  <label style={labelStyle}>Número de tarjeta:</label>
+                  <input
+                    type="text"
+                    value={numTarjeta}
+                    onChange={(e) => setNumTarjeta(e.target.value.replace(/\s/g, '').replace(/(\d{4})/g, '$1 ').trim())}
+                    placeholder="0000 0000 0000 0000"
+                    maxLength="19"
+                    style={inputStyle}
+                  />
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <label style={labelStyle}>CVV:</label>
+                      <input
+                        type="text"
+                        value={cvv}
+                        onChange={(e) => setCvv(e.target.value)}
+                        placeholder="123"
+                        maxLength="4"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Expiración:</label>
+                      <input
+                        type="month"
+                        value={fechaTarjeta}
+                        onChange={(e) => setFechaTarjeta(e.target.value)}
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+
+                  <label style={labelStyle}>Titular:</label>
+                  <input
+                    type="text"
+                    value={titular}
+                    onChange={(e) => setTitular(e.target.value)}
+                    placeholder="Nombre completo"
+                    style={inputStyle}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* BOTÓN FINALIZAR */}
+            <button
+              onClick={finalizarCompra}
+              disabled={finalizando}
+              style={{
+                width: "100%",
+                background: finalizando ? "#98A598" : "#5A8F48",
+                color: "white",
+                padding: "16px",
+                fontSize: "16px",
+                fontWeight: "700",
+                borderRadius: "12px",
+                border: "none",
+                cursor: finalizando ? "not-allowed" : "pointer",
+                transition: "all 0.3s ease",
+                boxShadow: finalizando ? "none" : "0 4px 12px rgba(90, 143, 72, 0.3)"
+              }}
+              onMouseEnter={(e) => {
+                if (!finalizando) {
+                  e.target.style.transform = "translateY(-2px)";
+                  e.target.style.boxShadow = "0 8px 20px rgba(90, 143, 72, 0.4)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!finalizando) {
+                  e.target.style.transform = "translateY(0)";
+                  e.target.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.3)";
+                }
               }}
             >
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "16px",
-                  fontWeight: "700",
-                  color: "#2D3E2B",
-                }}
-              >
-                {d.producto?.nombreProducto || "Producto sin nombre"}
-              </p>
-
-              <p style={{ margin: 0, color: "#6B7F69" }}>
-                Cantidad: <strong>{d.cantidad}</strong>
-              </p>
-
-              <p
-                style={{
-                  margin: 0,
-                  color: "#2D3E2B",
-                  fontWeight: "700",
-                }}
-              >
-                ${parseFloat(d.subtotal).toFixed(2)}
-              </p>
-            </div>
-          ))
-        )}
-
-        <hr style={{ margin: "25px 0", borderColor: "#ECF2E3" }} />
-
-        {/* RESUMEN */}
-        <h2
-          style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: "26px",
-            marginBottom: "10px",
-            color: "#2D3E2B",
-          }}
-        >
-          💰 Resumen
-        </h2>
-
-        <p style={{ color: "#6B7F69", fontSize: "16px" }}>
-          Subtotal:{" "}
-          <strong style={{ color: "#2D3E2B" }}>
-            ${parseFloat(pedido.subtotal).toFixed(2)}
-          </strong>
-        </p>
-
-        <p style={{ color: "#6B7F69", fontSize: "16px" }}>
-          IVA:{" "}
-          <strong style={{ color: "#2D3E2B" }}>
-            ${parseFloat(pedido.iva).toFixed(2)}
-          </strong>
-        </p>
-
-        <p
-          style={{
-            fontSize: "22px",
-            fontWeight: "900",
-            color: "#2D3E2B",
-            marginTop: "10px",
-          }}
-        >
-          TOTAL: ${parseFloat(pedido.total).toFixed(2)}
-        </p>
-
-        <hr style={{ margin: "25px 0", borderColor: "#ECF2E3" }} />
-
-        {/* MÉTODO DE PAGO */}
-        <h2
-          style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: "26px",
-            marginBottom: "10px",
-            color: "#2D3E2B",
-          }}
-        >
-          💳 Método de pago
-        </h2>
-
-        <select
-          value={metodoPago}
-          onChange={(e) => setMetodoPago(e.target.value)}
-          style={{
-            padding: "12px",
-            borderRadius: "12px",
-            border: "1px solid #B5C9A8",
-            fontSize: "16px",
-            marginBottom: "20px",
-            width: "100%",
-          }}
-        >
-          <option value="EFECTIVO">Efectivo</option>
-          <option value="TRANSFERENCIA">Transferencia</option>
-          <option value="TARJETA">Tarjeta</option>
-        </select>
-
-        {/* BOTÓN FINALIZAR */}
-        <button
-          onClick={finalizarCompra}
-          disabled={finalizando}
-          style={{
-            width: "100%",
-            background: finalizando ? "#9EB59A" : "#5A8F48",
-            color: "white",
-            padding: "15px",
-            fontSize: "18px",
-            fontWeight: "700",
-            borderRadius: "14px",
-            border: "none",
-            cursor: finalizando ? "not-allowed" : "pointer",
-            boxShadow: "0 4px 15px rgba(90, 143, 72, 0.25)",
-            marginTop: "20px",
-          }}
-        >
-          {finalizando ? "Procesando..." : "Finalizar Compra ✔"}
-        </button>
+              {finalizando ? "⏳ Procesando..." : "✔ Finalizar Compra"}
+            </button>
+          </div>
+        </div>
       </div>
+
+      <Footer />
     </div>
   );
 }
+
+const labelStyle = {
+  display: "block",
+  fontWeight: "600",
+  color: "#2D3E2B",
+  marginBottom: "6px",
+  fontSize: "13px"
+};
+
+const inputStyle = {
+  padding: "12px",
+  width: "100%",
+  borderRadius: "10px",
+  border: "2px solid #ECF2E3",
+  marginBottom: "12px",
+  fontSize: "14px",
+  transition: "all 0.3s ease"
+};

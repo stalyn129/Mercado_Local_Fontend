@@ -70,25 +70,23 @@ export default function ProductoDetalle() {
   };
 
   const handleAddCarrito = () => {
-    const usuario = JSON.parse(localStorage.getItem("user"));
-    const token = localStorage.getItem("authToken");
+  const usuario = JSON.parse(localStorage.getItem("user"));
+  const token = localStorage.getItem("authToken");
 
-    if (!usuario || !token) {
-      return navigate("/login");
-    }
+  if (!usuario || !token) {
+    return navigate("/login");
+  }
 
-    agregarCarrito({
-      idProducto: producto.idProducto,
-      nombreProducto: producto.nombreProducto,
-      precioProducto: producto.precioProducto,
-      imagenProducto: producto.imagenProducto,
-      cantidad: cantidad,
-      idVendedor: producto.idVendedor
-    });
+  agregarCarrito({
+    idProducto: producto.idProducto,
+    nombreProducto: producto.nombreProducto,
+    precioProducto: producto.precioProducto,
+    imagenProducto: producto.imagenProducto,
+    idVendedor: producto.idVendedor
+  }, cantidad);
 
-    // Notificación flotante
-    alert("Producto añadido al carrito 🛒");
-  };
+  alert("Producto añadido al carrito 🛒");
+};
 
   const comprarAhora = async () => {
     const token = localStorage.getItem("authToken");
