@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCarrito } from "../context/CarritoContext.jsx";
 import Footer from "../components/Footer";
+import StarRating from "../components/StarRating.jsx";
 
 export default function ExplorarProductos() {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
@@ -74,12 +75,35 @@ export default function ExplorarProductos() {
     return cumpleBusqueda && cumpleCategoria && cumpleSubcategoria;
   });
 
+  // 🔥 FUNCIÓN PARA AGREGAR AL CARRITO
+  const handleAgregarCarrito = (producto) => {
+    const usuario = JSON.parse(localStorage.getItem("user"));
+    const token = localStorage.getItem("authToken");
+
+    if (!usuario || !token) {
+      alert("⚠️ Debes iniciar sesión para agregar productos al carrito");
+      navigate("/login");
+      return;
+    }
+
+    // Estructura correcta del producto para el carrito
+    agregarCarrito({
+      idProducto: producto.idProducto,
+      nombreProducto: producto.nombreProducto,
+      precioProducto: producto.precioProducto,
+      imagenProducto: producto.imagenProducto,
+      cantidad: 1,
+      idVendedor: producto.idVendedor
+    });
+
+    alert("✅ Producto añadido al carrito");
+  };
+
   return (
     <div style={{
       minHeight: "100vh",
       background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)",
-      fontFamily: "inherit",
-      paddingBottom: "80px"
+      fontFamily: "inherit"
     }}>
       
       {/* HEADER SECTION */}
@@ -354,14 +378,12 @@ export default function ExplorarProductos() {
               {productosFiltrados.map(p => (
                 <div
                   key={p.idProducto}
-                  onClick={() => navigate(`/producto/${p.idProducto}`)}
                   style={{
                     background: "white",
                     borderRadius: "16px",
                     overflow: "hidden",
                     boxShadow: "0 4px 20px rgba(90, 143, 72, 0.1)",
                     transition: "all 0.3s ease",
-                    cursor: "pointer",
                     display: "flex",
                     flexDirection: "column"
                   }}
@@ -374,13 +396,17 @@ export default function ExplorarProductos() {
                     e.currentTarget.style.boxShadow = "0 4px 20px rgba(90, 143, 72, 0.1)";
                   }}
                 >
-                  {/* Imagen del producto */}
-                  <div style={{
-                    position: "relative",
-                    overflow: "hidden",
-                    height: "200px",
-                    background: "#F9FBF7"
-                  }}>
+                  {/* 🔥 IMAGEN CLICKEABLE - VA AL DETALLE */}
+                  <div
+                    onClick={() => navigate(`/producto/${p.idProducto}`)}
+                    style={{
+                      position: "relative",
+                      overflow: "hidden",
+                      height: "200px",
+                      background: "#F9FBF7",
+                      cursor: "pointer"
+                    }}
+                  >
                     <img
                       src={p.imagenProducto}
                       alt={p.nombreProducto}
@@ -406,13 +432,25 @@ export default function ExplorarProductos() {
                     flexDirection: "column",
                     flex: "1"
                   }}>
-                    <h3 style={{
-                      fontSize: "16px",
-                      fontWeight: "700",
-                      color: "#2D3E2B",
-                      marginBottom: "6px",
-                      lineHeight: "1.3"
-                    }}>
+                    {/* 🔥 TÍTULO TAMBIÉN CLICKEABLE */}
+                    <h3
+                      onClick={() => navigate(`/producto/${p.idProducto}`)}
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: "700",
+                        color: "#2D3E2B",
+                        marginBottom: "6px",
+                        lineHeight: "1.3",
+                        cursor: "pointer",
+                        transition: "color 0.3s ease"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.color = "#5A8F48";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.color = "#2D3E2B";
+                      }}
+                    >
                       {p.nombreProducto}
                     </h3>
 
@@ -424,6 +462,15 @@ export default function ExplorarProductos() {
                     }}>
                       {p.nombreSubcategoria || "Sin categoría"}
                     </p>
+
+                    {/* ⭐ Valoración */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px" }}>
+                      <StarRating rating={p.promedioValoracion || 0} />
+
+                      <span style={{ fontSize: "12px", color: "#6B7F69" }}>
+                        ({p.totalValoraciones || 0} reseñas)
+                      </span>
+                    </div>
 
                     {/* Precio y botón */}
                     <div style={{
@@ -440,8 +487,9 @@ export default function ExplorarProductos() {
                         ${p.precioProducto}
                       </div>
 
+                      {/* 🔥 BOTÓN QUE SOLO AGREGA AL CARRITO */}
                       <button
-                        onClick={() => agregarCarrito(p)}
+                        onClick={() => handleAgregarCarrito(p)}
                         style={{
                           width: "100%",
                           padding: "14px",
@@ -521,15 +569,14 @@ export default function ExplorarProductos() {
           </div>
         )}
       </div>
-
-      <Footer />
-
+     <Footer />
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
-      `}</style>
+      `}
+      </style>
     </div>
   );
 }
