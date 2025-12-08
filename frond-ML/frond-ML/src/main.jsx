@@ -1,18 +1,24 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
-// Layout global
+// 🌐 Layout global
 import Navbar from "./components/Navbar.jsx";
 
-// Home
+// 🏠 Home
 import App from "./App.jsx";
 
-// Auth
+// 🔐 Auth
 import Register from "./pages/Register.jsx";
-import Login from "./pages/LoginModal.jsx";
+import LoginModal from "./pages/LoginModal.jsx";
 
-// Vendedor
+// 🛡️ ADMIN (nuevo)
+import DashboardAdmin from "./pages/admin/DashboardAdmin.jsx";
+import UsuariosAdmin from "./pages/admin/UsuariosAdmin.jsx";
+import ProductosAdmin from "./pages/admin/ProductosAdmin.jsx";
+import ConfiguracionAdmin from "./pages/admin/ConfiguracionAdmin.jsx";
+
+// 🧑‍🌾 VENDEDOR
 import DashboardVendedor from "./pages/DashboardVendedor.jsx";
 import AgregarProducto from "./pages/AgregarProducto.jsx";
 import GestionarProductos from "./pages/GestionarProductos.jsx";
@@ -21,47 +27,51 @@ import GestionarPedidos from "./pages/GestionarPedidos.jsx";
 import AnalisisVentas from "./pages/AnalisisVentas.jsx";
 import ResenasVendedor from "./pages/ResenasVendedor.jsx";
 
-// Consumidor
+// 🛒 CONSUMIDOR
 import ExplorarProductos from "./pages/ExplorarProductos.jsx";
 import ProductoDetalles from "./pages/ProductoDetalles.jsx";
 import PedidoDetalle from "./pages/PedidoDetalle.jsx";
 import Carrito from "./pages/Carrito.jsx";
 import Favoritos from "./pages/Favoritos.jsx";
 
-// Admin
-import DashboardAdmin from "./pages/DashboardAdmin.jsx";
-
-// Contexto global carrito
+// 🛍️ Contexto global
 import { CarritoProvider } from "./context/CarritoContext.jsx";
 
-// 404
+// ❌ 404
 import NotFound from "./pages/NotFound.jsx";
 
-// estilos
+// 🎨 Estilos globales
 import "./styles/global.css";
 import "./styles/colors.css";
 import "./styles/fonts.css";
 
-ReactDOM.createRoot(document.getElementById("root")).render(
-  <BrowserRouter>
+
+// =============== 👇 OCULTAR NAVBAR EN ADMIN ================
+function LayoutRouter() {
+  const location = useLocation();
+
+  // Si la ruta empieza con /admin => no mostrar Navbar
+  const hideNavbar = location.pathname.startsWith("/admin");
+
+  return (
     <CarritoProvider>
-      
-      <Navbar />
+      {!hideNavbar && <Navbar />}
 
       <Routes>
-        {/* Público */}
+
+        {/* 🌍 PUBLICO */}
         <Route path="/" element={<App />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/loginmodal" element={<Login />} />
+        <Route path="/loginmodal" element={<LoginModal />} />
 
-        {/* Consumidor */}
+        {/* 🛒 CONSUMIDOR */}
         <Route path="/explorar" element={<ExplorarProductos />} />
         <Route path="/producto/:id" element={<ProductoDetalles />} />
         <Route path="/pedido/:idPedido" element={<PedidoDetalle />} />
         <Route path="/carrito" element={<Carrito />} />
         <Route path="/favoritos" element={<Favoritos />} />
 
-        {/* Vendedor */}
+        {/* 🧑‍🌾 VENDEDOR */}
         <Route path="/vendedor" element={<DashboardVendedor />} />
         <Route path="/vendedor/agregar-producto" element={<AgregarProducto />} />
         <Route path="/vendedor/gestionar-productos" element={<GestionarProductos />} />
@@ -70,13 +80,24 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/vendedor/analisis" element={<AnalisisVentas />} />
         <Route path="/vendedor/resenas" element={<ResenasVendedor />} />
 
-        {/* Admin */}
+        {/* 🛡️ ADMIN (nuevo sistema completo) */}
         <Route path="/admin" element={<DashboardAdmin />} />
+        <Route path="/admin/usuarios" element={<UsuariosAdmin />} />
+        <Route path="/admin/productos" element={<ProductosAdmin />} />
+        <Route path="/admin/configuracion" element={<ConfiguracionAdmin />} />
 
-        {/* 404 */}
+        {/* ❌ 404 */}
         <Route path="*" element={<NotFound />} />
-      </Routes>
 
+      </Routes>
     </CarritoProvider>
+  );
+}
+
+
+// =============== RENDER PRINCIPAL ===============
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <BrowserRouter>
+    <LayoutRouter />
   </BrowserRouter>
 );

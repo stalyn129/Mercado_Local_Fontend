@@ -44,14 +44,20 @@ export default function LoginModal() {
       const data = await response.json();
 
       // Guardar token USER
-      localStorage.setItem("authToken", data.token);
-      localStorage.setItem("user", JSON.stringify({
-        token: data.token,
-        idUsuario: data.idUsuario,
-        rol: data.rol,
-        idVendedor: data.idVendedor,
-        idConsumidor: data.idConsumidor
-      }));
+      // Guardar token para interceptores, admin, vendedor y consumidor
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data));
+      localStorage.setItem("rol", data.rol);
+      localStorage.setItem("idUsuario", data.idUsuario);
+
+      if (data.idVendedor) {
+        localStorage.setItem("idVendedor", data.idVendedor);
+      }
+
+      if (data.idConsumidor) {
+        localStorage.setItem("idConsumidor", data.idConsumidor);
+      }
+
 
 
       // Redirección según ROL
