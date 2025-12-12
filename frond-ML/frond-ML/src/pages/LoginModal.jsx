@@ -13,7 +13,6 @@ export default function LoginModal() {
 
   const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
-
   // Función para cerrar y volver al home
   const handleClose = () => {
     navigate("/");
@@ -43,9 +42,12 @@ export default function LoginModal() {
 
       const data = await response.json();
 
-      // Guardar token USER
-      // Guardar token para interceptores, admin, vendedor y consumidor
-      localStorage.setItem("token", data.token);
+      // === CORRECCIÓN CRÍTICA ===
+      // Guardar tokens con nombres CONSISTENTES
+      localStorage.setItem("authToken", data.token);  // lo que usa toda tu app
+      localStorage.setItem("token", data.token);      // compatibilidad
+
+      // Guardar usuario
       localStorage.setItem("user", JSON.stringify(data));
       localStorage.setItem("rol", data.rol);
       localStorage.setItem("idUsuario", data.idUsuario);
@@ -58,13 +60,13 @@ export default function LoginModal() {
         localStorage.setItem("idConsumidor", data.idConsumidor);
       }
 
-
-
       // Redirección según ROL
       if (data.rol === "VENDEDOR") {
         navigate("/vendedor");
       } else if (data.rol === "ADMIN") {
         navigate("/admin");
+      } else if (data.rol === "CONSUMIDOR") {
+        navigate("/explorar");
       } else {
         navigate("/");
       }
@@ -81,7 +83,7 @@ export default function LoginModal() {
     window.location.href = `${API_BASE_URL}/oauth2/authorization/google`
   }
 
-  // Función para ir al registro
+  // Ir al registro
   const handleGoToRegister = () => {
     navigate("/register");
   };

@@ -17,6 +17,7 @@ import DashboardAdmin from "./pages/admin/DashboardAdmin.jsx";
 import UsuariosAdmin from "./pages/admin/UsuariosAdmin.jsx";
 import ProductosAdmin from "./pages/admin/ProductosAdmin.jsx";
 import ConfiguracionAdmin from "./pages/admin/ConfiguracionAdmin.jsx";
+import GestionarCategorias from "./pages/admin/GestionarCategorias.jsx";
 
 // 🧑‍🌾 VENDEDOR
 import DashboardVendedor from "./pages/DashboardVendedor.jsx";
@@ -80,10 +81,11 @@ function LayoutRouter() {
         <Route path="/vendedor/analisis" element={<AnalisisVentas />} />
         <Route path="/vendedor/resenas" element={<ResenasVendedor />} />
 
-        {/* 🛡️ ADMIN (nuevo sistema completo) */}
+        {/* 🛡️ ADMIN (sistema completo) */}
         <Route path="/admin" element={<DashboardAdmin />} />
         <Route path="/admin/usuarios" element={<UsuariosAdmin />} />
         <Route path="/admin/productos" element={<ProductosAdmin />} />
+        <Route path="/admin/categorias" element={<GestionarCategorias />} />
         <Route path="/admin/configuracion" element={<ConfiguracionAdmin />} />
 
         {/* ❌ 404 */}

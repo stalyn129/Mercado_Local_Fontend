@@ -11,6 +11,9 @@ export default function AgregarProducto() {
   const [imagePreview, setImagePreview] = useState(null);
   const [selectedImageFile, setSelectedImageFile] = useState(null);
   const [screenSize, setScreenSize] = useState("desktop");
+  const [precioIA, setPrecioIA] = useState(null);
+  const [analizando, setAnalizando] = useState(false);
+
 
   const [form, setForm] = useState({
     nombreProducto: "",
@@ -80,10 +83,6 @@ export default function AgregarProducto() {
     };
     cargarSubcategorias();
   }, [form.idCategoria]);
-
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
 
   const handleImage = (e) => {
     const file = e.target.files[0];
@@ -197,6 +196,78 @@ export default function AgregarProducto() {
   };
 
   const gridLayout = screenSize === "desktop" ? "0.9fr 1.3fr" : "1fr";
+
+  const analizarPrecio = async () => {
+  if (!form.nombreProducto || !form.precioProducto) return;
+
+  setAnalizando(true);
+
+  try {
+    const res = await fetch(`${API_URL}/api/ia/precio/recomendar`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        nombre: form.nombreProducto,
+        precio: form.precioProducto
+      })
+    });
+
+    const data = await res.json();
+    setPrecioIA(data);
+  } catch (err) {
+    console.error("❌ Error recomendador IA:", err);
+  } finally {
+    setAnalizando(false);
+  }
+};
+
+const handleChange = (e) => {
+  setForm({ ...form, [e.target.name]: e.target.value });
+
+  if (e.target.name === "nombreProducto" || e.target.name === "precioProducto") {
+    setTimeout(() => {
+      analizarPrecio();
+    }, 400);
+  }
+};
+
+{precioIA && (
+  <div style={{
+    background: "#f7f7f0",
+    padding: "12px",
+    marginTop: "10px",
+    borderRadius: "8px",
+    borderLeft: "4px solid #6b8e6e"
+  }}>
+    {analizando ? (
+      <p>🔍 Analizando precio...</p>
+    ) : precioIA.similar_found ? (
+      <>
+        <p><strong>Precio promedio del mercado:</strong> ${precioIA.precio_promedio}</p>
+        <p><strong>Tu precio:</strong> ${precioIA.precio_ingresado}</p>
+        <p><strong>Estado:</strong> {
+          precioIA.estado === "bajo" ? "⬇️ Muy bajo" :
+          precioIA.estado === "alto" ? "⬆️ Muy alto" :
+          "✔️ Adecuado"
+        }</p>
+        <p><strong>Precio recomendado:</strong> ${precioIA.recomendado}</p>
+
+        <details style={{ marginTop: "10px" }}>
+          <summary>Ver productos similares</summary>
+          <ul>
+            {precioIA.productos_similares.map((p, i) => (
+              <li key={i}>{p.nombre} — ${p.precio}</li>
+            ))}
+          </ul>
+        </details>
+      </>
+    ) : (
+      <p>⚠️ No se encontraron productos similares.</p>
+    )}
+  </div>
+)}
 
   return (
     <>

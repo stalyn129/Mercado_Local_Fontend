@@ -7,7 +7,8 @@ import ProductosAdmin from "./ProductosAdmin.jsx"
 import ReportesAdmin from "./ReportesAdmin.jsx"
 import LogsAdmin from "./LogsAdmin.jsx"
 import ConfiguracionAdmin from "./ConfiguracionAdmin.jsx"
-
+import { FolderTree } from "lucide-react";
+import GestionarCategorias from "./GestionarCategorias.jsx"
 
 
 // ==================== COMPONENTE DASHBOARD ====================
@@ -239,12 +240,14 @@ export default function AdminPanel() {
   };
 
   const menuItems = [
-    { key: "usuarios", label: "Usuarios", icon: <Users size={20} /> },
-    { key: "productos", label: "Productos", icon: <Package size={20} /> },
-    { key: "reportes", label: "Reportes", icon: <FileText size={20} /> },
-    { key: "logs", label: "Logs del Sistema", icon: <ClipboardList size={20} /> },
-    { key: "config", label: "Configuración", icon: <Settings size={20} /> }
-  ];
+  { key: "dashboard", label: "Dashboard", icon: <TrendingUp size={20} /> },
+  { key: "usuarios", label: "Usuarios", icon: <Users size={20} /> },
+  { key: "productos", label: "Productos", icon: <Package size={20} /> },
+  { key: "categorias", label: "Categorías", icon: <FolderTree size={20} /> }, // ← NUEVO
+  { key: "reportes", label: "Reportes", icon: <FileText size={20} /> },
+  { key: "logs", label: "Logs del Sistema", icon: <ClipboardList size={20} /> },
+  { key: "config", label: "Configuración", icon: <Settings size={20} /> }
+];
 
   const renderView = () => {
   switch (activeTab) {
@@ -256,6 +259,9 @@ export default function AdminPanel() {
 
     case "productos":
       return <ProductosAdmin />;
+
+    case "categorias":
+      return <GestionarCategorias />; // ← NUEVO
 
     case "reportes":
       return <ReportesAdmin />;
@@ -798,5 +804,5 @@ const styles = {
     fontSize: '16px',
     color: '#666',
     margin: 0
-  }
+  } 
 };
