@@ -240,7 +240,6 @@ export default function AdminPanel() {
   };
 
   const menuItems = [
-  { key: "dashboard", label: "Dashboard", icon: <TrendingUp size={20} /> },
   { key: "usuarios", label: "Usuarios", icon: <Users size={20} /> },
   { key: "productos", label: "Productos", icon: <Package size={20} /> },
   { key: "categorias", label: "Categorías", icon: <FolderTree size={20} /> }, // ← NUEVO
@@ -251,8 +250,6 @@ export default function AdminPanel() {
 
   const renderView = () => {
   switch (activeTab) {
-    case "dashboard":
-      return <DashboardAdmin />;
 
     case "usuarios":
       return <UsuariosAdmin />;
@@ -272,8 +269,6 @@ export default function AdminPanel() {
     case "config":
       return <ConfiguracionAdmin />;
 
-    default:
-      return <DashboardAdmin />;
   }
 };
 

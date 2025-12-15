@@ -169,7 +169,7 @@ export default function AgregarProducto() {
         const result = await response.json();
         console.log("✅ Producto creado:", result);
         alert("✅ Producto creado correctamente");
-        
+
         setForm({
           nombreProducto: "",
           descripcionProducto: "",
@@ -198,76 +198,78 @@ export default function AgregarProducto() {
   const gridLayout = screenSize === "desktop" ? "0.9fr 1.3fr" : "1fr";
 
   const analizarPrecio = async () => {
-  if (!form.nombreProducto || !form.precioProducto) return;
+    if (!form.nombreProducto || !form.precioProducto) return;
 
-  setAnalizando(true);
+    setAnalizando(true);
 
-  try {
-    const res = await fetch(`${API_URL}/api/ia/precio/recomendar`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        nombre: form.nombreProducto,
-        precio: form.precioProducto
-      })
-    });
+    try {
+      const res = await fetch(`${API_URL}/api/ia/precio/recomendar`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          nombre: form.nombreProducto,
+          precio: form.precioProducto
+        })
+      });
 
-    const data = await res.json();
-    setPrecioIA(data);
-  } catch (err) {
-    console.error("❌ Error recomendador IA:", err);
-  } finally {
-    setAnalizando(false);
+      const data = await res.json();
+      setPrecioIA(data);
+    } catch (err) {
+      console.error("❌ Error recomendador IA:", err);
+    } finally {
+      setAnalizando(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+
+    if (e.target.name === "nombreProducto" || e.target.name === "precioProducto") {
+      setTimeout(() => {
+        analizarPrecio();
+      }, 400);
+    }
+  };
+
+  {
+    precioIA && (
+      <div style={{
+        background: "#f7f7f0",
+        padding: "12px",
+        marginTop: "10px",
+        borderRadius: "8px",
+        borderLeft: "4px solid #6b8e6e"
+      }}>
+        {analizando ? (
+          <p>🔍 Analizando precio...</p>
+        ) : precioIA.similar_found ? (
+          <>
+            <p><strong>Precio promedio del mercado:</strong> ${precioIA.precio_promedio}</p>
+            <p><strong>Tu precio:</strong> ${precioIA.precio_ingresado}</p>
+            <p><strong>Estado:</strong> {
+              precioIA.estado === "bajo" ? "⬇️ Muy bajo" :
+                precioIA.estado === "alto" ? "⬆️ Muy alto" :
+                  "✔️ Adecuado"
+            }</p>
+            <p><strong>Precio recomendado:</strong> ${precioIA.recomendado}</p>
+
+            <details style={{ marginTop: "10px" }}>
+              <summary>Ver productos similares</summary>
+              <ul>
+                {precioIA.productos_similares.map((p, i) => (
+                  <li key={i}>{p.nombre} — ${p.precio}</li>
+                ))}
+              </ul>
+            </details>
+          </>
+        ) : (
+          <p>⚠️ No se encontraron productos similares.</p>
+        )}
+      </div>
+    )
   }
-};
-
-const handleChange = (e) => {
-  setForm({ ...form, [e.target.name]: e.target.value });
-
-  if (e.target.name === "nombreProducto" || e.target.name === "precioProducto") {
-    setTimeout(() => {
-      analizarPrecio();
-    }, 400);
-  }
-};
-
-{precioIA && (
-  <div style={{
-    background: "#f7f7f0",
-    padding: "12px",
-    marginTop: "10px",
-    borderRadius: "8px",
-    borderLeft: "4px solid #6b8e6e"
-  }}>
-    {analizando ? (
-      <p>🔍 Analizando precio...</p>
-    ) : precioIA.similar_found ? (
-      <>
-        <p><strong>Precio promedio del mercado:</strong> ${precioIA.precio_promedio}</p>
-        <p><strong>Tu precio:</strong> ${precioIA.precio_ingresado}</p>
-        <p><strong>Estado:</strong> {
-          precioIA.estado === "bajo" ? "⬇️ Muy bajo" :
-          precioIA.estado === "alto" ? "⬆️ Muy alto" :
-          "✔️ Adecuado"
-        }</p>
-        <p><strong>Precio recomendado:</strong> ${precioIA.recomendado}</p>
-
-        <details style={{ marginTop: "10px" }}>
-          <summary>Ver productos similares</summary>
-          <ul>
-            {precioIA.productos_similares.map((p, i) => (
-              <li key={i}>{p.nombre} — ${p.precio}</li>
-            ))}
-          </ul>
-        </details>
-      </>
-    ) : (
-      <p>⚠️ No se encontraron productos similares.</p>
-    )}
-  </div>
-)}
 
   return (
     <>
@@ -688,7 +690,7 @@ const handleChange = (e) => {
           <div className="form-grid">
             {/* IZQUIERDA - IMAGEN */}
             <div className="image-upload-section">
-              <div 
+              <div
                 className={`image-preview-box ${imagePreview ? 'has-image' : ''}`}
                 onClick={triggerFileInput}
               >
@@ -729,7 +731,7 @@ const handleChange = (e) => {
                   <span className="section-icon">ℹ️</span>
                   Información del Producto
                 </h3>
-                
+
                 <div className="form-group">
                   <label className="form-label">
                     Nombre del Producto <span className="required-mark">*</span>
@@ -792,11 +794,11 @@ const handleChange = (e) => {
                       required
                     >
                       <option value="">
-                        {!form.idCategoria 
-                          ? "Seleccione categoría" 
-                          : subcategorias.length === 0 
-                          ? "Cargando..." 
-                          : "Seleccione"}
+                        {!form.idCategoria
+                          ? "Seleccione categoría"
+                          : subcategorias.length === 0
+                            ? "Cargando..."
+                            : "Seleccione"}
                       </option>
                       {subcategorias.map(s => (
                         <option key={s.idSubcategoria || s.id} value={s.idSubcategoria || s.id}>
@@ -814,12 +816,10 @@ const handleChange = (e) => {
                   <span className="section-icon">💰</span>
                   Precio y Disponibilidad
                 </h3>
-                
+
                 <div className="form-row-3">
                   <div className="form-group">
-                    <label className="form-label">
-                      Precio <span className="required-mark">*</span>
-                    </label>
+                    <label className="form-label">Precio *</label>
                     <div className="price-input-wrapper">
                       <span className="currency-symbol">$</span>
                       <input
@@ -836,9 +836,7 @@ const handleChange = (e) => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">
-                      Stock <span className="required-mark">*</span>
-                    </label>
+                    <label className="form-label">Stock *</label>
                     <input
                       type="number"
                       className="form-input"
@@ -866,19 +864,44 @@ const handleChange = (e) => {
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Estado</label>
-                  <select
-                    className="form-select"
-                    name="estadoProducto"
-                    value={form.estadoProducto}
-                    onChange={handleChange}
-                  >
-                    <option value="Disponible">✅ Disponible</option>
-                    <option value="Agotado">❌ Agotado</option>
-                    <option value="Próximamente">⏳ Próximamente</option>
-                  </select>
-                </div>
+                {/* 🔥 BLOQUE DE IA AQUÍ */}
+                {precioIA && (
+                  <div style={{
+                    background: "#f7f7f0",
+                    padding: "12px",
+                    marginTop: "14px",
+                    borderRadius: "10px",
+                    borderLeft: "4px solid #6b8e6e",
+                    fontSize: "14px"
+                  }}>
+                    {analizando ? (
+                      <p>🔍 Analizando precio...</p>
+                    ) : precioIA.similar_found ? (
+                      <>
+                        <p><strong>Precio promedio del mercado:</strong> ${precioIA.precio_promedio}</p>
+                        <p><strong>Tu precio:</strong> ${precioIA.precio_ingresado}</p>
+                        <p><strong>Estado:</strong> {
+                          precioIA.estado === "bajo" ? "⬇️ Muy bajo" :
+                            precioIA.estado === "alto" ? "⬆️ Muy alto" :
+                              "✔️ Adecuado"
+                        }</p>
+
+                        <p><strong>💡 Precio recomendado:</strong> ${precioIA.recomendado}</p>
+
+                        <details style={{ marginTop: "10px" }}>
+                          <summary style={{ cursor: "pointer" }}>Ver productos similares</summary>
+                          <ul style={{ marginTop: "8px", paddingLeft: "20px" }}>
+                            {precioIA.productos_similares.map((p, i) => (
+                              <li key={i}>{p.nombre} — ${p.precio}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      </>
+                    ) : (
+                      <p>⚠️ No se encontraron productos similares.</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
