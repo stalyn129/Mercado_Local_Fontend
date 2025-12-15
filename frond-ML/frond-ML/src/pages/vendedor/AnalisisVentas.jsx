@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Bar } from "react-chartjs-2";
-import Footer from "../components/Footer";
+import Footer from "../../components/Footer.jsx";
 
 // 📊 Chart.js config
 import {
@@ -14,6 +14,12 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
+// 📅 Meses del año para la gráfica
+const MESES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+];
+
 export default function AnalisisVentas() {
   const API_URL = "http://localhost:8080";
   const user = JSON.parse(localStorage.getItem("user"));
@@ -25,6 +31,7 @@ export default function AnalisisVentas() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!user || !user.idVendedor) {
@@ -36,25 +43,57 @@ export default function AnalisisVentas() {
     obtenerEstadisticas();
   }, []);
 
-  // 🔥 Cargar estadísticas desde backend
+  // 🔥 Cargar estadísticas desde backend con autenticación
   const obtenerEstadisticas = async () => {
     try {
-      const res = await fetch(`${API_URL}/pedidos/estadisticas/vendedor/${user.idVendedor}`);
-      const data = await res.json();
-      setStats(data);
+      const token = localStorage.getItem("authToken");
+
+      if (!token) {
+        throw new Error("No hay token de autenticación");
+      }
+
+      // Ejecutar ambas peticiones en paralelo
+      const [resStats, resMensuales] = await Promise.all([
+        fetch(`${API_URL}/pedidos/estadisticas/vendedor/${user.idVendedor}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/pedidos/estadisticas/mensuales/${user.idVendedor}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
+
+      if (!resStats.ok || !resMensuales.ok) {
+        throw new Error("Error cargando estadísticas");
+      }
+
+      const dataStats = await resStats.json();
+      const dataMensuales = await resMensuales.json();
+
+      setStats({
+        totalPedidos: dataStats.pedidos,
+        totalIngresos: dataStats.total,
+        ventasMensuales: dataMensuales
+      });
+
     } catch (error) {
       console.error("❌ Error cargando estadísticas", error);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  // 📊 Construir datos de la gráfica con todos los meses
+  const ventasMap = Object.fromEntries(
+    stats.ventasMensuales.map(v => [v.mes, v.total])
+  );
+
   const chartData = {
-    labels: stats.ventasMensuales.map(v => v.mes),
+    labels: MESES,
     datasets: [
       {
         label: "Ingresos ($)",
-        data: stats.ventasMensuales.map(v => v.total),
+        data: MESES.map(mes => ventasMap[mes] || 0),
         backgroundColor: "#5A8F48",
         borderRadius: 12,
         hoverBackgroundColor: "#4A7A3A"
@@ -133,7 +172,7 @@ export default function AnalisisVentas() {
         flex: "1"
       }}>
 
-        {/* Header Section Mejorado */}
+        {/* Header Section */}
         <div style={{
           background: "white",
           borderRadius: "20px",
@@ -144,7 +183,6 @@ export default function AnalisisVentas() {
           position: "relative",
           overflow: "hidden"
         }}>
-          {/* Decoración de fondo */}
           <div style={{
             position: "absolute",
             top: "-50px",
@@ -169,7 +207,6 @@ export default function AnalisisVentas() {
           }}></div>
 
           <div style={{ position: "relative", zIndex: "1" }}>
-            {/* Icono decorativo */}
             <div style={{
               fontSize: "56px",
               marginBottom: "16px",
@@ -178,7 +215,6 @@ export default function AnalisisVentas() {
               📈
             </div>
 
-            {/* Título principal */}
             <h1 style={{
               fontSize: "42px",
               fontWeight: "800",
@@ -190,7 +226,6 @@ export default function AnalisisVentas() {
               Análisis de Ventas
             </h1>
 
-            {/* Subtítulo */}
             <p style={{
               color: "#6B7F69",
               fontSize: "16px",
@@ -224,9 +259,45 @@ export default function AnalisisVentas() {
             }}></div>
             <p style={{ marginTop: "20px", color: "#6B7F69", fontWeight: "600" }}>Cargando estadísticas...</p>
           </div>
+        ) : error ? (
+          <div style={{
+            background: "white",
+            borderRadius: "20px",
+            padding: "60px 32px",
+            textAlign: "center",
+            boxShadow: "0 4px 20px rgba(220, 38, 38, 0.1)"
+          }}>
+            <div style={{ fontSize: "64px", marginBottom: "16px" }}>⚠️</div>
+            <h3 style={{
+              fontSize: "20px",
+              fontWeight: "700",
+              color: "#DC2626",
+              marginBottom: "12px"
+            }}>
+              Error al cargar estadísticas
+            </h3>
+            <p style={{ color: "#6B7F69", fontSize: "14px", marginBottom: "24px" }}>
+              {error}
+            </p>
+            <button
+              onClick={obtenerEstadisticas}
+              style={{
+                background: "#5A8F48",
+                color: "white",
+                border: "none",
+                padding: "12px 32px",
+                borderRadius: "12px",
+                fontSize: "14px",
+                fontWeight: "600",
+                cursor: "pointer"
+              }}
+            >
+              Reintentar
+            </button>
+          </div>
         ) : (
           <>
-            {/* Tarjetas de resumen - Grid mejorado */}
+            {/* Tarjetas de resumen */}
             <div style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
@@ -339,7 +410,7 @@ export default function AnalisisVentas() {
                 </div>
               </div>
 
-              {/* Card 3 - Promedio por venta */}
+              {/* Card 3 - Promedio por venta (usando el del backend) */}
               <div style={{
                 background: "white",
                 padding: "32px 28px",
@@ -387,7 +458,7 @@ export default function AnalisisVentas() {
                     margin: "0",
                     lineHeight: "1"
                   }}>
-                    ${(stats.totalIngresos / stats.totalPedidos || 0).toFixed(2)}
+                    ${stats.totalPedidos > 0 ? (stats.totalIngresos / stats.totalPedidos).toFixed(2) : "0.00"}
                   </p>
                 </div>
               </div>
@@ -434,30 +505,12 @@ export default function AnalisisVentas() {
               </div>
 
               <div style={{ height: "400px" }}>
-                {stats.ventasMensuales.length > 0 ? (
-                  <Bar data={chartData} options={chartOptions} />
-                ) : (
-                  <div style={{
-                    height: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexDirection: "column",
-                    color: "#9AAA98"
-                  }}>
-                    <div style={{ fontSize: "64px", marginBottom: "16px" }}>📉</div>
-                    <p style={{ fontSize: "16px", fontWeight: "600", color: "#6B7F69" }}>
-                      No hay datos de ventas mensuales disponibles
-                    </p>
-                  </div>
-                )}
+                <Bar data={chartData} options={chartOptions} />
               </div>
             </div>
           </>
         )}
       </div>
-
-      <Footer />
 
       <style>{`
         @keyframes spin {

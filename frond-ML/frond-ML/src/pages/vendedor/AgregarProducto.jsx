@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import Footer from "../components/Footer";
+import Footer from "../../components/Footer.jsx";
 
 export default function AgregarProducto() {
   const fileInputRef = useRef(null);

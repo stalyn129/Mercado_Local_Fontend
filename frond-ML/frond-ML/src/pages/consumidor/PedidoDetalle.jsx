@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import Footer from "../components/Footer";
+import Footer from "../../components/Footer.jsx";
 
 export default function PedidoDetalle() {
   const { idPedido } = useParams();
@@ -22,33 +22,47 @@ export default function PedidoDetalle() {
   const [finalizando, setFinalizando] = useState(false);
 
   const cargarPedido = async () => {
-    const token = localStorage.getItem("authToken");
-    if (!token) return navigate("/loginmodal");
+  const token = localStorage.getItem("authToken");
+  if (!token) return navigate("/loginmodal");
 
-    try {
-      const resPedido = await fetch(`${API_URL}/pedidos/${idPedido}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  try {
+    // ================= PEDIDO =================
+    const resPedido = await fetch(`${API_URL}/pedidos/${idPedido}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-      const dataPedido = await resPedido.json();
-
-      const resDetalles = await fetch(
-        `${API_URL}/pedidos/${idPedido}/detalles`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      const dataDetalles = await resDetalles.json();
-
-      setPedido(dataPedido);
-      setDetalles(dataDetalles);
-      setLoading(false);
-    } catch (err) {
-      console.error("Error cargando pedido:", err);
-      setLoading(false);
+    if (!resPedido.ok) {
+      console.error("Error pedido:", resPedido.status);
+      throw new Error("No autorizado para ver el pedido");
     }
-  };
+
+    const dataPedido = await resPedido.json();
+
+    // ================= DETALLES =================
+    const resDetalles = await fetch(
+      `${API_URL}/pedidos/${idPedido}/detalles`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    if (!resDetalles.ok) {
+      console.error("Error detalles:", resDetalles.status);
+      throw new Error("No autorizado para ver los detalles");
+    }
+
+    const dataDetalles = await resDetalles.json();
+
+    setPedido(dataPedido);
+    setDetalles(dataDetalles);
+    setLoading(false);
+
+  } catch (err) {
+    console.error("❌ Error cargando pedido:", err);
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     cargarPedido();

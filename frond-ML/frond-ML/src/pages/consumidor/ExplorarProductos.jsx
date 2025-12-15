@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCarrito } from "../context/CarritoContext.jsx";
-import Footer from "../components/Footer";
-import StarRating from "../components/StarRating.jsx";
+import { useCarrito } from "../../context/CarritoContext.jsx";
+import Footer from "../../components/Footer.jsx";
+import StarRating from "../../components/StarRating.jsx";
+
 
 export default function ExplorarProductos() {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";

@@ -1,7 +1,8 @@
-import { useCarrito } from "../context/CarritoContext.jsx";
-import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import Footer from "../components/Footer";
+import { useNavigate } from "react-router-dom";
+import { useCarrito } from "../../context/CarritoContext.jsx";
+import Footer from "../../components/Footer.jsx";
+
 
 export default function Carrito() {
   const {

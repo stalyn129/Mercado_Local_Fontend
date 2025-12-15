@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useCarrito } from "../context/CarritoContext.jsx";
-import Footer from "../components/Footer";
+import { useCarrito } from "../../context/CarritoContext.jsx";
+import Footer from "../../components/Footer.jsx";
 
 export default function ProductoDetalle() {
   const { id } = useParams();

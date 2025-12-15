@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import Footer from "../components/Footer";
+import Footer from "../../components/Footer.jsx";
 
 export default function EditarProducto() {
   const { id } = useParams();

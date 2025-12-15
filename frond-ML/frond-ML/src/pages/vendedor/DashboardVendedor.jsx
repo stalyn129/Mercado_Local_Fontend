@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import Footer from "../components/Footer";
+import Footer from "../../components/Footer.jsx";
 
 export default function DashboardVendedor() {
   const [user, setUser] = useState(null);

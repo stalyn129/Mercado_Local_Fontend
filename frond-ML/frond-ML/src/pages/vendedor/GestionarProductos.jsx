@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Footer from "../components/Footer";
+import Footer from "../../components/Footer.jsx";
 
 export default function GestionarProductos() {
   const API_URL = "http://localhost:8080";

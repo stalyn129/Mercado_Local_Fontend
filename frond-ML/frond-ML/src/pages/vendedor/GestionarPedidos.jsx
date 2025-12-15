@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import Footer from "../components/Footer";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import Footer from "../../components/Footer.jsx";
 
 export default function GestionarPedidos() {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
@@ -20,9 +21,32 @@ export default function GestionarPedidos() {
       });
 
       const data = await res.json();
-      setPedidos(data);
+      
+      // 🔍 DEBUG: Ver estructura de datos
+      console.log("📦 Datos recibidos del API:", data);
+      console.log("📦 Tipo de datos:", typeof data);
+      console.log("📦 Es array?:", Array.isArray(data));
+      
+      if (data && data.length > 0) {
+        console.log("📋 Estructura del primer pedido:", data[0]);
+        console.log("🔑 Claves disponibles:", Object.keys(data[0]));
+      }
+      
+      // Normalizar los datos para manejar diferentes estructuras del API
+      const pedidosNormalizados = Array.isArray(data) ? data.map(p => ({
+        idPedido: p.idPedido || p.id || p.numeroPedido || 'N/A',
+        nombreCliente: p.nombreCliente || p.cliente?.nombre || p.cliente || p.nombreUsuario || p.usuario?.nombre || 'Cliente sin nombre',
+        total: p.total || p.monto || p.precio || p.precioTotal || 0,
+        fecha: p.fecha || p.fechaPedido || p.fechaCreacion || p.createdAt || p.created_at || 'Fecha no disponible',
+        estado: p.estado || p.estadoPedido || p.status || 'Pendiente'
+      })) : [];
+      
+      console.log("✅ Pedidos normalizados:", pedidosNormalizados);
+      
+      setPedidos(pedidosNormalizados);
     } catch (err) {
       console.error("❌ Error cargando pedidos:", err);
+      alert("Error al cargar los pedidos. Por favor verifica la consola.");
     } finally {
       setCargando(false);
     }
@@ -233,7 +257,7 @@ export default function GestionarPedidos() {
                         color: "#5A8F48",
                         fontSize: "16px"
                       }}>
-                        ${p.total}
+                        ${typeof p.total === 'number' ? p.total.toFixed(2) : p.total}
                       </td>
 
                       {/* Fecha */}

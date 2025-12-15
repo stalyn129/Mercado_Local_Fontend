@@ -2,56 +2,63 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
-// 🌐 Layout global
+// 🌐 Layout
 import Navbar from "./components/Navbar.jsx";
 
-// 🏠 Home
-import App from "./App.jsx";
-
-// 🔐 Auth
+// 🏠 Público
+import Home from "./pages/Home.jsx";
 import Register from "./pages/Register.jsx";
 import LoginModal from "./pages/LoginModal.jsx";
+import NotFound from "./pages/NotFound.jsx";
 
-// 🛡️ ADMIN (nuevo)
+// 🛍️ Contexto
+import { CarritoProvider } from "./context/CarritoContext.jsx";
+
+// =====================
+// 🛡️ ADMIN
+// =====================
 import DashboardAdmin from "./pages/admin/DashboardAdmin.jsx";
 import UsuariosAdmin from "./pages/admin/UsuariosAdmin.jsx";
 import ProductosAdmin from "./pages/admin/ProductosAdmin.jsx";
-import ConfiguracionAdmin from "./pages/admin/ConfiguracionAdmin.jsx";
 import GestionarCategorias from "./pages/admin/GestionarCategorias.jsx";
+import ConfiguracionAdmin from "./pages/admin/ConfiguracionAdmin.jsx";
+import LogsAdmin from "./pages/admin/LogsAdmin.jsx";
+import ReportesAdmin from "./pages/admin/ReportesAdmin.jsx";
 
+// =====================
 // 🧑‍🌾 VENDEDOR
-import DashboardVendedor from "./pages/DashboardVendedor.jsx";
-import AgregarProducto from "./pages/AgregarProducto.jsx";
-import GestionarProductos from "./pages/GestionarProductos.jsx";
-import EditarProducto from "./pages/EditarProducto.jsx";
-import GestionarPedidos from "./pages/GestionarPedidos.jsx";
-import AnalisisVentas from "./pages/AnalisisVentas.jsx";
-import ResenasVendedor from "./pages/ResenasVendedor.jsx";
+// =====================
+import DashboardVendedor from "./pages/vendedor/DashboardVendedor.jsx";
+import AgregarProducto from "./pages/vendedor/AgregarProducto.jsx";
+import GestionarProductos from "./pages/vendedor/GestionarProductos.jsx";
+import EditarProducto from "./pages/vendedor/EditarProducto.jsx";
+import GestionarPedidos from "./pages/vendedor/GestionarPedidos.jsx";
+import AnalisisVentas from "./pages/vendedor/AnalisisVentas.jsx";
+import ResenasVendedor from "./pages/vendedor/ResenasVendedor.jsx";
 
+// =====================
 // 🛒 CONSUMIDOR
-import ExplorarProductos from "./pages/ExplorarProductos.jsx";
-import ProductoDetalles from "./pages/ProductoDetalles.jsx";
-import PedidoDetalle from "./pages/PedidoDetalle.jsx";
-import Carrito from "./pages/Carrito.jsx";
-import Favoritos from "./pages/Favoritos.jsx";
+// =====================
+import ExplorarProductos from "./pages/consumidor/ExplorarProductos.jsx";
+import ProductoDetalles from "./pages/consumidor/ProductoDetalles.jsx";
+import Carrito from "./pages/consumidor/Carrito.jsx";
+import Favoritos from "./pages/consumidor/Favoritos.jsx";
+import Pedido from "./pages/consumidor/Pedido.jsx";
+import PedidoDetalle from "./pages/consumidor/PedidoDetalle.jsx";
+//import Factura from "./pages/consumidor/Factura.jsx";
 
-// 🛍️ Contexto global
-import { CarritoProvider } from "./context/CarritoContext.jsx";
-
-// ❌ 404
-import NotFound from "./pages/NotFound.jsx";
-
-// 🎨 Estilos globales
+// 🎨 estilos
 import "./styles/global.css";
 import "./styles/colors.css";
 import "./styles/fonts.css";
 
-
-// =============== 👇 OCULTAR NAVBAR EN ADMIN ================
+// =====================================
+// Layout con control de Navbar
+// =====================================
 function LayoutRouter() {
   const location = useLocation();
 
-  // Si la ruta empieza con /admin => no mostrar Navbar
+  // ❌ Ocultar navbar en admin
   const hideNavbar = location.pathname.startsWith("/admin");
 
   return (
@@ -61,16 +68,18 @@ function LayoutRouter() {
       <Routes>
 
         {/* 🌍 PUBLICO */}
-        <Route path="/" element={<App />} />
+        <Route path="/" element={<Home />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/loginmodal" element={<LoginModal />} />
+        <Route path="/LoginModal" element={<LoginModal />} />
 
         {/* 🛒 CONSUMIDOR */}
         <Route path="/explorar" element={<ExplorarProductos />} />
         <Route path="/producto/:id" element={<ProductoDetalles />} />
-        <Route path="/pedido/:idPedido" element={<PedidoDetalle />} />
         <Route path="/carrito" element={<Carrito />} />
         <Route path="/favoritos" element={<Favoritos />} />
+        <Route path="/pedido" element={<Pedido />} />
+        <Route path="/pedido/:idPedido" element={<PedidoDetalle />} />
+        
 
         {/* 🧑‍🌾 VENDEDOR */}
         <Route path="/vendedor" element={<DashboardVendedor />} />
@@ -81,12 +90,14 @@ function LayoutRouter() {
         <Route path="/vendedor/analisis" element={<AnalisisVentas />} />
         <Route path="/vendedor/resenas" element={<ResenasVendedor />} />
 
-        {/* 🛡️ ADMIN (sistema completo) */}
+        {/* 🛡️ ADMIN */}
         <Route path="/admin" element={<DashboardAdmin />} />
         <Route path="/admin/usuarios" element={<UsuariosAdmin />} />
         <Route path="/admin/productos" element={<ProductosAdmin />} />
         <Route path="/admin/categorias" element={<GestionarCategorias />} />
         <Route path="/admin/configuracion" element={<ConfiguracionAdmin />} />
+        <Route path="/admin/logs" element={<LogsAdmin />} />
+        <Route path="/admin/reportes" element={<ReportesAdmin />} />
 
         {/* ❌ 404 */}
         <Route path="*" element={<NotFound />} />
@@ -96,8 +107,7 @@ function LayoutRouter() {
   );
 }
 
-
-// =============== RENDER PRINCIPAL ===============
+// =====================================
 ReactDOM.createRoot(document.getElementById("root")).render(
   <BrowserRouter>
     <LayoutRouter />
