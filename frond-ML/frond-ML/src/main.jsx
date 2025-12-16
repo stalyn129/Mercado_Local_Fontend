@@ -10,6 +10,8 @@ import Home from "./pages/Home.jsx";
 import Register from "./pages/Register.jsx";
 import LoginModal from "./pages/LoginModal.jsx";
 import NotFound from "./pages/NotFound.jsx";
+import Perfil from "./pages/Perfil.jsx";
+
 
 // 🛍️ Contexto
 import { CarritoProvider } from "./context/CarritoContext.jsx";
@@ -71,6 +73,8 @@ function LayoutRouter() {
         <Route path="/" element={<Home />} />
         <Route path="/register" element={<Register />} />
         <Route path="/LoginModal" element={<LoginModal />} />
+        <Route path="/perfil" element={<Perfil />} />
+
 
         {/* 🛒 CONSUMIDOR */}
         <Route path="/explorar" element={<ExplorarProductos />} />

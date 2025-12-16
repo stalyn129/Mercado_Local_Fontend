@@ -3,15 +3,36 @@ import { createContext, useContext, useState, useEffect } from "react";
 const CarritoContext = createContext();
 
 export function CarritoProvider({ children }) {
-  const [carrito, setCarrito] = useState(() => {
-    const saved = localStorage.getItem("carrito");
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Obtener usuario logueado
+  const user = JSON.parse(localStorage.getItem("user"));
+  const carritoKey = user?.idConsumidor ? `carrito_${user.idConsumidor}` : null;
 
+  const [carrito, setCarrito] = useState([]);
+
+  // ============================
+  // CARGAR CARRITO DEL USUARIO
+  // ============================
   useEffect(() => {
-    localStorage.setItem("carrito", JSON.stringify(carrito));
-  }, [carrito]);
+    if (carritoKey) {
+      const carritoGuardado = localStorage.getItem(carritoKey);
+      setCarrito(carritoGuardado ? JSON.parse(carritoGuardado) : []);
+    } else {
+      setCarrito([]); // Sin usuario = carrito vacío
+    }
+  }, [carritoKey]);
 
+  // ============================
+  // GUARDAR CARRITO AUTOMÁTICAMENTE
+  // ============================
+  useEffect(() => {
+    if (carritoKey && carrito.length >= 0) {
+      localStorage.setItem(carritoKey, JSON.stringify(carrito));
+    }
+  }, [carrito, carritoKey]);
+
+  // ============================
+  // AGREGAR PRODUCTO AL CARRITO
+  // ============================
   const agregarCarrito = (producto, cantidad = 1) => {
     setCarrito((prev) => {
       const existente = prev.find((p) => p.idProducto === producto.idProducto);
@@ -28,6 +49,9 @@ export function CarritoProvider({ children }) {
     });
   };
 
+  // ============================
+  // ACTUALIZAR CANTIDAD
+  // ============================
   const actualizarCantidad = (id, nuevaCantidad) => {
     if (nuevaCantidad < 1) {
       return eliminarProducto(id);
@@ -42,13 +66,21 @@ export function CarritoProvider({ children }) {
     );
   };
 
+  // ============================
+  // ELIMINAR PRODUCTO
+  // ============================
   const eliminarProducto = (id) => {
     setCarrito((prev) => prev.filter((item) => item.idProducto !== id));
   };
 
+  // ============================
+  // LIMPIAR CARRITO
+  // ============================
   const limpiarCarrito = () => {
     setCarrito([]);
-    localStorage.removeItem("carrito");
+    if (carritoKey) {
+      localStorage.removeItem(carritoKey);
+    }
   };
 
   return (

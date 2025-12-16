@@ -1,13 +1,26 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useCarrito } from "../context/CarritoContext";
+import {
+  obtenerNotificaciones,
+  contarNotificaciones,
+} from "../services/notificacionService";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [totalFavoritos, setTotalFavoritos] = useState(0);
+  const [notificaciones, setNotificaciones] = useState([]);
+  const [totalNotificaciones, setTotalNotificaciones] = useState(0);
+  const [showNotificaciones, setShowNotificaciones] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { carrito } = useCarrito();
+
+  // Calcular total del carrito
+  const totalCarrito = carrito.reduce((acc, item) => acc + item.cantidad, 0);
 
   useEffect(() => {
     const loadUser = () => {
@@ -16,7 +29,9 @@ export default function Navbar() {
         const token = localStorage.getItem("authToken");
         
         if (userData && token) {
-          setUser(JSON.parse(userData));
+          const parsedUser = JSON.parse(userData);
+          console.log("📊 Usuario cargado:", parsedUser); // DEBUG
+          setUser(parsedUser);
         } else {
           setUser(null);
         }
@@ -31,10 +46,33 @@ export default function Navbar() {
     loadUser();
   }, [location]);
 
+  // Actualizar favoritos desde localStorage
+  useEffect(() => {
+    const favs = JSON.parse(localStorage.getItem("favoritos")) || [];
+    setTotalFavoritos(favs.length);
+  }, [location]);
+
+  // Cargar notificaciones
+  useEffect(() => {
+    if (!user?.idUsuario) return;
+
+    const token = localStorage.getItem("authToken");
+
+    obtenerNotificaciones(user.idUsuario, token)
+      .then(setNotificaciones)
+      .catch(() => setNotificaciones([]));
+
+    contarNotificaciones(user.idUsuario, token)
+      .then(setTotalNotificaciones)
+      .catch(() => setTotalNotificaciones(0));
+
+  }, [user, location]);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       const userTagElement = document.querySelector(".user-tag-btn");
       const dropdownElement = document.querySelector(".dropdown-menu");
+      const notifElement = document.querySelector(".notif-dropdown");
       
       if (
         userTagElement &&
@@ -44,13 +82,21 @@ export default function Navbar() {
       ) {
         setShowUserMenu(false);
       }
+
+      if (
+        notifElement &&
+        !notifElement.contains(event.target) &&
+        !event.target.closest('[aria-label="Notificaciones"]')
+      ) {
+        setShowNotificaciones(false);
+      }
     };
 
-    if (showUserMenu) {
+    if (showUserMenu || showNotificaciones) {
       document.addEventListener("click", handleClickOutside);
       return () => document.removeEventListener("click", handleClickOutside);
     }
-  }, [showUserMenu]);
+  }, [showUserMenu, showNotificaciones]);
 
   const handleCerrarSesion = () => {
     localStorage.removeItem("user");
@@ -58,7 +104,7 @@ export default function Navbar() {
     setUser(null);
     setIsMenuOpen(false);
     setShowUserMenu(false);
-    navigate("/");
+    window.location.reload(); // Fuerza limpiar contextos (carrito, favoritos, etc.)
   };
 
   const getNavLinks = () => {
@@ -87,6 +133,18 @@ export default function Navbar() {
     navigate(path);
     setIsMenuOpen(false);
     setShowUserMenu(false);
+  };
+
+  const calcularTiempoRelativo = (fecha) => {
+    const ahora = new Date();
+    const notifFecha = new Date(fecha);
+    const diferencia = Math.floor((ahora - notifFecha) / 1000); // segundos
+
+    if (diferencia < 60) return "Hace un momento";
+    if (diferencia < 3600) return `Hace ${Math.floor(diferencia / 60)} min`;
+    if (diferencia < 86400) return `Hace ${Math.floor(diferencia / 3600)} h`;
+    if (diferencia < 604800) return `Hace ${Math.floor(diferencia / 86400)} días`;
+    return notifFecha.toLocaleDateString();
   };
 
   const navLinks = getNavLinks();
@@ -171,7 +229,7 @@ export default function Navbar() {
     rightSection: {
       display: "flex",
       alignItems: "center",
-      gap: "1.2rem",
+      gap: "0.8rem",
       position: "relative",
     },
     userTag: {
@@ -208,14 +266,118 @@ export default function Navbar() {
       position: "absolute",
       top: "70px",
       right: "0",
-      background: "linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(244, 232, 193, 0.4) 100%)",
+      background: "linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%)",
       backdropFilter: "blur(20px)",
-      borderRadius: "12px",
-      boxShadow: "0 8px 32px rgba(58, 90, 64, 0.15)",
-      border: "1px solid rgba(58, 90, 64, 0.1)",
+      borderRadius: "16px",
+      boxShadow: "0 12px 48px rgba(58, 90, 64, 0.2)",
+      border: "1px solid rgba(58, 90, 64, 0.08)",
       zIndex: "1001",
       minWidth: "200px",
       overflow: "hidden",
+    },
+    notificacionesDropdown: {
+      position: "absolute",
+      top: "60px",
+      right: "0",
+      background: "rgba(255, 255, 255, 0.98)",
+      backdropFilter: "blur(20px)",
+      borderRadius: "16px",
+      boxShadow: "0 12px 48px rgba(0, 0, 0, 0.15)",
+      border: "1px solid rgba(0, 0, 0, 0.08)",
+      zIndex: "1001",
+      width: "340px",
+      maxHeight: "450px",
+      overflow: "hidden",
+      display: "flex",
+      flexDirection: "column",
+    },
+    notificacionesHeader: {
+      padding: "1rem 1.2rem",
+      borderBottom: "1px solid rgba(0, 0, 0, 0.08)",
+      background: "rgba(255, 255, 255, 0.95)",
+      position: "sticky",
+      top: "0",
+      zIndex: "10",
+    },
+    notificacionesTitle: {
+      fontSize: "1.15rem",
+      fontWeight: "700",
+      color: "#1c1e21",
+      margin: "0",
+    },
+    notificacionesList: {
+      maxHeight: "380px",
+      overflowY: "auto",
+      overflowX: "hidden",
+    },
+    notificacionItem: (leido) => ({
+      padding: "0.9rem 1.2rem",
+      background: leido ? "#ffffff" : "#e7f3ff",
+      borderBottom: "1px solid rgba(0, 0, 0, 0.05)",
+      cursor: "pointer",
+      transition: "all 0.2s ease",
+      display: "flex",
+      gap: "0.85rem",
+      alignItems: "flex-start",
+      position: "relative",
+    }),
+    notificacionIcono: {
+      width: "40px",
+      height: "40px",
+      borderRadius: "50%",
+      background: "linear-gradient(135deg, #6b8e4e 0%, #5a7a3d 100%)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "1.2rem",
+      flexShrink: "0",
+      boxShadow: "0 2px 8px rgba(58, 90, 64, 0.2)",
+    },
+    notificacionContenido: {
+      flex: "1",
+      minWidth: "0",
+    },
+    notificacionMensaje: {
+      fontSize: "0.9rem",
+      fontWeight: "500",
+      color: "#1c1e21",
+      lineHeight: "1.35",
+      marginBottom: "0.25rem",
+      wordWrap: "break-word",
+    },
+    notificacionTiempo: {
+      fontSize: "0.75rem",
+      color: "#65676b",
+      fontWeight: "400",
+    },
+    notificacionDot: {
+      position: "absolute",
+      top: "1rem",
+      right: "1rem",
+      width: "9px",
+      height: "9px",
+      borderRadius: "50%",
+      background: "#1877f2",
+    },
+    emptyNotificaciones: {
+      padding: "2.5rem 2rem",
+      textAlign: "center",
+      color: "#65676b",
+    },
+    emptyNotificacionesIcono: {
+      fontSize: "3rem",
+      marginBottom: "0.8rem",
+      opacity: "0.5",
+    },
+    emptyNotificacionesMensaje: {
+      fontSize: "0.95rem",
+      fontWeight: "600",
+      color: "#1c1e21",
+      marginBottom: "0.25rem",
+    },
+    emptyNotificacionesTexto: {
+      fontSize: "0.85rem",
+      color: "#65676b",
     },
     dropdownItem: {
       padding: "0.8rem 1.5rem",
@@ -261,15 +423,32 @@ export default function Navbar() {
     iconButton: {
       background: "rgba(244, 232, 193, 0.3)",
       border: "none",
-      fontSize: "1.3rem",
+      fontSize: "1.4rem",
       cursor: "pointer",
-      padding: "0.4rem 0.5rem",
+      padding: "0.5rem 0.6rem",
       transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: "8px",
+      borderRadius: "10px",
+      width: "44px",
+      height: "44px",
     },
+    badge: (bgColor) => ({
+      position: "absolute",
+      top: "-6px",
+      right: "-6px",
+      background: bgColor,
+      color: "white",
+      borderRadius: "50%",
+      fontSize: "11px",
+      fontWeight: "700",
+      padding: "2px 6px",
+      minWidth: "18px",
+      textAlign: "center",
+      lineHeight: "1",
+      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+    }),
     hamburger: {
       display: "none",
       background: "rgba(244, 232, 193, 0.3)",
@@ -335,7 +514,7 @@ export default function Navbar() {
       }
 
       .right-section {
-        gap: 0.8rem !important;
+        gap: 0.5rem !important;
       }
 
       .login-btn {
@@ -347,8 +526,16 @@ export default function Navbar() {
         display: none !important;
       }
 
-      .icon-buttons-container {
-        gap: 0.3rem !important;
+      .icon-button {
+        width: 40px !important;
+        height: 40px !important;
+        font-size: 1.2rem !important;
+      }
+
+      .notif-dropdown {
+        width: 300px !important;
+        right: -10px !important;
+        max-height: 400px !important;
       }
     }
 
@@ -362,11 +549,19 @@ export default function Navbar() {
       }
 
       .icon-button {
-        font-size: 1.2rem !important;
+        width: 38px !important;
+        height: 38px !important;
+        font-size: 1.1rem !important;
       }
 
       .login-btn {
         display: none !important;
+      }
+
+      .notif-dropdown {
+        width: 280px !important;
+        right: -20px !important;
+        max-height: 380px !important;
       }
     }
   `;
@@ -435,12 +630,12 @@ export default function Navbar() {
         </div>
 
         <div style={styles.rightSection} className="right-section">
-          {/* Iconos para CONSUMIDOR */}
+          {/* Iconos para CONSUMIDOR con CONTADORES */}
           {user && user.rol === "CONSUMIDOR" && (
-            <div style={{ display: "flex", gap: "0.5rem" }}>
+            <div style={{ display: "flex", gap: "0.5rem", position: "relative" }}>
               <button
                 onClick={() => handleNavigate("/favoritos")}
-                style={styles.iconButton}
+                style={{ ...styles.iconButton, position: "relative" }}
                 className="icon-button"
                 title="Favoritos"
                 aria-label="Favoritos"
@@ -456,11 +651,16 @@ export default function Navbar() {
                 }}
               >
                 ♡
+                {totalFavoritos > 0 && (
+                  <span style={styles.badge("#e53935")}>
+                    {totalFavoritos > 99 ? "99+" : totalFavoritos}
+                  </span>
+                )}
               </button>
 
               <button
                 onClick={() => handleNavigate("/carrito")}
-                style={styles.iconButton}
+                style={{ ...styles.iconButton, position: "relative" }}
                 className="icon-button"
                 title="Carrito"
                 aria-label="Carrito"
@@ -476,7 +676,90 @@ export default function Navbar() {
                 }}
               >
                 🛒
+                {totalCarrito > 0 && (
+                  <span style={styles.badge("#d32f2f")}>
+                    {totalCarrito > 99 ? "99+" : totalCarrito}
+                  </span>
+                )}
               </button>
+
+              <button
+                onClick={() => setShowNotificaciones(!showNotificaciones)}
+                style={{ ...styles.iconButton, position: "relative" }}
+                className="icon-button"
+                title="Notificaciones"
+                aria-label="Notificaciones"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.15) rotate(-5deg)";
+                  e.currentTarget.style.background = "linear-gradient(135deg, rgba(244, 232, 193, 0.7) 0%, rgba(244, 232, 193, 0.5) 100%)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(58, 90, 64, 0.15)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1) rotate(0deg)";
+                  e.currentTarget.style.background = "rgba(244, 232, 193, 0.3)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                🔔
+                {totalNotificaciones > 0 && (
+                  <span style={styles.badge("#ff9800")}>
+                    {totalNotificaciones > 99 ? "99+" : totalNotificaciones}
+                  </span>
+                )}
+              </button>
+
+              {/* Dropdown de Notificaciones */}
+              {showNotificaciones && (
+                <div style={styles.notificacionesDropdown} className="notif-dropdown">
+                  <div style={styles.notificacionesHeader}>
+                    <h3 style={styles.notificacionesTitle}>Notificaciones</h3>
+                  </div>
+                  
+                  <div style={styles.notificacionesList}>
+                    {notificaciones.length === 0 ? (
+                      <div style={styles.emptyNotificaciones}>
+                        <div style={styles.emptyNotificacionesIcono}>🔔</div>
+                        <div style={styles.emptyNotificacionesMensaje}>
+                          Sin notificaciones
+                        </div>
+                        <div style={styles.emptyNotificacionesTexto}>
+                          Te avisaremos cuando haya algo nuevo
+                        </div>
+                      </div>
+                    ) : (
+                      notificaciones.map((n) => (
+                        <div
+                          key={n.idNotificacion}
+                          style={styles.notificacionItem(n.leido)}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = n.leido ? "#f5f5f5" : "#d4e9ff";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = n.leido ? "#ffffff" : "#e7f3ff";
+                          }}
+                        >
+                          <div style={styles.notificacionIcono}>
+                            {n.tipo === "pedido" ? "📦" : 
+                             n.tipo === "oferta" ? "🎁" : 
+                             n.tipo === "mensaje" ? "💬" : "🔔"}
+                          </div>
+                          
+                          <div style={styles.notificacionContenido}>
+                            <div style={styles.notificacionMensaje}>
+                              {n.mensaje}
+                            </div>
+                            <div style={styles.notificacionTiempo}>
+                              {n.fecha ? calcularTiempoRelativo(n.fecha) : "Hace un momento"}
+                            </div>
+                          </div>
+                          
+                          {!n.leido && <div style={styles.notificacionDot}></div>}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -512,8 +795,20 @@ export default function Navbar() {
                   e.currentTarget.style.transform = "translateY(0)";
                 }}
               >
-                👤 {user.nombre || user.correo}
-                <span style={styles.roleTag}>{user.rol}</span>
+                👤 {(() => {
+                  // Si hay nombre, mostrar nombre + apellido
+                  if (user.nombre) {
+                    return `${user.nombre} ${user.apellido || ""}`.trim();
+                  }
+                  // Si no hay nombre, intentar con email o correo
+                  if (user.email) return user.email.split('@')[0];
+                  if (user.correo) return user.correo.split('@')[0];
+                  // Si hay username o usuario
+                  if (user.username) return user.username;
+                  if (user.usuario) return user.usuario;
+                  // Último recurso
+                  return "Usuario";
+                })()}
                 <span style={{ fontSize: "1rem", marginLeft: "0.3rem" }}>▼</span>
               </button>
 
@@ -601,7 +896,7 @@ export default function Navbar() {
                 onMouseEnter={(e) => (e.target.style.color = "#6b8e4e")}
                 onMouseLeave={(e) => (e.target.style.color = "#3a5a40")}
               >
-                ♡ Favoritos
+                ♡ Favoritos {totalFavoritos > 0 && `(${totalFavoritos})`}
               </button>
               <button
                 onClick={() => handleNavigate("/carrito")}
@@ -609,7 +904,7 @@ export default function Navbar() {
                 onMouseEnter={(e) => (e.target.style.color = "#6b8e4e")}
                 onMouseLeave={(e) => (e.target.style.color = "#3a5a40")}
               >
-                🛒 Carrito
+                🛒 Carrito {totalCarrito > 0 && `(${totalCarrito})`}
               </button>
             </>
           )}
@@ -632,8 +927,20 @@ export default function Navbar() {
           ) : (
             <>
               <div style={{ ...styles.userTag, justifyContent: "center", marginTop: "0.5rem" }}>
-                👤 {user.nombre || user.correo}
-                <span style={styles.roleTag}>{user.rol}</span>
+                👤 {(() => {
+                  // Si hay nombre, mostrar nombre + apellido
+                  if (user.nombre) {
+                    return `${user.nombre} ${user.apellido || ""}`.trim();
+                  }
+                  // Si no hay nombre, intentar con email o correo
+                  if (user.email) return user.email.split('@')[0];
+                  if (user.correo) return user.correo.split('@')[0];
+                  // Si hay username o usuario
+                  if (user.username) return user.username;
+                  if (user.usuario) return user.usuario;
+                  // Último recurso
+                  return "Usuario";
+                })()}
               </div>
               <button
                 onClick={() => handleNavigate("/perfil")}
