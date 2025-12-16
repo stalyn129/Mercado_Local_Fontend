@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCarrito } from "../../context/CarritoContext.jsx";
+import { useFavoritos } from "../../context/FavoritosContext.jsx"; // 🔥 IMPORT
 import Footer from "../../components/Footer.jsx";
 
 export default function ProductoDetalle() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { agregarCarrito } = useCarrito();
+  const { esFavorito, cargarFavoritos } = useFavoritos(); // 🔥 USAR CONTEXTO
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
   const [producto, setProducto] = useState(null);
   const [cantidad, setCantidad] = useState(1);
   const [imgSeleccionada, setImgSeleccionada] = useState(null);
-  const [favorito, setFavorito] = useState(false);
   const [nuevaValoracion, setNuevaValoracion] = useState(5);
   const [nuevoComentario, setNuevoComentario] = useState("");
   const [showEnvio, setShowEnvio] = useState(false);
@@ -42,51 +43,62 @@ export default function ProductoDetalle() {
     );
   }
 
-  const agregarFavorito = async () => {
+  // 🔥 VERIFICAR SI ES FAVORITO
+  const guardado = esFavorito(producto.idProducto);
+
+  // 🔥 FUNCIÓN MEJORADA PARA AGREGAR/QUITAR FAVORITOS
+  const toggleFavorito = async () => {
     const token = localStorage.getItem("authToken");
     const usuario = JSON.parse(localStorage.getItem("user"));
-    if (!token) return navigate("/login");
+    
+    if (!token || !usuario?.idConsumidor) {
+      return navigate("/login");
+    }
 
-    const body = {
-      idConsumidor: usuario.idConsumidor,
-      idProducto: producto.idProducto
-    };
+    try {
+      const res = await fetch(`${API_URL}/favoritos/agregar`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          idConsumidor: usuario.idConsumidor,
+          idProducto: producto.idProducto
+        })
+      });
 
-    const res = await fetch(`${API_URL}/favoritos/agregar`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (res.ok) {
-      setFavorito(true);
-      alert("Producto agregado a favoritos ❤️");
-    } else {
-      alert("No se pudo agregar a favoritos");
+      if (res.ok) {
+        // 🔥 SINCRONIZAR CONTEXTO
+        await cargarFavoritos();
+        alert(guardado ? "Producto eliminado de favoritos 💔" : "Producto agregado a favoritos ❤️");
+      } else {
+        alert("No se pudo actualizar favoritos");
+      }
+    } catch (err) {
+      console.error("Error:", err);
+      alert("Error al actualizar favoritos");
     }
   };
 
   const handleAddCarrito = () => {
-  const usuario = JSON.parse(localStorage.getItem("user"));
-  const token = localStorage.getItem("authToken");
+    const usuario = JSON.parse(localStorage.getItem("user"));
+    const token = localStorage.getItem("authToken");
 
-  if (!usuario || !token) {
-    return navigate("/login");
-  }
+    if (!usuario || !token) {
+      return navigate("/login");
+    }
 
-  agregarCarrito({
-    idProducto: producto.idProducto,
-    nombreProducto: producto.nombreProducto,
-    precioProducto: producto.precioProducto,
-    imagenProducto: producto.imagenProducto,
-    idVendedor: producto.idVendedor
-  }, cantidad);
+    agregarCarrito({
+      idProducto: producto.idProducto,
+      nombreProducto: producto.nombreProducto,
+      precioProducto: producto.precioProducto,
+      imagenProducto: producto.imagenProducto,
+      idVendedor: producto.idVendedor
+    }, cantidad);
 
-  alert("Producto añadido al carrito 🛒");
-};
+    alert("Producto añadido al carrito 🛒");
+  };
 
   const comprarAhora = async () => {
     const token = localStorage.getItem("authToken");
@@ -129,7 +141,6 @@ export default function ProductoDetalle() {
 
       alert("Compra realizada correctamente 🎉");
 
-      // 🔥 Redirigimos a la vista PedidoDetalle.jsx
       navigate(`/pedido/${pedido.idPedido}`);
 
     } catch (err) {
@@ -156,7 +167,7 @@ export default function ProductoDetalle() {
         },
         body: JSON.stringify({
           idProducto: producto.idProducto,
-          idConsumidor: usuario.idConsumidor,   // 🔥 AHORA SÍ EXISTE
+          idConsumidor: usuario.idConsumidor,
           calificacion: nuevaValoracion,
           comentario: nuevoComentario
         })
@@ -303,7 +314,7 @@ export default function ProductoDetalle() {
                 margin: "0",
                 fontFamily: "'Playfair Display', serif"
               }}>
-                {producto.nombreEmpresa}
+                {producto.nombreProducto}
               </h1>
             </div>
 
@@ -448,20 +459,22 @@ export default function ProductoDetalle() {
 
             {/* Botones Secundarios */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+              {/* 🔥 BOTÓN DE FAVORITOS ACTUALIZADO */}
               <button
-                onClick={agregarFavorito}
+                onClick={toggleFavorito}
                 style={{
-                  background: favorito ? "#FF7B9C" : "#FFE5E9",
-                  color: favorito ? "white" : "#2D3E2B",
+                  background: guardado ? "#FF7B9C" : "#FFE5E9",
+                  color: guardado ? "white" : "#2D3E2B",
                   border: "none",
                   padding: "10px",
                   borderRadius: "10px",
                   fontWeight: "700",
                   cursor: "pointer",
-                  fontSize: "13px"
+                  fontSize: "13px",
+                  transition: "all 0.3s ease"
                 }}
               >
-                {favorito ? "❤️ Guardado" : "🤍 Guardar"}
+                {guardado ? "❤️ Guardado" : "🤍 Guardar"}
               </button>
               <button
                 onClick={() => setShowEnvio(true)}

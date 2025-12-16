@@ -1,62 +1,26 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Footer from "../../components/Footer.jsx";
-
+import { useFavoritos } from "../../context/FavoritosContext.jsx";
 
 export default function Favoritos() {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
-  const [favoritos, setFavoritos] = useState([]);
+  // ✅ USA SOLO EL CONTEXTO - NO useState local
+  const { favoritos, cargarFavoritos } = useFavoritos();
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // ===================== CARGAR FAVORITOS =====================
-  const getFavoritos = async () => {
-    try {
-      const usuario = JSON.parse(localStorage.getItem("user"));
-      const token = localStorage.getItem("authToken");
-
-      if (!usuario || !token || !usuario.idConsumidor) {
-        console.warn("Usuario no logueado o sin idConsumidor");
-        setFavoritos([]);
-        setLoading(false);
-        return;
-      }
-
-      const res = await fetch(
-        `${API_URL}/favoritos/listar/${usuario.idConsumidor}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!res.ok) {
-        console.error("Error al cargar favoritos:", res.status);
-        setFavoritos([]);
-        setLoading(false);
-        return;
-      }
-
-      const data = await res.json();
-      console.log("FAVORITOS DESDE BACKEND:", data);
-
-      setFavoritos(data);
-    } catch (err) {
-      console.error("Error obteniendo favoritos:", err);
-      setFavoritos([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // ✅ CARGA INICIAL usando el contexto
   useEffect(() => {
-    getFavoritos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const loadFavoritos = async () => {
+      await cargarFavoritos();
+      setLoading(false);
+    };
+    loadFavoritos();
+  }, [cargarFavoritos]);
 
-  // ===================== ELIMINAR UNO =====================
+  // ✅ ELIMINAR UNO - llama al backend y recarga
   const eliminarFavorito = async (idFavorito) => {
     const token = localStorage.getItem("authToken");
     if (!token) {
@@ -79,14 +43,15 @@ export default function Favoritos() {
         return;
       }
 
-      setFavoritos((prev) => prev.filter((f) => f.idFavorito !== idFavorito));
+      // 🔥 RECARGA desde backend - NO modifiques estado manualmente
+      await cargarFavoritos();
     } catch (err) {
       console.error("Error eliminando favorito:", err);
       alert("Error inesperado al eliminar favorito");
     }
   };
 
-  // ===================== VACIAR TODOS =====================
+  // ✅ VACIAR TODOS - elimina en backend y recarga
   const vaciarFavoritos = async () => {
     if (favoritos.length === 0) return;
 
@@ -113,7 +78,8 @@ export default function Favoritos() {
         )
       );
 
-      setFavoritos([]);
+      // 🔥 RECARGA desde backend - NO modifiques estado manualmente
+      await cargarFavoritos();
       alert("Se han vaciado tus favoritos");
     } catch (err) {
       console.error("Error vaciando favoritos:", err);

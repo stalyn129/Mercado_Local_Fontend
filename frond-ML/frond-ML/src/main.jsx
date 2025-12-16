@@ -15,6 +15,7 @@ import Perfil from "./pages/Perfil.jsx";
 
 // 🛍️ Contexto
 import { CarritoProvider } from "./context/CarritoContext.jsx";
+import { FavoritosProvider } from "./context/FavoritosContext.jsx";
 
 // =====================
 // 🛡️ ADMIN
@@ -64,6 +65,7 @@ function LayoutRouter() {
   const hideNavbar = location.pathname.startsWith("/admin");
 
   return (
+    <FavoritosProvider>
     <CarritoProvider>
       {!hideNavbar && <Navbar />}
 
@@ -108,6 +110,7 @@ function LayoutRouter() {
 
       </Routes>
     </CarritoProvider>
+    </FavoritosProvider>
   );
 }
 
