@@ -50,8 +50,6 @@ import Pedido from "./pages/consumidor/Pedido.jsx";
 import PedidoDetalle from "./pages/consumidor/PedidoDetalle.jsx";
 import Factura from "./pages/consumidor/Factura.jsx";
 import MisPedidos from "./pages/consumidor/MisPedidos.jsx"
-import Factura from "./pages/consumidor/Factura.jsx";
-import MisPedidos from "./pages/consumidor/MisPedidos.jsx"
 
 
 // 🎨 estilos

@@ -27,7 +27,7 @@ export default function Navbar() {
       try {
         const userData = localStorage.getItem("user");
         const token = localStorage.getItem("authToken");
-        
+
         if (userData && token) {
           const parsedUser = JSON.parse(userData);
           console.log("📊 Usuario cargado:", parsedUser); // DEBUG
@@ -73,7 +73,7 @@ export default function Navbar() {
       const userTagElement = document.querySelector(".user-tag-btn");
       const dropdownElement = document.querySelector(".dropdown-menu");
       const notifElement = document.querySelector(".notif-dropdown");
-      
+
       if (
         userTagElement &&
         !userTagElement.contains(event.target) &&
@@ -714,7 +714,7 @@ export default function Navbar() {
                   <div style={styles.notificacionesHeader}>
                     <h3 style={styles.notificacionesTitle}>Notificaciones</h3>
                   </div>
-                  
+
                   <div style={styles.notificacionesList}>
                     {notificaciones.length === 0 ? (
                       <div style={styles.emptyNotificaciones}>
@@ -739,11 +739,11 @@ export default function Navbar() {
                           }}
                         >
                           <div style={styles.notificacionIcono}>
-                            {n.tipo === "pedido" ? "📦" : 
-                             n.tipo === "oferta" ? "🎁" : 
-                             n.tipo === "mensaje" ? "💬" : "🔔"}
+                            {n.tipo === "pedido" ? "📦" :
+                              n.tipo === "oferta" ? "🎁" :
+                                n.tipo === "mensaje" ? "💬" : "🔔"}
                           </div>
-                          
+
                           <div style={styles.notificacionContenido}>
                             <div style={styles.notificacionMensaje}>
                               {n.mensaje}
@@ -752,7 +752,7 @@ export default function Navbar() {
                               {n.fecha ? calcularTiempoRelativo(n.fecha) : "Hace un momento"}
                             </div>
                           </div>
-                          
+
                           {!n.leido && <div style={styles.notificacionDot}></div>}
                         </div>
                       ))
@@ -843,6 +843,22 @@ export default function Navbar() {
                   >
                     ⚙️ Configuración
                   </button>
+
+                  <button
+                    onClick={() => handleNavigate("/mis-pedidos")}
+                    style={styles.dropdownItem}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(244, 232, 193, 0.5)";
+                      e.currentTarget.style.paddingLeft = "1.8rem";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "none";
+                      e.currentTarget.style.paddingLeft = "1.5rem";
+                    }}
+                  >
+                    📦 Mis pedidos
+                  </button>
+
                   <button
                     onClick={handleCerrarSesion}
                     style={styles.dropdownItemLogout}
@@ -898,6 +914,16 @@ export default function Navbar() {
               >
                 ♡ Favoritos {totalFavoritos > 0 && `(${totalFavoritos})`}
               </button>
+
+              <button
+                onClick={() => handleNavigate("/mis-pedidos")}
+                style={{ ...styles.navLink, fontSize: "1rem", padding: "0.8rem 1.2rem" }}
+                onMouseEnter={(e) => (e.target.style.color = "#6b8e4e")}
+                onMouseLeave={(e) => (e.target.style.color = "#3a5a40")}
+              >
+                📦 Mis pedidos
+              </button>
+              
               <button
                 onClick={() => handleNavigate("/carrito")}
                 style={{ ...styles.navLink, fontSize: "1rem", padding: "0.8rem 1.2rem" }}
