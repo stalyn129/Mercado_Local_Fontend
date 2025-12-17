@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import Footer from "../../components/Footer.jsx";
 
 export default function PedidoDetalle() {
   const { idPedido } = useParams();
@@ -22,47 +21,43 @@ export default function PedidoDetalle() {
   const [finalizando, setFinalizando] = useState(false);
 
   const cargarPedido = async () => {
-  const token = localStorage.getItem("authToken");
-  if (!token) return navigate("/loginmodal");
+    const token = localStorage.getItem("authToken");
+    if (!token) return navigate("/loginmodal");
 
-  try {
-    // ================= PEDIDO =================
-    const resPedido = await fetch(`${API_URL}/pedidos/${idPedido}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (!resPedido.ok) {
-      console.error("Error pedido:", resPedido.status);
-      throw new Error("No autorizado para ver el pedido");
-    }
-
-    const dataPedido = await resPedido.json();
-
-    // ================= DETALLES =================
-    const resDetalles = await fetch(
-      `${API_URL}/pedidos/${idPedido}/detalles`,
-      {
+    try {
+      const resPedido = await fetch(`${API_URL}/pedidos/${idPedido}`, {
         headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!resPedido.ok) {
+        console.error("Error pedido:", resPedido.status);
+        throw new Error("No autorizado para ver el pedido");
       }
-    );
 
-    if (!resDetalles.ok) {
-      console.error("Error detalles:", resDetalles.status);
-      throw new Error("No autorizado para ver los detalles");
+      const dataPedido = await resPedido.json();
+
+      const resDetalles = await fetch(
+        `${API_URL}/pedidos/${idPedido}/detalles`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!resDetalles.ok) {
+        console.error("Error detalles:", resDetalles.status);
+        throw new Error("No autorizado para ver los detalles");
+      }
+
+      const dataDetalles = await resDetalles.json();
+
+      setPedido(dataPedido);
+      setDetalles(dataDetalles);
+      setLoading(false);
+    } catch (err) {
+      console.error("❌ Error cargando pedido:", err);
+      setLoading(false);
     }
-
-    const dataDetalles = await resDetalles.json();
-
-    setPedido(dataPedido);
-    setDetalles(dataDetalles);
-    setLoading(false);
-
-  } catch (err) {
-    console.error("❌ Error cargando pedido:", err);
-    setLoading(false);
-  }
-};
-
+  };
 
   useEffect(() => {
     cargarPedido();
@@ -86,7 +81,7 @@ export default function PedidoDetalle() {
         }
 
         if (metodoPago === "TARJETA") {
-          body.append("numTarjeta", numTarjeta);
+          body.append("numTarjeta", numTarjeta.replace(/\s/g, ""));
           body.append("cvv", cvv);
           body.append("fechaTarjeta", fechaTarjeta);
           body.append("titular", titular);
@@ -98,27 +93,24 @@ export default function PedidoDetalle() {
         });
       }
 
-      const res = await fetch(
-        `${API_URL}/pedidos/finalizar/${idPedido}`,
-        {
-          method: "PUT",
-          headers:
-            metodoPago === "EFECTIVO"
-              ? {
-                  Authorization: `Bearer ${token}`,
-                  "Content-Type": "application/json",
-                }
-              : {
-                  Authorization: `Bearer ${token}`,
-                },
-          body,
-        }
-      );
+      const res = await fetch(`${API_URL}/pedidos/finalizar/${idPedido}`, {
+        method: "PUT",
+        headers:
+          metodoPago === "EFECTIVO"
+            ? {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              }
+            : {
+                Authorization: `Bearer ${token}`,
+              },
+        body,
+      });
 
       if (!res.ok) throw new Error("No se pudo finalizar el pedido");
 
       alert("🎉 Compra finalizada con éxito!");
-      navigate("/");
+      navigate(`/factura/${idPedido}`);
     } catch (err) {
       console.error("Error al finalizar:", err);
       alert("❌ Error finalizando compra");
@@ -129,14 +121,16 @@ export default function PedidoDetalle() {
 
   if (loading) {
     return (
-      <div style={{ 
-        padding: "100px", 
-        textAlign: "center",
-        background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)",
-        minHeight: "100vh",
-        fontSize: "24px",
-        color: "#6B7F69"
-      }}>
+      <div
+        style={{
+          padding: "100px",
+          textAlign: "center",
+          background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)",
+          minHeight: "100vh",
+          fontSize: "24px",
+          color: "#6B7F69",
+        }}
+      >
         Cargando pedido...
       </div>
     );
@@ -144,14 +138,16 @@ export default function PedidoDetalle() {
 
   if (!pedido) {
     return (
-      <div style={{
-        padding: "100px",
-        textAlign: "center",
-        background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)",
-        minHeight: "100vh"
-      }}>
+      <div
+        style={{
+          padding: "100px",
+          textAlign: "center",
+          background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)",
+          minHeight: "100vh",
+        }}
+      >
         <h2 style={{ color: "#2D3E2B" }}>❌ Error cargando pedido</h2>
-        <button 
+        <button
           onClick={() => navigate("/")}
           style={{
             marginTop: "20px",
@@ -161,7 +157,7 @@ export default function PedidoDetalle() {
             border: "none",
             borderRadius: "10px",
             cursor: "pointer",
-            fontSize: "16px"
+            fontSize: "16px",
           }}
         >
           Volver al inicio
@@ -174,7 +170,25 @@ export default function PedidoDetalle() {
     PENDIENTE: "#F4B419",
     PROCESANDO: "#4A90E2",
     COMPLETADO: "#5A8F48",
-    CANCELADO: "#E74C3C"
+    CANCELADO: "#E74C3C",
+  };
+
+  const labelStyle = {
+    display: "block",
+    fontWeight: "600",
+    color: "#2D3E2B",
+    marginBottom: "6px",
+    fontSize: "13px",
+  };
+
+  const inputStyle = {
+    padding: "12px",
+    width: "100%",
+    borderRadius: "10px",
+    border: "2px solid #ECF2E3",
+    marginBottom: "12px",
+    fontSize: "14px",
+    transition: "all 0.3s ease",
   };
 
   return (
@@ -183,7 +197,7 @@ export default function PedidoDetalle() {
         background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)",
         minHeight: "100vh",
         display: "flex",
-        flexDirection: "column"
+        flexDirection: "column",
       }}
     >
       <style>{`
@@ -201,8 +215,15 @@ export default function PedidoDetalle() {
         }
       `}</style>
 
-      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "30px 20px", flex: "1", width: "100%" }}>
-        
+      <div
+        style={{
+          maxWidth: "1100px",
+          margin: "0 auto",
+          padding: "30px 20px",
+          flex: "1",
+          width: "100%",
+        }}
+      >
         <button
           onClick={() => navigate(-1)}
           style={{
@@ -216,7 +237,7 @@ export default function PedidoDetalle() {
             color: "#5A8F48",
             marginBottom: "20px",
             boxShadow: "0 2px 8px rgba(90, 143, 72, 0.1)",
-            transition: "all 0.3s ease"
+            transition: "all 0.3s ease",
           }}
           onMouseEnter={(e) => {
             e.target.style.transform = "translateX(-4px)";
@@ -230,72 +251,97 @@ export default function PedidoDetalle() {
           ← Volver
         </button>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 400px", gap: "25px", animation: "fadeIn 0.5s ease-out" }}>
-          
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 400px",
+            gap: "25px",
+            animation: "fadeIn 0.5s ease-out",
+          }}
+        >
           {/* COLUMNA IZQUIERDA - Productos y Detalles */}
           <div>
             {/* Header del Pedido */}
-            <div style={{
-              background: "white",
-              padding: "25px",
-              borderRadius: "16px",
-              boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)",
-              marginBottom: "20px"
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div
+              style={{
+                background: "white",
+                padding: "25px",
+                borderRadius: "16px",
+                boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)",
+                marginBottom: "20px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
                 <div>
-                  <h1 style={{
-                    fontFamily: "'Playfair Display', serif",
-                    fontWeight: "900",
-                    margin: "0 0 6px 0",
-                    fontSize: "32px",
-                    color: "#2D3E2B"
-                  }}>
+                  <h1
+                    style={{
+                      fontFamily: "'Playfair Display', serif",
+                      fontWeight: "900",
+                      margin: "0 0 6px 0",
+                      fontSize: "32px",
+                      color: "#2D3E2B",
+                    }}
+                  >
                     📦 Pedido #{pedido.idPedido}
                   </h1>
-                  <p style={{ 
-                    fontSize: "13px", 
-                    color: "#6B7F69",
-                    margin: 0
-                  }}>
-                    📅 {new Date(pedido.fechaPedido).toLocaleDateString('es-ES', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
+                  <p
+                    style={{
+                      fontSize: "13px",
+                      color: "#6B7F69",
+                      margin: 0,
+                    }}
+                  >
+                    📅{" "}
+                    {new Date(pedido.fechaPedido).toLocaleDateString("es-ES", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
                     })}
                   </p>
                 </div>
-                <div style={{
-                  background: estadoColors[pedido.estadoPedido] || "#6B7F69",
-                  color: "white",
-                  padding: "8px 16px",
-                  borderRadius: "20px",
-                  fontWeight: "700",
-                  fontSize: "13px",
-                  whiteSpace: "nowrap"
-                }}>
+                <div
+                  style={{
+                    background: estadoColors[pedido.estadoPedido] || "#6B7F69",
+                    color: "white",
+                    padding: "8px 16px",
+                    borderRadius: "20px",
+                    fontWeight: "700",
+                    fontSize: "13px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {pedido.estadoPedido}
                 </div>
               </div>
             </div>
 
             {/* Lista de Productos */}
-            <div style={{
-              background: "white",
-              padding: "25px",
-              borderRadius: "16px",
-              boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)"
-            }}>
-              <h2 style={{
-                fontFamily: "'Playfair Display', serif",
-                fontSize: "22px",
-                fontWeight: "700",
-                color: "#2D3E2B",
-                marginBottom: "18px",
-                marginTop: 0
-              }}>
+            <div
+              style={{
+                background: "white",
+                padding: "25px",
+                borderRadius: "16px",
+                boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)",
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: "22px",
+                  fontWeight: "700",
+                  color: "#2D3E2B",
+                  marginBottom: "18px",
+                  marginTop: 0,
+                }}
+              >
                 🛒 Productos
               </h2>
 
@@ -310,20 +356,20 @@ export default function PedidoDetalle() {
                     display: "flex",
                     gap: "15px",
                     alignItems: "center",
-                    transition: "all 0.3s ease"
+                    transition: "all 0.3s ease",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.1)";
+                    e.currentTarget.style.boxShadow =
+                      "0 4px 12px rgba(90, 143, 72, 0.1)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = "translateY(0)";
                     e.currentTarget.style.boxShadow = "none";
                   }}
                 >
-                  {/* Imagen del producto */}
                   {d.producto?.imagenProducto && (
-                    <img 
+                    <img
                       src={d.producto.imagenProducto}
                       alt={d.producto.nombreProducto}
                       style={{
@@ -331,38 +377,45 @@ export default function PedidoDetalle() {
                         height: "70px",
                         borderRadius: "10px",
                         objectFit: "cover",
-                        flexShrink: 0
+                        flexShrink: 0,
                       }}
                     />
                   )}
 
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <strong style={{ 
-                      fontSize: "15px", 
-                      color: "#2D3E2B",
-                      display: "block",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap"
-                    }}>
+                    <strong
+                      style={{
+                        fontSize: "15px",
+                        color: "#2D3E2B",
+                        display: "block",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       {d.producto?.nombreProducto || "Producto"}
                     </strong>
-                    <p style={{ 
-                      margin: "4px 0 0 0", 
-                      fontSize: "13px", 
-                      color: "#6B7F69" 
-                    }}>
-                      Cantidad: {d.cantidad} • Precio: ${(d.subtotal / d.cantidad).toFixed(2)}
+                    <p
+                      style={{
+                        margin: "4px 0 0 0",
+                        fontSize: "13px",
+                        color: "#6B7F69",
+                      }}
+                    >
+                      Cantidad: {d.cantidad} • Precio: $
+                      {(d.subtotal / d.cantidad).toFixed(2)}
                     </p>
                   </div>
 
-                  <div style={{
-                    fontSize: "17px",
-                    fontWeight: "700",
-                    color: "#5A8F48",
-                    whiteSpace: "nowrap",
-                    flexShrink: 0
-                  }}>
+                  <div
+                    style={{
+                      fontSize: "17px",
+                      fontWeight: "700",
+                      color: "#5A8F48",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
+                    }}
+                  >
                     ${d.subtotal.toFixed(2)}
                   </div>
                 </div>
@@ -372,68 +425,119 @@ export default function PedidoDetalle() {
 
           {/* COLUMNA DERECHA - Resumen y Pago */}
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-            
             {/* Resumen de Compra */}
-            <div style={{
-              background: "linear-gradient(135deg, #F9D94A 0%, #F5C542 100%)",
-              padding: "22px",
-              borderRadius: "16px",
-              boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)"
-            }}>
-              <h2 style={{
-                fontFamily: "'Playfair Display', serif",
-                fontSize: "20px",
-                fontWeight: "700",
-                color: "#2D3E2B",
-                marginBottom: "14px",
-                marginTop: 0
-              }}>
+            <div
+              style={{
+                background: "linear-gradient(135deg, #F9D94A 0%, #F5C542 100%)",
+                padding: "22px",
+                borderRadius: "16px",
+                boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)",
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: "20px",
+                  fontWeight: "700",
+                  color: "#2D3E2B",
+                  marginBottom: "14px",
+                  marginTop: 0,
+                }}
+              >
                 💰 Resumen
               </h2>
-              
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                <span style={{ fontSize: "14px", color: "#2D3E2B" }}>Subtotal:</span>
-                <span style={{ fontSize: "14px", fontWeight: "600", color: "#2D3E2B" }}>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "8px",
+                }}
+              >
+                <span style={{ fontSize: "14px", color: "#2D3E2B" }}>
+                  Subtotal:
+                </span>
+                <span
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#2D3E2B",
+                  }}
+                >
                   ${pedido.subtotal.toFixed(2)}
                 </span>
               </div>
-              
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "14px" }}>
-                <span style={{ fontSize: "14px", color: "#2D3E2B" }}>IVA (15%):</span>
-                <span style={{ fontSize: "14px", fontWeight: "600", color: "#2D3E2B" }}>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "14px",
+                }}
+              >
+                <span style={{ fontSize: "14px", color: "#2D3E2B" }}>
+                  IVA (15%):
+                </span>
+                <span
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#2D3E2B",
+                  }}
+                >
                   ${pedido.iva.toFixed(2)}
                 </span>
               </div>
-              
-              <div style={{
-                borderTop: "2px solid rgba(45, 62, 43, 0.2)",
-                paddingTop: "14px",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center"
-              }}>
-                <span style={{ fontSize: "16px", fontWeight: "700", color: "#2D3E2B" }}>Total:</span>
-                <span style={{ fontSize: "26px", fontWeight: "900", color: "#2D3E2B" }}>
+
+              <div
+                style={{
+                  borderTop: "2px solid rgba(45, 62, 43, 0.2)",
+                  paddingTop: "14px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: "700",
+                    color: "#2D3E2B",
+                  }}
+                >
+                  Total:
+                </span>
+                <span
+                  style={{
+                    fontSize: "26px",
+                    fontWeight: "900",
+                    color: "#2D3E2B",
+                  }}
+                >
                   ${pedido.total.toFixed(2)}
                 </span>
               </div>
             </div>
 
             {/* Método de Pago */}
-            <div style={{
-              background: "white",
-              padding: "22px",
-              borderRadius: "16px",
-              boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)"
-            }}>
-              <h2 style={{
-                fontFamily: "'Playfair Display', serif",
-                fontSize: "20px",
-                fontWeight: "700",
-                color: "#2D3E2B",
-                marginBottom: "14px",
-                marginTop: 0
-              }}>
+            <div
+              style={{
+                background: "white",
+                padding: "22px",
+                borderRadius: "16px",
+                boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)",
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: "'Playfair Display', serif",
+                  fontSize: "20px",
+                  fontWeight: "700",
+                  color: "#2D3E2B",
+                  marginBottom: "14px",
+                  marginTop: 0,
+                }}
+              >
                 💳 Método de pago
               </h2>
 
@@ -451,7 +555,7 @@ export default function PedidoDetalle() {
                   color: "#2D3E2B",
                   cursor: "pointer",
                   background: "white",
-                  transition: "all 0.3s ease"
+                  transition: "all 0.3s ease",
                 }}
               >
                 <option value="EFECTIVO">💵 Efectivo</option>
@@ -462,56 +566,37 @@ export default function PedidoDetalle() {
               {/* EFECTIVO */}
               {metodoPago === "EFECTIVO" && (
                 <div style={{ animation: "fadeIn 0.3s ease-out" }}>
-                  <label style={{
-                    display: "block",
-                    fontWeight: "600",
-                    color: "#2D3E2B",
-                    marginBottom: "6px",
-                    fontSize: "13px"
-                  }}>
-                    Monto recibido:
-                  </label>
+                  <label style={labelStyle}>Monto recibido:</label>
                   <input
                     type="number"
                     step="0.01"
                     value={montoEfectivo}
                     onChange={(e) => setMontoEfectivo(e.target.value)}
                     placeholder="Ej: 50.00"
-                    style={{
-                      padding: "12px",
-                      width: "100%",
-                      borderRadius: "10px",
-                      border: "2px solid #ECF2E3",
-                      fontSize: "14px",
-                      transition: "all 0.3s ease"
-                    }}
+                    style={inputStyle}
                   />
-                  {montoEfectivo && parseFloat(montoEfectivo) >= pedido.total && (
-                    <p style={{
-                      marginTop: "8px",
-                      marginBottom: 0,
-                      color: "#5A8F48",
-                      fontSize: "13px",
-                      fontWeight: "600"
-                    }}>
-                      ✓ Cambio: ${(parseFloat(montoEfectivo) - pedido.total).toFixed(2)}
-                    </p>
-                  )}
+                  {montoEfectivo &&
+                    parseFloat(montoEfectivo) >= pedido.total && (
+                      <p
+                        style={{
+                          marginTop: "8px",
+                          marginBottom: 0,
+                          color: "#5A8F48",
+                          fontSize: "13px",
+                          fontWeight: "600",
+                        }}
+                      >
+                        ✓ Cambio: $
+                        {(parseFloat(montoEfectivo) - pedido.total).toFixed(2)}
+                      </p>
+                    )}
                 </div>
               )}
 
               {/* TRANSFERENCIA */}
               {metodoPago === "TRANSFERENCIA" && (
                 <div style={{ animation: "fadeIn 0.3s ease-out" }}>
-                  <label style={{
-                    display: "block",
-                    fontWeight: "600",
-                    color: "#2D3E2B",
-                    marginBottom: "6px",
-                    fontSize: "13px"
-                  }}>
-                    Subir comprobante:
-                  </label>
+                  <label style={labelStyle}>Subir comprobante:</label>
                   <input
                     type="file"
                     accept="image/*,application/pdf"
@@ -523,20 +608,22 @@ export default function PedidoDetalle() {
                       border: "2px solid #ECF2E3",
                       background: "white",
                       cursor: "pointer",
-                      fontSize: "13px"
+                      fontSize: "13px",
                     }}
                   />
                   {comprobante && (
-                    <p style={{
-                      marginTop: "8px",
-                      marginBottom: 0,
-                      color: "#5A8F48",
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap"
-                    }}>
+                    <p
+                      style={{
+                        marginTop: "8px",
+                        marginBottom: 0,
+                        color: "#5A8F48",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
                       ✓ {comprobante.name}
                     </p>
                   )}
@@ -550,13 +637,26 @@ export default function PedidoDetalle() {
                   <input
                     type="text"
                     value={numTarjeta}
-                    onChange={(e) => setNumTarjeta(e.target.value.replace(/\s/g, '').replace(/(\d{4})/g, '$1 ').trim())}
+                    onChange={(e) =>
+                      setNumTarjeta(
+                        e.target.value
+                          .replace(/\s/g, "")
+                          .replace(/(\d{4})/g, "$1 ")
+                          .trim()
+                      )
+                    }
                     placeholder="0000 0000 0000 0000"
                     maxLength="19"
                     style={inputStyle}
                   />
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "12px",
+                    }}
+                  >
                     <div>
                       <label style={labelStyle}>CVV:</label>
                       <input
@@ -606,18 +706,22 @@ export default function PedidoDetalle() {
                 border: "none",
                 cursor: finalizando ? "not-allowed" : "pointer",
                 transition: "all 0.3s ease",
-                boxShadow: finalizando ? "none" : "0 4px 12px rgba(90, 143, 72, 0.3)"
+                boxShadow: finalizando
+                  ? "none"
+                  : "0 4px 12px rgba(90, 143, 72, 0.3)",
               }}
               onMouseEnter={(e) => {
                 if (!finalizando) {
                   e.target.style.transform = "translateY(-2px)";
-                  e.target.style.boxShadow = "0 8px 20px rgba(90, 143, 72, 0.4)";
+                  e.target.style.boxShadow =
+                    "0 8px 20px rgba(90, 143, 72, 0.4)";
                 }
               }}
               onMouseLeave={(e) => {
                 if (!finalizando) {
                   e.target.style.transform = "translateY(0)";
-                  e.target.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.3)";
+                  e.target.style.boxShadow =
+                    "0 4px 12px rgba(90, 143, 72, 0.3)";
                 }
               }}
             >
@@ -626,26 +730,6 @@ export default function PedidoDetalle() {
           </div>
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 }
-
-const labelStyle = {
-  display: "block",
-  fontWeight: "600",
-  color: "#2D3E2B",
-  marginBottom: "6px",
-  fontSize: "13px"
-};
-
-const inputStyle = {
-  padding: "12px",
-  width: "100%",
-  borderRadius: "10px",
-  border: "2px solid #ECF2E3",
-  marginBottom: "12px",
-  fontSize: "14px",
-  transition: "all 0.3s ease"
-};

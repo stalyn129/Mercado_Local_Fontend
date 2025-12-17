@@ -48,7 +48,11 @@ import Carrito from "./pages/consumidor/Carrito.jsx";
 import Favoritos from "./pages/consumidor/Favoritos.jsx";
 import Pedido from "./pages/consumidor/Pedido.jsx";
 import PedidoDetalle from "./pages/consumidor/PedidoDetalle.jsx";
-//import Factura from "./pages/consumidor/Factura.jsx";
+import Factura from "./pages/consumidor/Factura.jsx";
+import MisPedidos from "./pages/consumidor/MisPedidos.jsx"
+import Factura from "./pages/consumidor/Factura.jsx";
+import MisPedidos from "./pages/consumidor/MisPedidos.jsx"
+
 
 // 🎨 estilos
 import "./styles/global.css";
@@ -85,7 +89,10 @@ function LayoutRouter() {
         <Route path="/favoritos" element={<Favoritos />} />
         <Route path="/pedido" element={<Pedido />} />
         <Route path="/pedido/:idPedido" element={<PedidoDetalle />} />
-        
+        <Route path="/factura/:idPedido" element={<Factura />} />
+        <Route path="/mis-pedidos" element={<MisPedidos />} />
+        <Route path="/factura/:idPedido" element={<Factura />} />
+        <Route path="/mis-pedidos" element={<MisPedidos />} />
 
         {/* 🧑‍🌾 VENDEDOR */}
         <Route path="/vendedor" element={<DashboardVendedor />} />
