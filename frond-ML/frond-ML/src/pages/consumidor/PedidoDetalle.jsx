@@ -110,7 +110,7 @@ export default function PedidoDetalle() {
       if (!res.ok) throw new Error("No se pudo finalizar el pedido");
 
       alert("🎉 Compra finalizada con éxito!");
-      navigate(`/factura/${idPedido}`);
+      cargarPedido(); // Recargar para actualizar el estado
     } catch (err) {
       console.error("Error al finalizar:", err);
       alert("❌ Error finalizando compra");
@@ -168,6 +168,7 @@ export default function PedidoDetalle() {
 
   const estadoColors = {
     PENDIENTE: "#F4B419",
+    PENDIENTE_VERIFICACION: "#F4B419",
     PROCESANDO: "#4A90E2",
     COMPLETADO: "#5A8F48",
     CANCELADO: "#E74C3C",
@@ -190,6 +191,12 @@ export default function PedidoDetalle() {
     fontSize: "14px",
     transition: "all 0.3s ease",
   };
+
+  // Verificar si el pedido ya está finalizado
+  const pedidoFinalizado = 
+    pedido.estadoPedido === "COMPLETADO" || 
+    pedido.estadoPedido === "PENDIENTE_VERIFICACION" ||
+    pedido.estadoPedido === "PROCESANDO";
 
   return (
     <div
@@ -254,12 +261,12 @@ export default function PedidoDetalle() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 400px",
+            gridTemplateColumns: pedidoFinalizado ? "1fr" : "1fr 400px",
             gap: "25px",
             animation: "fadeIn 0.5s ease-out",
           }}
         >
-          {/* COLUMNA IZQUIERDA - Productos y Detalles */}
+          {/* COLUMNA PRINCIPAL - Productos y Detalles */}
           <div>
             {/* Header del Pedido */}
             <div
@@ -276,6 +283,8 @@ export default function PedidoDetalle() {
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: "15px",
                 }}
               >
                 <div>
@@ -330,6 +339,7 @@ export default function PedidoDetalle() {
                 padding: "25px",
                 borderRadius: "16px",
                 boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)",
+                marginBottom: "20px",
               }}
             >
               <h2
@@ -421,313 +431,434 @@ export default function PedidoDetalle() {
                 </div>
               ))}
             </div>
-          </div>
 
-          {/* COLUMNA DERECHA - Resumen y Pago */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-            {/* Resumen de Compra */}
-            <div
-              style={{
-                background: "linear-gradient(135deg, #F9D94A 0%, #F5C542 100%)",
-                padding: "22px",
-                borderRadius: "16px",
-                boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)",
-              }}
-            >
-              <h2
-                style={{
-                  fontFamily: "'Playfair Display', serif",
-                  fontSize: "20px",
-                  fontWeight: "700",
-                  color: "#2D3E2B",
-                  marginBottom: "14px",
-                  marginTop: 0,
-                }}
-              >
-                💰 Resumen
-              </h2>
-
+            {/* Resumen de Totales - Cuando está finalizado */}
+            {pedidoFinalizado && (
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "8px",
+                  background: "linear-gradient(135deg, #F9D94A 0%, #F5C542 100%)",
+                  padding: "25px",
+                  borderRadius: "16px",
+                  boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)",
                 }}
               >
-                <span style={{ fontSize: "14px", color: "#2D3E2B" }}>
-                  Subtotal:
-                </span>
-                <span
+                <h2
                   style={{
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    color: "#2D3E2B",
-                  }}
-                >
-                  ${pedido.subtotal.toFixed(2)}
-                </span>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "14px",
-                }}
-              >
-                <span style={{ fontSize: "14px", color: "#2D3E2B" }}>
-                  IVA (15%):
-                </span>
-                <span
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    color: "#2D3E2B",
-                  }}
-                >
-                  ${pedido.iva.toFixed(2)}
-                </span>
-              </div>
-
-              <div
-                style={{
-                  borderTop: "2px solid rgba(45, 62, 43, 0.2)",
-                  paddingTop: "14px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "16px",
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: "22px",
                     fontWeight: "700",
                     color: "#2D3E2B",
+                    marginBottom: "18px",
+                    marginTop: 0,
                   }}
                 >
-                  Total:
-                </span>
-                <span
+                  💰 Resumen del Pedido
+                </h2>
+
+                <div
                   style={{
-                    fontSize: "26px",
-                    fontWeight: "900",
-                    color: "#2D3E2B",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: "10px",
                   }}
                 >
-                  ${pedido.total.toFixed(2)}
-                </span>
+                  <span style={{ fontSize: "15px", color: "#2D3E2B" }}>
+                    Subtotal:
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "15px",
+                      fontWeight: "600",
+                      color: "#2D3E2B",
+                    }}
+                  >
+                    ${pedido.subtotal.toFixed(2)}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: "10px",
+                  }}
+                >
+                  <span style={{ fontSize: "15px", color: "#2D3E2B" }}>
+                    IVA (12%):
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "15px",
+                      fontWeight: "600",
+                      color: "#2D3E2B",
+                    }}
+                  >
+                    ${pedido.iva.toFixed(2)}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: "18px",
+                  }}
+                >
+                  <span style={{ fontSize: "15px", color: "#2D3E2B" }}>
+                    Método de pago:
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "15px",
+                      fontWeight: "600",
+                      color: "#2D3E2B",
+                    }}
+                  >
+                    {pedido.metodoPago === "EFECTIVO" && "💵 Efectivo"}
+                    {pedido.metodoPago === "TRANSFERENCIA" && "🏦 Transferencia"}
+                    {pedido.metodoPago === "TARJETA" && "💳 Tarjeta"}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    borderTop: "2px solid rgba(45, 62, 43, 0.2)",
+                    paddingTop: "18px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "18px",
+                      fontWeight: "700",
+                      color: "#2D3E2B",
+                    }}
+                  >
+                    Total:
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "32px",
+                      fontWeight: "900",
+                      color: "#2D3E2B",
+                    }}
+                  >
+                    ${pedido.total.toFixed(2)}
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
+          </div>
 
-            {/* Método de Pago */}
-            <div
-              style={{
-                background: "white",
-                padding: "22px",
-                borderRadius: "16px",
-                boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)",
-              }}
-            >
-              <h2
+          {/* COLUMNA DERECHA - Solo si el pedido NO está finalizado */}
+          {!pedidoFinalizado && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              {/* Resumen de Compra */}
+              <div
                 style={{
-                  fontFamily: "'Playfair Display', serif",
-                  fontSize: "20px",
-                  fontWeight: "700",
-                  color: "#2D3E2B",
-                  marginBottom: "14px",
-                  marginTop: 0,
+                  background: "linear-gradient(135deg, #F9D94A 0%, #F5C542 100%)",
+                  padding: "22px",
+                  borderRadius: "16px",
+                  boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)",
                 }}
               >
-                💳 Método de pago
-              </h2>
+                <h2
+                  style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: "20px",
+                    fontWeight: "700",
+                    color: "#2D3E2B",
+                    marginBottom: "14px",
+                    marginTop: 0,
+                  }}
+                >
+                  💰 Resumen
+                </h2>
 
-              <select
-                value={metodoPago}
-                onChange={(e) => setMetodoPago(e.target.value)}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: "8px",
+                  }}
+                >
+                  <span style={{ fontSize: "14px", color: "#2D3E2B" }}>
+                    Subtotal:
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "#2D3E2B",
+                    }}
+                  >
+                    ${pedido.subtotal.toFixed(2)}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginBottom: "14px",
+                  }}
+                >
+                  <span style={{ fontSize: "14px", color: "#2D3E2B" }}>
+                    IVA (12%):
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "#2D3E2B",
+                    }}
+                  >
+                    ${pedido.iva.toFixed(2)}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    borderTop: "2px solid rgba(45, 62, 43, 0.2)",
+                    paddingTop: "14px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: "700",
+                      color: "#2D3E2B",
+                    }}
+                  >
+                    Total:
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "26px",
+                      fontWeight: "900",
+                      color: "#2D3E2B",
+                    }}
+                  >
+                    ${pedido.total.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Método de Pago */}
+              <div
                 style={{
-                  padding: "12px",
-                  width: "100%",
-                  borderRadius: "10px",
-                  border: "2px solid #ECF2E3",
-                  marginBottom: "16px",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  color: "#2D3E2B",
-                  cursor: "pointer",
                   background: "white",
-                  transition: "all 0.3s ease",
+                  padding: "22px",
+                  borderRadius: "16px",
+                  boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)",
                 }}
               >
-                <option value="EFECTIVO">💵 Efectivo</option>
-                <option value="TRANSFERENCIA">🏦 Transferencia</option>
-                <option value="TARJETA">💳 Tarjeta</option>
-              </select>
+                <h2
+                  style={{
+                    fontFamily: "'Playfair Display', serif",
+                    fontSize: "20px",
+                    fontWeight: "700",
+                    color: "#2D3E2B",
+                    marginBottom: "14px",
+                    marginTop: 0,
+                  }}
+                >
+                  💳 Método de pago
+                </h2>
 
-              {/* EFECTIVO */}
-              {metodoPago === "EFECTIVO" && (
-                <div style={{ animation: "fadeIn 0.3s ease-out" }}>
-                  <label style={labelStyle}>Monto recibido:</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={montoEfectivo}
-                    onChange={(e) => setMontoEfectivo(e.target.value)}
-                    placeholder="Ej: 50.00"
-                    style={inputStyle}
-                  />
-                  {montoEfectivo &&
-                    parseFloat(montoEfectivo) >= pedido.total && (
+                <select
+                  value={metodoPago}
+                  onChange={(e) => setMetodoPago(e.target.value)}
+                  style={{
+                    padding: "12px",
+                    width: "100%",
+                    borderRadius: "10px",
+                    border: "2px solid #ECF2E3",
+                    marginBottom: "16px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: "#2D3E2B",
+                    cursor: "pointer",
+                    background: "white",
+                    transition: "all 0.3s ease",
+                  }}
+                >
+                  <option value="EFECTIVO">💵 Efectivo</option>
+                  <option value="TRANSFERENCIA">🏦 Transferencia</option>
+                  <option value="TARJETA">💳 Tarjeta</option>
+                </select>
+
+                {/* EFECTIVO */}
+                {metodoPago === "EFECTIVO" && (
+                  <div style={{ animation: "fadeIn 0.3s ease-out" }}>
+                    <label style={labelStyle}>Monto recibido:</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={montoEfectivo}
+                      onChange={(e) => setMontoEfectivo(e.target.value)}
+                      placeholder="Ej: 50.00"
+                      style={inputStyle}
+                    />
+                    {montoEfectivo &&
+                      parseFloat(montoEfectivo) >= pedido.total && (
+                        <p
+                          style={{
+                            marginTop: "8px",
+                            marginBottom: 0,
+                            color: "#5A8F48",
+                            fontSize: "13px",
+                            fontWeight: "600",
+                          }}
+                        >
+                          ✓ Cambio: $
+                          {(parseFloat(montoEfectivo) - pedido.total).toFixed(2)}
+                        </p>
+                      )}
+                  </div>
+                )}
+
+                {/* TRANSFERENCIA */}
+                {metodoPago === "TRANSFERENCIA" && (
+                  <div style={{ animation: "fadeIn 0.3s ease-out" }}>
+                    <label style={labelStyle}>Subir comprobante:</label>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={(e) => setComprobante(e.target.files[0])}
+                      style={{
+                        padding: "10px",
+                        width: "100%",
+                        borderRadius: "10px",
+                        border: "2px solid #ECF2E3",
+                        background: "white",
+                        cursor: "pointer",
+                        fontSize: "13px",
+                      }}
+                    />
+                    {comprobante && (
                       <p
                         style={{
                           marginTop: "8px",
                           marginBottom: 0,
                           color: "#5A8F48",
-                          fontSize: "13px",
+                          fontSize: "12px",
                           fontWeight: "600",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
                         }}
                       >
-                        ✓ Cambio: $
-                        {(parseFloat(montoEfectivo) - pedido.total).toFixed(2)}
+                        ✓ {comprobante.name}
                       </p>
                     )}
-                </div>
-              )}
+                  </div>
+                )}
 
-              {/* TRANSFERENCIA */}
-              {metodoPago === "TRANSFERENCIA" && (
-                <div style={{ animation: "fadeIn 0.3s ease-out" }}>
-                  <label style={labelStyle}>Subir comprobante:</label>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={(e) => setComprobante(e.target.files[0])}
-                    style={{
-                      padding: "10px",
-                      width: "100%",
-                      borderRadius: "10px",
-                      border: "2px solid #ECF2E3",
-                      background: "white",
-                      cursor: "pointer",
-                      fontSize: "13px",
-                    }}
-                  />
-                  {comprobante && (
-                    <p
+                {/* TARJETA */}
+                {metodoPago === "TARJETA" && (
+                  <div style={{ animation: "fadeIn 0.3s ease-out" }}>
+                    <label style={labelStyle}>Número de tarjeta:</label>
+                    <input
+                      type="text"
+                      value={numTarjeta}
+                      onChange={(e) =>
+                        setNumTarjeta(
+                          e.target.value
+                            .replace(/\s/g, "")
+                            .replace(/(\d{4})/g, "$1 ")
+                            .trim()
+                        )
+                      }
+                      placeholder="0000 0000 0000 0000"
+                      maxLength="19"
+                      style={inputStyle}
+                    />
+
+                    <div
                       style={{
-                        marginTop: "8px",
-                        marginBottom: 0,
-                        color: "#5A8F48",
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "12px",
                       }}
                     >
-                      ✓ {comprobante.name}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* TARJETA */}
-              {metodoPago === "TARJETA" && (
-                <div style={{ animation: "fadeIn 0.3s ease-out" }}>
-                  <label style={labelStyle}>Número de tarjeta:</label>
-                  <input
-                    type="text"
-                    value={numTarjeta}
-                    onChange={(e) =>
-                      setNumTarjeta(
-                        e.target.value
-                          .replace(/\s/g, "")
-                          .replace(/(\d{4})/g, "$1 ")
-                          .trim()
-                      )
-                    }
-                    placeholder="0000 0000 0000 0000"
-                    maxLength="19"
-                    style={inputStyle}
-                  />
-
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: "12px",
-                    }}
-                  >
-                    <div>
-                      <label style={labelStyle}>CVV:</label>
-                      <input
-                        type="text"
-                        value={cvv}
-                        onChange={(e) => setCvv(e.target.value)}
-                        placeholder="123"
-                        maxLength="4"
-                        style={inputStyle}
-                      />
+                      <div>
+                        <label style={labelStyle}>CVV:</label>
+                        <input
+                          type="text"
+                          value={cvv}
+                          onChange={(e) => setCvv(e.target.value)}
+                          placeholder="123"
+                          maxLength="4"
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Expiración:</label>
+                        <input
+                          type="month"
+                          value={fechaTarjeta}
+                          onChange={(e) => setFechaTarjeta(e.target.value)}
+                          style={inputStyle}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label style={labelStyle}>Expiración:</label>
-                      <input
-                        type="month"
-                        value={fechaTarjeta}
-                        onChange={(e) => setFechaTarjeta(e.target.value)}
-                        style={inputStyle}
-                      />
-                    </div>
+
+                    <label style={labelStyle}>Titular:</label>
+                    <input
+                      type="text"
+                      value={titular}
+                      onChange={(e) => setTitular(e.target.value)}
+                      placeholder="Nombre completo"
+                      style={inputStyle}
+                    />
                   </div>
+                )}
+              </div>
 
-                  <label style={labelStyle}>Titular:</label>
-                  <input
-                    type="text"
-                    value={titular}
-                    onChange={(e) => setTitular(e.target.value)}
-                    placeholder="Nombre completo"
-                    style={inputStyle}
-                  />
-                </div>
-              )}
+              {/* BOTÓN FINALIZAR */}
+              <button
+                onClick={finalizarCompra}
+                disabled={finalizando}
+                style={{
+                  width: "100%",
+                  background: finalizando ? "#98A598" : "#5A8F48",
+                  color: "white",
+                  padding: "16px",
+                  fontSize: "16px",
+                  fontWeight: "700",
+                  borderRadius: "12px",
+                  border: "none",
+                  cursor: finalizando ? "not-allowed" : "pointer",
+                  transition: "all 0.3s ease",
+                  boxShadow: finalizando
+                    ? "none"
+                    : "0 4px 12px rgba(90, 143, 72, 0.3)",
+                }}
+                onMouseEnter={(e) => {
+                  if (!finalizando) {
+                    e.target.style.transform = "translateY(-2px)";
+                    e.target.style.boxShadow =
+                      "0 8px 20px rgba(90, 143, 72, 0.4)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!finalizando) {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow =
+                      "0 4px 12px rgba(90, 143, 72, 0.3)";
+                  }
+                }}
+              >
+                {finalizando ? "⏳ Procesando..." : "✔ Finalizar Compra"}
+              </button>
             </div>
-
-            {/* BOTÓN FINALIZAR */}
-            <button
-              onClick={finalizarCompra}
-              disabled={finalizando}
-              style={{
-                width: "100%",
-                background: finalizando ? "#98A598" : "#5A8F48",
-                color: "white",
-                padding: "16px",
-                fontSize: "16px",
-                fontWeight: "700",
-                borderRadius: "12px",
-                border: "none",
-                cursor: finalizando ? "not-allowed" : "pointer",
-                transition: "all 0.3s ease",
-                boxShadow: finalizando
-                  ? "none"
-                  : "0 4px 12px rgba(90, 143, 72, 0.3)",
-              }}
-              onMouseEnter={(e) => {
-                if (!finalizando) {
-                  e.target.style.transform = "translateY(-2px)";
-                  e.target.style.boxShadow =
-                    "0 8px 20px rgba(90, 143, 72, 0.4)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!finalizando) {
-                  e.target.style.transform = "translateY(0)";
-                  e.target.style.boxShadow =
-                    "0 4px 12px rgba(90, 143, 72, 0.3)";
-                }
-              }}
-            >
-              {finalizando ? "⏳ Procesando..." : "✔ Finalizar Compra"}
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </div>

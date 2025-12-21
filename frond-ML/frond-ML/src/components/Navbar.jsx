@@ -30,7 +30,7 @@ export default function Navbar() {
 
         if (userData && token) {
           const parsedUser = JSON.parse(userData);
-          console.log("📊 Usuario cargado:", parsedUser); // DEBUG
+          console.log("📊 Usuario cargado:", parsedUser);
           setUser(parsedUser);
         } else {
           setUser(null);
@@ -52,21 +52,29 @@ export default function Navbar() {
     setTotalFavoritos(favs.length);
   }, [location]);
 
-  // Cargar notificaciones
+  // Cargar notificaciones (versión mejorada con validación)
   useEffect(() => {
     if (!user?.idUsuario) return;
 
     const token = localStorage.getItem("authToken");
+    if (!token) return;
 
-    obtenerNotificaciones(user.idUsuario, token)
-      .then(setNotificaciones)
-      .catch(() => setNotificaciones([]));
+    const cargarNotificaciones = async () => {
+      try {
+        const notifs = await obtenerNotificaciones(user.idUsuario, token);
+        setNotificaciones(notifs || []);
+        
+        const total = await contarNotificaciones(user.idUsuario, token);
+        setTotalNotificaciones(total || 0);
+      } catch (error) {
+        console.error("Error cargando notificaciones:", error);
+        setNotificaciones([]);
+        setTotalNotificaciones(0);
+      }
+    };
 
-    contarNotificaciones(user.idUsuario, token)
-      .then(setTotalNotificaciones)
-      .catch(() => setTotalNotificaciones(0));
-
-  }, [user, location]);
+    cargarNotificaciones();
+  }, [user?.idUsuario, location]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -104,7 +112,7 @@ export default function Navbar() {
     setUser(null);
     setIsMenuOpen(false);
     setShowUserMenu(false);
-    window.location.reload(); // Fuerza limpiar contextos (carrito, favoritos, etc.)
+    window.location.reload();
   };
 
   const getNavLinks = () => {
@@ -138,7 +146,7 @@ export default function Navbar() {
   const calcularTiempoRelativo = (fecha) => {
     const ahora = new Date();
     const notifFecha = new Date(fecha);
-    const diferencia = Math.floor((ahora - notifFecha) / 1000); // segundos
+    const diferencia = Math.floor((ahora - notifFecha) / 1000);
 
     if (diferencia < 60) return "Hace un momento";
     if (diferencia < 3600) return `Hace ${Math.floor(diferencia / 60)} min`;
@@ -630,12 +638,12 @@ export default function Navbar() {
         </div>
 
         <div style={styles.rightSection} className="right-section">
-          {/* Iconos para CONSUMIDOR con CONTADORES */}
+          {/* FAVORITOS - Solo para CONSUMIDOR */}
           {user && user.rol === "CONSUMIDOR" && (
-            <div style={{ display: "flex", gap: "0.5rem", position: "relative" }}>
+            <div style={{ position: "relative" }}>
               <button
                 onClick={() => handleNavigate("/favoritos")}
-                style={{ ...styles.iconButton, position: "relative" }}
+                style={styles.iconButton}
                 className="icon-button"
                 title="Favoritos"
                 aria-label="Favoritos"
@@ -657,45 +665,25 @@ export default function Navbar() {
                   </span>
                 )}
               </button>
+            </div>
+          )}
 
-              <button
-                onClick={() => handleNavigate("/carrito")}
-                style={{ ...styles.iconButton, position: "relative" }}
-                className="icon-button"
-                title="Carrito"
-                aria-label="Carrito"
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "scale(1.15) rotate(5deg)";
-                  e.currentTarget.style.background = "linear-gradient(135deg, rgba(244, 232, 193, 0.7) 0%, rgba(244, 232, 193, 0.5) 100%)";
-                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(58, 90, 64, 0.15)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "scale(1) rotate(0deg)";
-                  e.currentTarget.style.background = "rgba(244, 232, 193, 0.3)";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
-              >
-                🛒
-                {totalCarrito > 0 && (
-                  <span style={styles.badge("#d32f2f")}>
-                    {totalCarrito > 99 ? "99+" : totalCarrito}
-                  </span>
-                )}
-              </button>
-
+          {/* NOTIFICACIONES - Para todos los usuarios autenticados */}
+          {user && (
+            <div style={{ position: "relative" }}>
               <button
                 onClick={() => setShowNotificaciones(!showNotificaciones)}
-                style={{ ...styles.iconButton, position: "relative" }}
+                style={styles.iconButton}
                 className="icon-button"
                 title="Notificaciones"
                 aria-label="Notificaciones"
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "scale(1.15) rotate(-5deg)";
+                  e.currentTarget.style.transform = "scale(1.15)";
                   e.currentTarget.style.background = "linear-gradient(135deg, rgba(244, 232, 193, 0.7) 0%, rgba(244, 232, 193, 0.5) 100%)";
                   e.currentTarget.style.boxShadow = "0 6px 20px rgba(58, 90, 64, 0.15)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "scale(1) rotate(0deg)";
+                  e.currentTarget.style.transform = "scale(1)";
                   e.currentTarget.style.background = "rgba(244, 232, 193, 0.3)";
                   e.currentTarget.style.boxShadow = "none";
                 }}
@@ -731,6 +719,18 @@ export default function Navbar() {
                         <div
                           key={n.idNotificacion}
                           style={styles.notificacionItem(n.leido)}
+                          onClick={() => {
+                            setShowNotificaciones(false);
+
+                            // Redirigir según el tipo y rol
+                            if ((n.tipo === "PEDIDO" || n.tipo === "pedido") && n.idPedido) {
+                              navigate(
+                                user.rol === "VENDEDOR"
+                                  ? `/vendedor/pedido/${n.idPedido}`
+                                  : `/pedido/${n.idPedido}`
+                              );
+                            }
+                          }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.background = n.leido ? "#f5f5f5" : "#d4e9ff";
                           }}
@@ -739,9 +739,9 @@ export default function Navbar() {
                           }}
                         >
                           <div style={styles.notificacionIcono}>
-                            {n.tipo === "pedido" ? "📦" :
-                              n.tipo === "oferta" ? "🎁" :
-                                n.tipo === "mensaje" ? "💬" : "🔔"}
+                            {n.tipo === "PEDIDO" || n.tipo === "pedido" ? "📦" :
+                             n.tipo === "OFERTA" || n.tipo === "oferta" ? "🎁" :
+                             n.tipo === "MENSAJE" || n.tipo === "mensaje" ? "💬" : "🔔"}
                           </div>
 
                           <div style={styles.notificacionContenido}>
@@ -763,17 +763,17 @@ export default function Navbar() {
             </div>
           )}
 
-          {/* Notificaciones para VENDEDOR */}
-          {user && user.rol === "VENDEDOR" && (
-            <div style={{ display: "flex", gap: "0.5rem", position: "relative" }}>
+          {/* CARRITO - Solo para CONSUMIDOR */}
+          {user && user.rol === "CONSUMIDOR" && (
+            <div style={{ position: "relative" }}>
               <button
-                onClick={() => setShowNotificaciones(!showNotificaciones)}
-                style={{ ...styles.iconButton, position: "relative" }}
+                onClick={() => handleNavigate("/carrito")}
+                style={styles.iconButton}
                 className="icon-button"
-                title="Notificaciones"
-                aria-label="Notificaciones"
+                title="Carrito"
+                aria-label="Carrito"
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "scale(1.15) rotate(-5deg)";
+                  e.currentTarget.style.transform = "scale(1.15) rotate(5deg)";
                   e.currentTarget.style.background = "linear-gradient(135deg, rgba(244, 232, 193, 0.7) 0%, rgba(244, 232, 193, 0.5) 100%)";
                   e.currentTarget.style.boxShadow = "0 6px 20px rgba(58, 90, 64, 0.15)";
                 }}
@@ -783,66 +783,13 @@ export default function Navbar() {
                   e.currentTarget.style.boxShadow = "none";
                 }}
               >
-                🔔
-                {totalNotificaciones > 0 && (
-                  <span style={styles.badge("#ff9800")}>
-                    {totalNotificaciones > 99 ? "99+" : totalNotificaciones}
+                🛒
+                {totalCarrito > 0 && (
+                  <span style={styles.badge("#d32f2f")}>
+                    {totalCarrito > 99 ? "99+" : totalCarrito}
                   </span>
                 )}
               </button>
-
-              {/* Dropdown de Notificaciones */}
-              {showNotificaciones && (
-                <div style={styles.notificacionesDropdown} className="notif-dropdown">
-                  <div style={styles.notificacionesHeader}>
-                    <h3 style={styles.notificacionesTitle}>Notificaciones</h3>
-                  </div>
-
-                  <div style={styles.notificacionesList}>
-                    {notificaciones.length === 0 ? (
-                      <div style={styles.emptyNotificaciones}>
-                        <div style={styles.emptyNotificacionesIcono}>🔔</div>
-                        <div style={styles.emptyNotificacionesMensaje}>
-                          Sin notificaciones
-                        </div>
-                        <div style={styles.emptyNotificacionesTexto}>
-                          Te avisaremos cuando haya algo nuevo
-                        </div>
-                      </div>
-                    ) : (
-                      notificaciones.map((n) => (
-                        <div
-                          key={n.idNotificacion}
-                          style={styles.notificacionItem(n.leido)}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = n.leido ? "#f5f5f5" : "#d4e9ff";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = n.leido ? "#ffffff" : "#e7f3ff";
-                          }}
-                        >
-                          <div style={styles.notificacionIcono}>
-                            {n.tipo === "pedido" ? "📦" :
-                              n.tipo === "oferta" ? "🎁" :
-                                n.tipo === "mensaje" ? "💬" : "🔔"}
-                          </div>
-
-                          <div style={styles.notificacionContenido}>
-                            <div style={styles.notificacionMensaje}>
-                              {n.mensaje}
-                            </div>
-                            <div style={styles.notificacionTiempo}>
-                              {n.fecha ? calcularTiempoRelativo(n.fecha) : "Hace un momento"}
-                            </div>
-                          </div>
-
-                          {!n.leido && <div style={styles.notificacionDot}></div>}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
@@ -879,17 +826,13 @@ export default function Navbar() {
                 }}
               >
                 👤 {(() => {
-                  // Si hay nombre, mostrar nombre + apellido
                   if (user.nombre) {
                     return `${user.nombre} ${user.apellido || ""}`.trim();
                   }
-                  // Si no hay nombre, intentar con email o correo
                   if (user.email) return user.email.split('@')[0];
                   if (user.correo) return user.correo.split('@')[0];
-                  // Si hay username o usuario
                   if (user.username) return user.username;
                   if (user.usuario) return user.usuario;
-                  // Último recurso
                   return "Usuario";
                 })()}
                 <span style={{ fontSize: "1rem", marginLeft: "0.3rem" }}>▼</span>
@@ -987,17 +930,21 @@ export default function Navbar() {
             <div key={link.label}>{renderNavLink(link)}</div>
           ))}
 
+          {/* FAVORITOS - Solo para CONSUMIDOR en mobile */}
+          {user && user.rol === "CONSUMIDOR" && (
+            <button
+              onClick={() => handleNavigate("/favoritos")}
+              style={{ ...styles.navLink, fontSize: "1rem", padding: "0.8rem 1.2rem" }}
+              onMouseEnter={(e) => (e.target.style.color = "#6b8e4e")}
+              onMouseLeave={(e) => (e.target.style.color = "#3a5a40")}
+            >
+              ♡ Favoritos {totalFavoritos > 0 && `(${totalFavoritos})`}
+            </button>
+          )}
+
+          {/* PEDIDOS Y CARRITO - Solo para CONSUMIDOR en mobile */}
           {user && user.rol === "CONSUMIDOR" && (
             <>
-              <button
-                onClick={() => handleNavigate("/favoritos")}
-                style={{ ...styles.navLink, fontSize: "1rem", padding: "0.8rem 1.2rem" }}
-                onMouseEnter={(e) => (e.target.style.color = "#6b8e4e")}
-                onMouseLeave={(e) => (e.target.style.color = "#3a5a40")}
-              >
-                ♡ Favoritos {totalFavoritos > 0 && `(${totalFavoritos})`}
-              </button>
-
               <button
                 onClick={() => handleNavigate("/mis-pedidos")}
                 style={{ ...styles.navLink, fontSize: "1rem", padding: "0.8rem 1.2rem" }}
@@ -1006,7 +953,7 @@ export default function Navbar() {
               >
                 📦 Mis pedidos
               </button>
-              
+
               <button
                 onClick={() => handleNavigate("/carrito")}
                 style={{ ...styles.navLink, fontSize: "1rem", padding: "0.8rem 1.2rem" }}
@@ -1037,17 +984,13 @@ export default function Navbar() {
             <>
               <div style={{ ...styles.userTag, justifyContent: "center", marginTop: "0.5rem" }}>
                 👤 {(() => {
-                  // Si hay nombre, mostrar nombre + apellido
                   if (user.nombre) {
                     return `${user.nombre} ${user.apellido || ""}`.trim();
                   }
-                  // Si no hay nombre, intentar con email o correo
                   if (user.email) return user.email.split('@')[0];
                   if (user.correo) return user.correo.split('@')[0];
-                  // Si hay username o usuario
                   if (user.username) return user.username;
                   if (user.usuario) return user.usuario;
-                  // Último recurso
                   return "Usuario";
                 })()}
               </div>

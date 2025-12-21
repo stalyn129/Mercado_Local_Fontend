@@ -36,8 +36,9 @@ import AgregarProducto from "./pages/vendedor/AgregarProducto.jsx";
 import GestionarProductos from "./pages/vendedor/GestionarProductos.jsx";
 import EditarProducto from "./pages/vendedor/EditarProducto.jsx";
 import GestionarPedidos from "./pages/vendedor/GestionarPedidos.jsx";
-import AnalisisVentas from "./pages/vendedor/AnalisisVentas.jsx";
+import AnalisisVentas from "./pages/vendedor/AnalisisVentas.jsx"; 
 import ResenasVendedor from "./pages/vendedor/ResenasVendedor.jsx";
+import VendedorPedidoDetalle from "./pages/vendedor/VendedorPedidoDetalle.jsx";
 
 // =====================
 // 🛒 CONSUMIDOR
@@ -63,7 +64,7 @@ import "./styles/fonts.css";
 function LayoutRouter() {
   const location = useLocation();
 
-  // ❌ Ocultar navbar en admin
+  // Ocultar navbar en admin
   const hideNavbar = location.pathname.startsWith("/admin");
 
   return (
@@ -100,6 +101,7 @@ function LayoutRouter() {
         <Route path="/vendedor/pedidos" element={<GestionarPedidos />} />
         <Route path="/vendedor/analisis" element={<AnalisisVentas />} />
         <Route path="/vendedor/resenas" element={<ResenasVendedor />} />
+        <Route path="/vendedor/pedido/:idPedido" element={<VendedorPedidoDetalle />} />
 
         {/* 🛡️ ADMIN */}
         <Route path="/admin" element={<DashboardAdmin />} />

@@ -13,12 +13,12 @@ export default function Favoritos() {
 
   // ✅ CARGA INICIAL usando el contexto
   useEffect(() => {
-    const loadFavoritos = async () => {
-      await cargarFavoritos();
-      setLoading(false);
-    };
-    loadFavoritos();
-  }, [cargarFavoritos]);
+  const loadFavoritos = async () => {
+    await cargarFavoritos();
+    setLoading(false);
+  };
+  loadFavoritos();
+}, []);
 
   // ✅ ELIMINAR UNO - llama al backend y recarga
   const eliminarFavorito = async (idFavorito) => {

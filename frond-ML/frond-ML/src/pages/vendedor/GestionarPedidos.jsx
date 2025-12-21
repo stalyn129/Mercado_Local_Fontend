@@ -21,28 +21,34 @@ export default function GestionarPedidos() {
       });
 
       const data = await res.json();
-      
+
       // 🔍 DEBUG: Ver estructura de datos
       console.log("📦 Datos recibidos del API:", data);
       console.log("📦 Tipo de datos:", typeof data);
       console.log("📦 Es array?:", Array.isArray(data));
-      
+
       if (data && data.length > 0) {
         console.log("📋 Estructura del primer pedido:", data[0]);
         console.log("🔑 Claves disponibles:", Object.keys(data[0]));
       }
-      
+
       // Normalizar los datos para manejar diferentes estructuras del API
-      const pedidosNormalizados = Array.isArray(data) ? data.map(p => ({
-        idPedido: p.idPedido || p.id || p.numeroPedido || 'N/A',
-        nombreCliente: p.nombreCliente || p.cliente?.nombre || p.cliente || p.nombreUsuario || p.usuario?.nombre || 'Cliente sin nombre',
-        total: p.total || p.monto || p.precio || p.precioTotal || 0,
-        fecha: p.fecha || p.fechaPedido || p.fechaCreacion || p.createdAt || p.created_at || 'Fecha no disponible',
-        estado: p.estado || p.estadoPedido || p.status || 'Pendiente'
-      })) : [];
-      
+      const pedidosNormalizados = data
+        .sort((a, b) => new Date(b.fechaPedido) - new Date(a.fechaPedido))
+        .map(p => ({
+          idPedido: p.idPedido,
+          nombreCliente: p.consumidor?.usuario
+            ? `${p.consumidor.usuario.nombre} ${p.consumidor.usuario.apellido}`
+            : "Cliente sin nombre",
+          total: p.total,
+          fecha: p.fechaPedido,
+          estado: p.estadoPedido
+        }));
+
+
+
       console.log("✅ Pedidos normalizados:", pedidosNormalizados);
-      
+
       setPedidos(pedidosNormalizados);
     } catch (err) {
       console.error("❌ Error cargando pedidos:", err);
@@ -222,22 +228,15 @@ export default function GestionarPedidos() {
                     </td>
                   </tr>
                 ) : (
-                  pedidos.map((p) => (
-                    <tr key={p.idPedido} style={{
-                      borderBottom: "1px solid #F0F4ED",
-                      transition: "background 0.2s ease"
-                    }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = "#FAFCF8"}
-                      onMouseLeave={(e) => e.currentTarget.style.background = "white"}
-                    >
-                      {/* N° Pedido */}
+                  pedidos.map((p, index) => (
+                    <tr key={p.idPedido}>
                       <td style={{
                         padding: "16px",
                         fontWeight: "700",
                         color: "#5A8F48",
                         fontSize: "15px"
                       }}>
-                        #{p.idPedido}
+                        #{index + 1}
                       </td>
 
                       {/* Cliente */}
@@ -267,7 +266,13 @@ export default function GestionarPedidos() {
                         fontSize: "14px",
                         fontWeight: "500"
                       }}>
-                        {p.fecha}
+                        {new Date(p.fecha).toLocaleDateString("es-EC", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
                       </td>
 
                       {/* Estado */}
