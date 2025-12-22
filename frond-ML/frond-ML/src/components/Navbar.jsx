@@ -763,6 +763,89 @@ export default function Navbar() {
             </div>
           )}
 
+          {/* Notificaciones para VENDEDOR */}
+          {user && user.rol === "VENDEDOR" && (
+            <div style={{ display: "flex", gap: "0.5rem", position: "relative" }}>
+              <button
+                onClick={() => setShowNotificaciones(!showNotificaciones)}
+                style={{ ...styles.iconButton, position: "relative" }}
+                className="icon-button"
+                title="Notificaciones"
+                aria-label="Notificaciones"
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.15) rotate(-5deg)";
+                  e.currentTarget.style.background = "linear-gradient(135deg, rgba(244, 232, 193, 0.7) 0%, rgba(244, 232, 193, 0.5) 100%)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(58, 90, 64, 0.15)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1) rotate(0deg)";
+                  e.currentTarget.style.background = "rgba(244, 232, 193, 0.3)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                🔔
+                {totalNotificaciones > 0 && (
+                  <span style={styles.badge("#ff9800")}>
+                    {totalNotificaciones > 99 ? "99+" : totalNotificaciones}
+                  </span>
+                )}
+              </button>
+
+              {/* Dropdown de Notificaciones */}
+              {showNotificaciones && (
+                <div style={styles.notificacionesDropdown} className="notif-dropdown">
+                  <div style={styles.notificacionesHeader}>
+                    <h3 style={styles.notificacionesTitle}>Notificaciones</h3>
+                  </div>
+
+                  <div style={styles.notificacionesList}>
+                    {notificaciones.length === 0 ? (
+                      <div style={styles.emptyNotificaciones}>
+                        <div style={styles.emptyNotificacionesIcono}>🔔</div>
+                        <div style={styles.emptyNotificacionesMensaje}>
+                          Sin notificaciones
+                        </div>
+                        <div style={styles.emptyNotificacionesTexto}>
+                          Te avisaremos cuando haya algo nuevo
+                        </div>
+                      </div>
+                    ) : (
+                      notificaciones.map((n) => (
+                        <div
+                          key={n.idNotificacion}
+                          style={styles.notificacionItem(n.leido)}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = n.leido ? "#f5f5f5" : "#d4e9ff";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = n.leido ? "#ffffff" : "#e7f3ff";
+                          }}
+                        >
+                          <div style={styles.notificacionIcono}>
+                            {n.tipo === "pedido" ? "📦" :
+                              n.tipo === "oferta" ? "🎁" :
+                                n.tipo === "mensaje" ? "💬" : "🔔"}
+                          </div>
+
+                          <div style={styles.notificacionContenido}>
+                            <div style={styles.notificacionMensaje}>
+                              {n.mensaje}
+                            </div>
+                            <div style={styles.notificacionTiempo}>
+                              {n.fecha ? calcularTiempoRelativo(n.fecha) : "Hace un momento"}
+                            </div>
+                          </div>
+
+                          {!n.leido && <div style={styles.notificacionDot}></div>}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Login o User Menu */}
           {!user ? (
             <button

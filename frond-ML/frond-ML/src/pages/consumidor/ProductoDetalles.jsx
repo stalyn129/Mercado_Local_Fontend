@@ -20,6 +20,13 @@ export default function ProductoDetalle() {
   const [showReembolso, setShowReembolso] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // 🔐 CONTROL DE ROL
+  const usuario = JSON.parse(localStorage.getItem("user"));
+  const rol = usuario?.rol; // "CONSUMIDOR" | "VENDEDOR" | "ADMIN"
+  const esConsumidor = rol === "CONSUMIDOR";
+  const esVendedor = rol === "VENDEDOR";
+
+
   const getProducto = async () => {
     try {
       const res = await fetch(`${API_URL}/productos/detalle/${id}`);
@@ -46,11 +53,23 @@ export default function ProductoDetalle() {
   // 🔥 VERIFICAR SI ES FAVORITO
   const guardado = esFavorito(producto.idProducto);
 
-  // 🔥 FUNCIÓN MEJORADA PARA AGREGAR/QUITAR FAVORITOS
+  // 🚫 BLOQUEO PARA ROLES NO CONSUMIDOR
+  const bloquearSiNoConsumidor = () => {
+    if (esVendedor) {
+      alert("⚠️ Esta acción solo está disponible para consumidores");
+      return true;
+    }
+    return false;
+  };
+
+
+  //  PARA AGREGAR/QUITAR FAVORITOS
   const toggleFavorito = async () => {
+    if (bloquearSiNoConsumidor()) return;
+
     const token = localStorage.getItem("authToken");
     const usuario = JSON.parse(localStorage.getItem("user"));
-    
+
     if (!token || !usuario?.idConsumidor) {
       return navigate("/login");
     }
@@ -82,6 +101,8 @@ export default function ProductoDetalle() {
   };
 
   const handleAddCarrito = () => {
+    if (bloquearSiNoConsumidor()) return;
+
     const usuario = JSON.parse(localStorage.getItem("user"));
     const token = localStorage.getItem("authToken");
 
@@ -100,7 +121,10 @@ export default function ProductoDetalle() {
     alert("Producto añadido al carrito 🛒");
   };
 
+
   const comprarAhora = async () => {
+    if (bloquearSiNoConsumidor()) return;
+
     const token = localStorage.getItem("authToken");
     const usuario = JSON.parse(localStorage.getItem("user"));
 
@@ -150,6 +174,8 @@ export default function ProductoDetalle() {
   };
 
   const enviarReseña = async () => {
+    if (bloquearSiNoConsumidor()) return;
+
     const token = localStorage.getItem("authToken");
     const usuario = JSON.parse(localStorage.getItem("user"));
 
@@ -194,7 +220,7 @@ export default function ProductoDetalle() {
       `}</style>
 
       <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "20px", flex: "1", width: "100%" }}>
-        
+
         {/* Header de Navegación */}
         <button
           onClick={() => navigate(-1)}
@@ -215,7 +241,7 @@ export default function ProductoDetalle() {
         </button>
 
         <div style={{ display: "grid", gridTemplateColumns: "45% 55%", gap: "30px", background: "white", borderRadius: "20px", padding: "30px", boxShadow: "0 8px 32px rgba(90, 143, 72, 0.12)" }}>
-          
+
           {/* Columna Izquierda - Imágenes */}
           <div>
             <img
@@ -276,7 +302,7 @@ export default function ProductoDetalle() {
                       {[
                         { text: "👤 Ver Perfil", action: () => navigate(`/vendedor/${producto.idVendedor}`) },
                         { text: "🛒 Más productos", action: () => navigate(`/productos/vendedor/${producto.idVendedor}`) },
-                        { text: "💬 Contactar", action: () => {} }
+                        { text: "💬 Contactar", action: () => { } }
                       ].map((item, i) => (
                         <p
                           key={i}
@@ -409,15 +435,17 @@ export default function ProductoDetalle() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
               <button
                 onClick={handleAddCarrito}
+                disabled={esVendedor}
                 style={{
-                  background: "#5A8F48",
+                  background: esVendedor ? "#A5B7A1" : "#5A8F48",
                   color: "white",
                   border: "none",
                   padding: "14px 20px",
                   borderRadius: "10px",
                   fontSize: "15px",
                   fontWeight: "700",
-                  cursor: "pointer",
+                  cursor: esVendedor ? "not-allowed" : "pointer",
+                  opacity: esVendedor ? 0.6 : 1,
                   transition: "all 0.3s ease"
                 }}
                 onMouseEnter={(e) => {
@@ -433,16 +461,18 @@ export default function ProductoDetalle() {
               </button>
               <button
                 onClick={comprarAhora}
+                disabled={esVendedor}
                 style={{
-                  background: "#2D3E2B",
+                  background: esVendedor ? "#9E9E9E" : "#2D3E2B",
                   color: "white",
                   border: "none",
                   padding: "14px 20px",
                   borderRadius: "10px",
                   fontSize: "15px",
                   fontWeight: "700",
-                  cursor: "pointer",
-                  transition: "all 0.3s ease"
+                  cursor: esVendedor ? "not-allowed" : "pointer",
+                  transition: "all 0.3s ease",
+                  opacity: esVendedor ? 0.6 : 1
                 }}
                 onMouseEnter={(e) => {
                   e.target.style.transform = "translateY(-2px)";
@@ -459,9 +489,10 @@ export default function ProductoDetalle() {
 
             {/* Botones Secundarios */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
-              {/* 🔥 BOTÓN DE FAVORITOS ACTUALIZADO */}
+              {/*  BOTÓN DE FAVORITOS ACTUALIZADO */}
               <button
                 onClick={toggleFavorito}
+                disabled={esVendedor}
                 style={{
                   background: guardado ? "#FF7B9C" : "#FFE5E9",
                   color: guardado ? "white" : "#2D3E2B",
@@ -469,8 +500,9 @@ export default function ProductoDetalle() {
                   padding: "10px",
                   borderRadius: "10px",
                   fontWeight: "700",
-                  cursor: "pointer",
+                  cursor: esVendedor ? "not-allowed" : "pointer",
                   fontSize: "13px",
+                  opacity: esVendedor ? 0.5 : 1,
                   transition: "all 0.3s ease"
                 }}
               >
@@ -512,7 +544,7 @@ export default function ProductoDetalle() {
 
         {/* Descripción y Reseñas */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "30px", marginTop: "30px" }}>
-          
+
           {/* Descripción */}
           <div style={{
             background: "white",
@@ -586,95 +618,89 @@ export default function ProductoDetalle() {
           </div>
         </div>
 
-        {/* Agregar Reseña */}
-        <div style={{
-          background: "white",
-          borderRadius: "16px",
-          padding: "24px",
-          marginTop: "30px",
-          boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)"
-        }}>
-          <h2 style={{
-            fontSize: "22px",
-            fontWeight: "700",
-            color: "#2D3E2B",
-            margin: "0 0 18px 0",
-            fontFamily: "'Playfair Display', serif"
+        {/* Agregar Reseña (solo CONSUMIDOR) */}
+        {esConsumidor && (
+          <div style={{
+            background: "white",
+            borderRadius: "16px",
+            padding: "24px",
+            marginTop: "30px",
+            boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)"
           }}>
-            ✍️ Escribe tu reseña
-          </h2>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-            <div>
-              <label style={{ display: "block", fontWeight: "600", color: "#2D3E2B", marginBottom: "8px", fontSize: "13px" }}>
-                Calificación
-              </label>
-              <select
-                value={nuevaValoracion}
-                onChange={(e) => setNuevaValoracion(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  borderRadius: "10px",
-                  border: "2px solid #ECF2E3",
-                  fontSize: "14px",
-                  fontWeight: "600"
-                }}
-              >
-                <option value="5">⭐⭐⭐⭐⭐ Excelente</option>
-                <option value="4">⭐⭐⭐⭐ Muy Bueno</option>
-                <option value="3">⭐⭐⭐ Bueno</option>
-                <option value="2">⭐⭐ Regular</option>
-                <option value="1">⭐ Malo</option>
-              </select>
-            </div>
-          </div>
-
-          <label style={{ display: "block", fontWeight: "600", color: "#2D3E2B", marginBottom: "8px", fontSize: "13px" }}>
-            Tu comentario
-          </label>
-          <textarea
-            placeholder="Cuéntanos tu experiencia con este producto..."
-            value={nuevoComentario}
-            onChange={(e) => setNuevoComentario(e.target.value)}
-            style={{
-              width: "100%",
-              height: "100px",
-              padding: "14px",
-              borderRadius: "10px",
-              border: "2px solid #ECF2E3",
-              fontSize: "13px",
-              fontFamily: "inherit",
-              resize: "none"
-            }}
-          />
-
-          <button
-            onClick={enviarReseña}
-            style={{
-              marginTop: "14px",
-              padding: "12px 28px",
-              background: "#5A8F48",
-              color: "white",
-              border: "none",
-              borderRadius: "10px",
+            <h2 style={{
+              fontSize: "22px",
               fontWeight: "700",
-              cursor: "pointer",
-              fontSize: "14px",
-              transition: "all 0.3s ease"
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.transform = "translateY(-2px)";
-              e.target.style.boxShadow = "0 8px 20px rgba(90, 143, 72, 0.3)";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.transform = "translateY(0)";
-              e.target.style.boxShadow = "none";
-            }}
-          >
-            Enviar Reseña
-          </button>
-        </div>
+              color: "#2D3E2B",
+              margin: "0 0 18px 0",
+              fontFamily: "'Playfair Display', serif"
+            }}>
+              ✍️ Escribe tu reseña
+            </h2>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+              <div>
+                <label style={{ display: "block", fontWeight: "600", color: "#2D3E2B", marginBottom: "8px", fontSize: "13px" }}>
+                  Calificación
+                </label>
+                <select
+                  value={nuevaValoracion}
+                  onChange={(e) => setNuevaValoracion(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px",
+                    borderRadius: "10px",
+                    border: "2px solid #ECF2E3",
+                    fontSize: "14px",
+                    fontWeight: "600"
+                  }}
+                >
+                  <option value="5">⭐⭐⭐⭐⭐ Excelente</option>
+                  <option value="4">⭐⭐⭐⭐ Muy Bueno</option>
+                  <option value="3">⭐⭐⭐ Bueno</option>
+                  <option value="2">⭐⭐ Regular</option>
+                  <option value="1">⭐ Malo</option>
+                </select>
+              </div>
+            </div>
+
+            <label style={{ display: "block", fontWeight: "600", color: "#2D3E2B", marginBottom: "8px", fontSize: "13px" }}>
+              Tu comentario
+            </label>
+            <textarea
+              placeholder="Cuéntanos tu experiencia con este producto..."
+              value={nuevoComentario}
+              onChange={(e) => setNuevoComentario(e.target.value)}
+              style={{
+                width: "100%",
+                height: "100px",
+                padding: "14px",
+                borderRadius: "10px",
+                border: "2px solid #ECF2E3",
+                fontSize: "13px",
+                fontFamily: "inherit",
+                resize: "none"
+              }}
+            />
+
+            <button
+              onClick={enviarReseña}
+              style={{
+                marginTop: "14px",
+                padding: "12px 28px",
+                background: "#5A8F48",
+                color: "white",
+                border: "none",
+                borderRadius: "10px",
+                fontWeight: "700",
+                cursor: "pointer",
+                fontSize: "14px",
+                transition: "all 0.3s ease"
+              }}
+            >
+              Enviar Reseña
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Modales */}
