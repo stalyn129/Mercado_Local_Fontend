@@ -19,9 +19,10 @@ export default function Chatbot() {
 
     try {
       const data = await enviarMensaje(
-        input,
-        user?.rol || "GENERAL"
-      );
+      input,
+      user?.rol || "GENERAL",
+      user?.idUsuario || 0
+    );
 
       // Respuesta del bot
       setMensajes(prev => [
