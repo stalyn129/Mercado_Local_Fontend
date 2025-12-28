@@ -31,7 +31,7 @@ import LogsAdmin from "./pages/admin/LogsAdmin.jsx";
 import ReportesAdmin from "./pages/admin/ReportesAdmin.jsx";
 
 // =====================
-// 🧑‍🌾 VENDEDOR
+// 🧑‍🌾 VENDEDOR (PRIVADO)
 // =====================
 import DashboardVendedor from "./pages/vendedor/DashboardVendedor.jsx";
 import AgregarProducto from "./pages/vendedor/AgregarProducto.jsx";
@@ -41,6 +41,12 @@ import GestionarPedidos from "./pages/vendedor/GestionarPedidos.jsx";
 import AnalisisVentas from "./pages/vendedor/AnalisisVentas.jsx";
 import ResenasVendedor from "./pages/vendedor/ResenasVendedor.jsx";
 import VendedorPedidoDetalle from "./pages/vendedor/VendedorPedidoDetalle.jsx";
+
+// =====================
+// 🧑‍🌾 VENDEDOR (PÚBLICO) ✅ NUEVO
+// =====================
+import VendedorPerfil from "./pages/vendedor/VendedorPerfil.jsx";
+import ProductosPorVendedor from "./pages/vendedor/ProductosPorVendedor.jsx";
 
 // =====================
 // 🛒 CONSUMIDOR
@@ -94,7 +100,11 @@ function LayoutRouter() {
           <Route path="/factura/:idPedido" element={<Factura />} />
           <Route path="/mis-pedidos" element={<MisPedidos />} />
 
-          {/* 🧑‍🌾 VENDEDOR */}
+          {/* 🧑‍🌾 VENDEDOR PÚBLICO ✅ */}
+          <Route path="/vendedores/:id" element={<VendedorPerfil />} />
+          <Route path="/vendedores/:id/productos" element={<ProductosPorVendedor />} />
+
+          {/* 🧑‍🌾 VENDEDOR PRIVADO */}
           <Route path="/vendedor" element={<DashboardVendedor />} />
           <Route path="/vendedor/agregar-producto" element={<AgregarProducto />} />
           <Route path="/vendedor/gestionar-productos" element={<GestionarProductos />} />
@@ -118,7 +128,7 @@ function LayoutRouter() {
 
         </Routes>
 
-        {/* 🤖 CHATBOT GLOBAL (para CONSUMIDOR y VENDEDOR) */}
+        {/* 🤖 CHATBOT GLOBAL */}
         {!hideNavbar && <Chatbot />}
 
       </CarritoProvider>

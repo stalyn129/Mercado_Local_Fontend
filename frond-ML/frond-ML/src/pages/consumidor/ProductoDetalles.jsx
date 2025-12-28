@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useCarrito } from "../../context/CarritoContext.jsx";
-import { useFavoritos } from "../../context/FavoritosContext.jsx"; // 🔥 IMPORT
+import { useFavoritos } from "../../context/FavoritosContext.jsx";
 import Footer from "../../components/Footer.jsx";
+import ChatVendedor from "../vendedor/ChatVendedor.jsx"; // ✅ CAMBIO 1
 
 export default function ProductoDetalle() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { agregarCarrito } = useCarrito();
-  const { esFavorito, cargarFavoritos } = useFavoritos(); // 🔥 USAR CONTEXTO
+  const { esFavorito, cargarFavoritos } = useFavoritos();
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
   const [producto, setProducto] = useState(null);
@@ -19,13 +20,13 @@ export default function ProductoDetalle() {
   const [showEnvio, setShowEnvio] = useState(false);
   const [showReembolso, setShowReembolso] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mostrarChat, setMostrarChat] = useState(false); // ✅ CAMBIO 2
 
   // 🔐 CONTROL DE ROL
   const usuario = JSON.parse(localStorage.getItem("user"));
-  const rol = usuario?.rol; // "CONSUMIDOR" | "VENDEDOR" | "ADMIN"
+  const rol = usuario?.rol;
   const esConsumidor = rol === "CONSUMIDOR";
   const esVendedor = rol === "VENDEDOR";
-
 
   const getProducto = async () => {
     try {
@@ -50,10 +51,8 @@ export default function ProductoDetalle() {
     );
   }
 
-  // 🔥 VERIFICAR SI ES FAVORITO
   const guardado = esFavorito(producto.idProducto);
 
-  // 🚫 BLOQUEO PARA ROLES NO CONSUMIDOR
   const bloquearSiNoConsumidor = () => {
     if (esVendedor) {
       alert("⚠️ Esta acción solo está disponible para consumidores");
@@ -62,8 +61,6 @@ export default function ProductoDetalle() {
     return false;
   };
 
-
-  //  PARA AGREGAR/QUITAR FAVORITOS
   const toggleFavorito = async () => {
     if (bloquearSiNoConsumidor()) return;
 
@@ -88,7 +85,6 @@ export default function ProductoDetalle() {
       });
 
       if (res.ok) {
-        // 🔥 SINCRONIZAR CONTEXTO
         await cargarFavoritos();
         alert(guardado ? "Producto eliminado de favoritos 💔" : "Producto agregado a favoritos ❤️");
       } else {
@@ -120,7 +116,6 @@ export default function ProductoDetalle() {
 
     alert("Producto añadido al carrito 🛒");
   };
-
 
   const comprarAhora = async () => {
     if (bloquearSiNoConsumidor()) return;
@@ -160,11 +155,8 @@ export default function ProductoDetalle() {
       }
 
       const pedido = await res.json();
-
       console.log("RESPUESTA DEL PEDIDO =>", pedido);
-
       alert("Compra realizada correctamente 🎉");
-
       navigate(`/pedido/${pedido.idPedido}`);
 
     } catch (err) {
@@ -221,7 +213,6 @@ export default function ProductoDetalle() {
 
       <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "20px", flex: "1", width: "100%" }}>
 
-        {/* Header de Navegación */}
         <button
           onClick={() => navigate(-1)}
           style={{
@@ -250,7 +241,6 @@ export default function ProductoDetalle() {
               alt="Producto"
             />
 
-            {/* Miniaturas */}
             <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
               <img
                 src={producto.imagenProducto}
@@ -299,10 +289,29 @@ export default function ProductoDetalle() {
                       minWidth: "200px",
                       zIndex: 10
                     }}>
+                      {/* ✅ CAMBIO 3: Menú actualizado con rutas correctas */}
                       {[
-                        { text: "👤 Ver Perfil", action: () => navigate(`/vendedor/${producto.idVendedor}`) },
-                        { text: "🛒 Más productos", action: () => navigate(`/productos/vendedor/${producto.idVendedor}`) },
-                        { text: "💬 Contactar", action: () => { } }
+                        {
+                          text: "👤 Ver Perfil",
+                          action: () => {
+                            setMenuOpen(false);
+                            navigate(`/vendedores/${producto.idVendedor}`);
+                          }
+                        },
+                        {
+                          text: "🛒 Más productos",
+                          action: () => {
+                            setMenuOpen(false);
+                            navigate(`/vendedores/${producto.idVendedor}/productos`);
+                          }
+                        },
+                        {
+                          text: "💬 Contactar",
+                          action: () => {
+                            setMenuOpen(false);
+                            setMostrarChat(true);
+                          }
+                        }
                       ].map((item, i) => (
                         <p
                           key={i}
@@ -344,7 +353,6 @@ export default function ProductoDetalle() {
               </h1>
             </div>
 
-            {/* Rating */}
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
               <div style={{ fontSize: "20px" }}>⭐</div>
               <span style={{ fontSize: "16px", fontWeight: "700", color: "#F4B419" }}>
@@ -355,7 +363,6 @@ export default function ProductoDetalle() {
               </span>
             </div>
 
-            {/* Precio */}
             <div style={{
               background: "linear-gradient(135deg, #F9D94A 0%, #F5C542 100%)",
               padding: "18px",
@@ -373,7 +380,6 @@ export default function ProductoDetalle() {
               </p>
             </div>
 
-            {/* Cantidad */}
             <div style={{ marginBottom: "18px" }}>
               <p style={{ fontSize: "13px", fontWeight: "600", color: "#2D3E2B", margin: "0 0 10px 0" }}>
                 Cantidad
@@ -431,7 +437,6 @@ export default function ProductoDetalle() {
               </div>
             </div>
 
-            {/* Botones Principales */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
               <button
                 onClick={handleAddCarrito}
@@ -449,8 +454,10 @@ export default function ProductoDetalle() {
                   transition: "all 0.3s ease"
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.transform = "translateY(-2px)";
-                  e.target.style.boxShadow = "0 8px 20px rgba(90, 143, 72, 0.3)";
+                  if (!esVendedor) {
+                    e.target.style.transform = "translateY(-2px)";
+                    e.target.style.boxShadow = "0 8px 20px rgba(90, 143, 72, 0.3)";
+                  }
                 }}
                 onMouseLeave={(e) => {
                   e.target.style.transform = "translateY(0)";
@@ -475,8 +482,10 @@ export default function ProductoDetalle() {
                   opacity: esVendedor ? 0.6 : 1
                 }}
                 onMouseEnter={(e) => {
-                  e.target.style.transform = "translateY(-2px)";
-                  e.target.style.boxShadow = "0 8px 20px rgba(0,0,0,0.2)";
+                  if (!esVendedor) {
+                    e.target.style.transform = "translateY(-2px)";
+                    e.target.style.boxShadow = "0 8px 20px rgba(0,0,0,0.2)";
+                  }
                 }}
                 onMouseLeave={(e) => {
                   e.target.style.transform = "translateY(0)";
@@ -487,9 +496,7 @@ export default function ProductoDetalle() {
               </button>
             </div>
 
-            {/* Botones Secundarios */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
-              {/*  BOTÓN DE FAVORITOS ACTUALIZADO */}
               <button
                 onClick={toggleFavorito}
                 disabled={esVendedor}
@@ -545,7 +552,6 @@ export default function ProductoDetalle() {
         {/* Descripción y Reseñas */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "30px", marginTop: "30px" }}>
 
-          {/* Descripción */}
           <div style={{
             background: "white",
             borderRadius: "16px",
@@ -574,7 +580,6 @@ export default function ProductoDetalle() {
             </p>
           </div>
 
-          {/* Reseñas */}
           <div style={{
             background: "white",
             borderRadius: "16px",
@@ -618,7 +623,6 @@ export default function ProductoDetalle() {
           </div>
         </div>
 
-        {/* Agregar Reseña (solo CONSUMIDOR) */}
         {esConsumidor && (
           <div style={{
             background: "white",
@@ -718,6 +722,18 @@ export default function ProductoDetalle() {
           <p>✓ Requiere evidencia</p>
           <p>✗ No cubre daño por mal uso</p>
         </Modal>
+      )}
+
+      {/* ✅ CAMBIO 4: Chat flotante tipo Facebook Messenger */}
+      {mostrarChat && (
+        <ChatVendedor
+          vendedor={{
+            idVendedor: producto.idVendedor,
+            nombre: producto.nombreVendedor,
+            empresa: producto.nombreEmpresa
+          }}
+          onClose={() => setMostrarChat(false)}
+        />
       )}
 
       <Footer />
