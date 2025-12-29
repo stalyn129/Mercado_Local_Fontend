@@ -1,19 +1,19 @@
 export default function ChatVendedor({ vendedor, onClose }) {
   return (
-    <div className="chat-overlay">
-      <div className="chat-box">
-        <div className="chat-header">
+    <div style={styles.overlay}>
+      <div style={styles.chat}>
+        <div style={styles.header}>
           <span>{vendedor.nombre}</span>
           <button onClick={onClose}>✖</button>
         </div>
 
-        <div className="chat-messages">
-          <div className="mensaje vendedor">
-            Hola 👋 ¿En qué te puedo ayudar?
+        <div style={styles.messages}>
+          <div style={styles.msgVendedor}>
+            Hola 👋 soy {vendedor.nombre}, ¿en qué te ayudo?
           </div>
         </div>
 
-        <div className="chat-input">
+        <div style={styles.inputBox}>
           <input placeholder="Escribe un mensaje..." />
           <button>➤</button>
         </div>

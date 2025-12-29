@@ -7,22 +7,29 @@ export default function Chatbot() {
   const [abierto, setAbierto] = useState(false);
 
   const user = JSON.parse(localStorage.getItem("user"));
+  const token = localStorage.getItem("token");
 
   const enviar = async () => {
     if (!input.trim()) return;
 
-    // Mensaje del usuario
+    const mensajeUsuario = input;
+
+    // Mostrar mensaje del usuario
     setMensajes(prev => [
       ...prev,
-      { autor: "user", texto: input }
+      { autor: "user", texto: mensajeUsuario }
     ]);
+
+    setInput("");
 
     try {
       const data = await enviarMensaje(
-      input,
-      user?.rol || "GENERAL",
-      user?.idUsuario || 0
-    );
+        input,
+        user?.rol,
+        user?.idConsumidor,
+        user?.idVendedor,
+        token
+      );
 
       // Respuesta del bot
       setMensajes(prev => [
@@ -32,11 +39,12 @@ export default function Chatbot() {
     } catch (error) {
       setMensajes(prev => [
         ...prev,
-        { autor: "bot", texto: "⚠ Error al conectar con el chatbot" }
+        {
+          autor: "bot",
+          texto: "⚠️ Error al conectar con el asistente"
+        }
       ]);
     }
-
-    setInput("");
   };
 
   return (
@@ -75,7 +83,8 @@ export default function Chatbot() {
                     ...styles.bubble,
                     background:
                       m.autor === "bot" ? "#F0F4F1" : "#3A5A40",
-                    color: m.autor === "bot" ? "#000" : "#fff"
+                    color:
+                      m.autor === "bot" ? "#000" : "#fff"
                   }}
                 >
                   {m.texto}
