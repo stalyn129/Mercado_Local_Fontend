@@ -96,26 +96,25 @@ export default function ProductoDetalle() {
     }
   };
 
-  const handleAddCarrito = () => {
-    if (bloquearSiNoConsumidor()) return;
+  const handleAddCarrito = async () => {
+  if (bloquearSiNoConsumidor()) return;
 
-    const usuario = JSON.parse(localStorage.getItem("user"));
-    const token = localStorage.getItem("authToken");
+  const usuario = JSON.parse(localStorage.getItem("user"));
+  const token = localStorage.getItem("authToken");
 
-    if (!usuario || !token) {
-      return navigate("/login");
-    }
+  if (!usuario || !token) {
+    return navigate("/login");
+  }
 
-    agregarCarrito({
-      idProducto: producto.idProducto,
-      nombreProducto: producto.nombreProducto,
-      precioProducto: producto.precioProducto,
-      imagenProducto: producto.imagenProducto,
-      idVendedor: producto.idVendedor
-    }, cantidad);
-
+  try {
+    await agregarCarrito(producto.idProducto, cantidad);
     alert("Producto añadido al carrito 🛒");
-  };
+  } catch (error) {
+    console.error(error);
+    alert("❌ Error al agregar al carrito");
+  }
+};
+
 
   const comprarAhora = async () => {
     if (bloquearSiNoConsumidor()) return;

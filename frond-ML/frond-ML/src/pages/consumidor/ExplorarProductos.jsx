@@ -76,29 +76,31 @@ export default function ExplorarProductos() {
     return cumpleBusqueda && cumpleCategoria && cumpleSubcategoria;
   });
 
-  // 🔥 FUNCIÓN PARA AGREGAR AL CARRITO
-  const handleAgregarCarrito = (producto) => {
-    const usuario = JSON.parse(localStorage.getItem("user"));
-    const token = localStorage.getItem("authToken");
+ // 🔥 FUNCIÓN CORRECTA PARA AGREGAR AL CARRITO
+const handleAgregarCarrito = async (producto) => {
+  const usuario = JSON.parse(localStorage.getItem("user"));
+  const token = localStorage.getItem("authToken");
 
-    if (!usuario || !token) {
-      alert("⚠️ Debes iniciar sesión para agregar productos al carrito");
-      navigate("/login");
-      return;
-    }
+  if (!usuario || !token) {
+    alert("⚠️ Debes iniciar sesión para agregar productos al carrito");
+    navigate("/login");
+    return;
+  }
 
-    // Estructura correcta del producto para el carrito
-    agregarCarrito({
-      idProducto: producto.idProducto,
-      nombreProducto: producto.nombreProducto,
-      precioProducto: producto.precioProducto,
-      imagenProducto: producto.imagenProducto,
-      cantidad: 1,
-      idVendedor: producto.idVendedor
-    });
+  try {
+    // ⚠️ SOLO ENVÍA LO QUE EL BACKEND ESPERA
+    await agregarCarrito(
+      producto.idProducto,
+      1 // cantidad
+    );
 
     alert("✅ Producto añadido al carrito");
-  };
+  } catch (error) {
+    console.error(error);
+    alert("❌ No se pudo agregar el producto al carrito");
+  }
+};
+
 
   return (
     <div style={{

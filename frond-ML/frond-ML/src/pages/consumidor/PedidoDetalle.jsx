@@ -10,6 +10,7 @@ export default function PedidoDetalle() {
   const [pedido, setPedido] = useState(null);
   const [detalles, setDetalles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [metodoPago, setMetodoPago] = useState("EFECTIVO");
   const [montoEfectivo, setMontoEfectivo] = useState("");
@@ -30,7 +31,6 @@ export default function PedidoDetalle() {
       });
 
       if (!resPedido.ok) {
-        console.error("Error pedido:", resPedido.status);
         throw new Error("No autorizado para ver el pedido");
       }
 
@@ -44,18 +44,48 @@ export default function PedidoDetalle() {
       );
 
       if (!resDetalles.ok) {
-        console.error("Error detalles:", resDetalles.status);
         throw new Error("No autorizado para ver los detalles");
       }
 
       const dataDetalles = await resDetalles.json();
 
-      setPedido(dataPedido);
+      setPedido({
+        ...dataPedido,
+        subtotal: dataPedido.subtotal ?? 0,
+        iva: dataPedido.iva ?? 0,
+        total: dataPedido.total ?? 0,
+      });
       setDetalles(dataDetalles);
+      setError(null);
       setLoading(false);
     } catch (err) {
       console.error("❌ Error cargando pedido:", err);
+      setError(err.message);
       setLoading(false);
+    }
+  };
+
+  const confirmarSalir = async () => {
+    const ok = window.confirm(
+      "¿Estás seguro de cancelar este pedido? Los productos volverán al carrito."
+    );
+
+    if (!ok) return;
+
+    const token = localStorage.getItem("authToken");
+
+    try {
+      await fetch(`${API_URL}/pedidos/${pedido.idPedido}/cancelar`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      navigate("/carrito");
+    } catch (err) {
+      console.error("Error cancelando pedido:", err);
+      navigate("/carrito");
     }
   };
 
@@ -63,9 +93,68 @@ export default function PedidoDetalle() {
     cargarPedido();
   }, [idPedido]);
 
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
+  // Validación del formulario
+  const validarFormulario = () => {
+    if (metodoPago === "EFECTIVO") {
+      if (!montoEfectivo || parseFloat(montoEfectivo) < pedido.total) {
+        alert("❌ El monto debe ser mayor o igual al total del pedido");
+        return false;
+      }
+    }
+
+    if (metodoPago === "TRANSFERENCIA") {
+      if (!comprobante) {
+        alert("❌ Debes subir el comprobante de transferencia");
+        return false;
+      }
+    }
+
+    if (metodoPago === "TARJETA") {
+      if (!numTarjeta || numTarjeta.replace(/\s/g, "").length < 15) {
+        alert("❌ Número de tarjeta inválido");
+        return false;
+      }
+      if (!cvv || cvv.length < 3) {
+        alert("❌ CVV inválido");
+        return false;
+      }
+      if (!fechaTarjeta) {
+        alert("❌ Fecha de expiración requerida");
+        return false;
+      }
+      if (!titular.trim()) {
+        alert("❌ Nombre del titular requerido");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const finalizarCompra = async () => {
+    if (!validarFormulario()) return;
+
     const token = localStorage.getItem("authToken");
     if (!token) return navigate("/loginmodal");
+
+    // Confirmación
+    const confirmar = window.confirm(
+      `¿Confirmar pedido por ${(pedido.total ?? 0).toFixed(2)} con ${metodoPago}?`
+    );
+    if (!confirmar) return;
 
     setFinalizando(true);
 
@@ -89,7 +178,7 @@ export default function PedidoDetalle() {
       } else {
         body = JSON.stringify({
           metodoPago,
-          montoEfectivo,
+          montoEfectivo: parseFloat(montoEfectivo),
         });
       }
 
@@ -107,16 +196,19 @@ export default function PedidoDetalle() {
         body,
       });
 
-      if (!res.ok) throw new Error("No se pudo finalizar el pedido");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "No se pudo finalizar el pedido");
+      }
 
       alert("🎉 Compra finalizada con éxito!");
-      cargarPedido(); // Recargar para actualizar el estado
+      await cargarPedido();
     } catch (err) {
       console.error("Error al finalizar:", err);
-      alert("❌ Error finalizando compra");
+      alert(`❌ Error: ${err.message}`);
+    } finally {
+      setFinalizando(false);
     }
-
-    setFinalizando(false);
   };
 
   if (loading) {
@@ -136,7 +228,7 @@ export default function PedidoDetalle() {
     );
   }
 
-  if (!pedido) {
+  if (error || !pedido) {
     return (
       <div
         style={{
@@ -146,7 +238,7 @@ export default function PedidoDetalle() {
           minHeight: "100vh",
         }}
       >
-        <h2 style={{ color: "#2D3E2B" }}>❌ Error cargando pedido</h2>
+        <h2 style={{ color: "#2D3E2B" }}>❌ {error || "Error cargando pedido"}</h2>
         <button
           onClick={() => navigate("/")}
           style={{
@@ -192,7 +284,6 @@ export default function PedidoDetalle() {
     transition: "all 0.3s ease",
   };
 
-  // Verificar si el pedido ya está finalizado
   const pedidoFinalizado = 
     pedido.estadoPedido === "COMPLETADO" || 
     pedido.estadoPedido === "PENDIENTE_VERIFICACION" ||
@@ -220,6 +311,12 @@ export default function PedidoDetalle() {
         * {
           box-sizing: border-box;
         }
+
+        @media (max-width: 768px) {
+          .grid-layout {
+            grid-template-columns: 1fr !important;
+          }
+        }
       `}</style>
 
       <div
@@ -232,7 +329,7 @@ export default function PedidoDetalle() {
         }}
       >
         <button
-          onClick={() => navigate(-1)}
+          onClick={confirmarSalir}
           style={{
             background: "white",
             border: "none",
@@ -259,6 +356,7 @@ export default function PedidoDetalle() {
         </button>
 
         <div
+          className="grid-layout"
           style={{
             display: "grid",
             gridTemplateColumns: pedidoFinalizado ? "1fr" : "1fr 400px",
@@ -266,9 +364,7 @@ export default function PedidoDetalle() {
             animation: "fadeIn 0.5s ease-out",
           }}
         >
-          {/* COLUMNA PRINCIPAL - Productos y Detalles */}
           <div>
-            {/* Header del Pedido */}
             <div
               style={{
                 background: "white",
@@ -297,7 +393,7 @@ export default function PedidoDetalle() {
                       color: "#2D3E2B",
                     }}
                   >
-                    📦 Pedido #{pedido.idPedido}
+                    📦 {pedidoFinalizado ? "Resumen de tu compra" : "Confirma tu pedido"}
                   </h1>
                   <p
                     style={{
@@ -332,7 +428,6 @@ export default function PedidoDetalle() {
               </div>
             </div>
 
-            {/* Lista de Productos */}
             <div
               style={{
                 background: "white",
@@ -413,7 +508,9 @@ export default function PedidoDetalle() {
                       }}
                     >
                       Cantidad: {d.cantidad} • Precio: $
-                      {(d.subtotal / d.cantidad).toFixed(2)}
+                      {d.subtotal != null && d.cantidad > 0
+                        ? (d.subtotal / d.cantidad).toFixed(2)
+                        : "0.00"}
                     </p>
                   </div>
 
@@ -426,13 +523,12 @@ export default function PedidoDetalle() {
                       flexShrink: 0,
                     }}
                   >
-                    ${d.subtotal.toFixed(2)}
+                    ${d.subtotal != null ? d.subtotal.toFixed(2) : "0.00"}
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Resumen de Totales - Cuando está finalizado */}
             {pedidoFinalizado && (
               <div
                 style={{
@@ -472,7 +568,7 @@ export default function PedidoDetalle() {
                       color: "#2D3E2B",
                     }}
                   >
-                    ${pedido.subtotal.toFixed(2)}
+                    ${pedido.subtotal != null ? pedido.subtotal.toFixed(2) : "0.00"}
                   </span>
                 </div>
 
@@ -493,7 +589,7 @@ export default function PedidoDetalle() {
                       color: "#2D3E2B",
                     }}
                   >
-                    ${pedido.iva.toFixed(2)}
+                    ${pedido.iva != null ? pedido.iva.toFixed(2) : "0.00"}
                   </span>
                 </div>
 
@@ -545,17 +641,15 @@ export default function PedidoDetalle() {
                       color: "#2D3E2B",
                     }}
                   >
-                    ${pedido.total.toFixed(2)}
+                    ${pedido.total != null ? pedido.total.toFixed(2) : "0.00"}
                   </span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* COLUMNA DERECHA - Solo si el pedido NO está finalizado */}
           {!pedidoFinalizado && (
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              {/* Resumen de Compra */}
               <div
                 style={{
                   background: "linear-gradient(135deg, #F9D94A 0%, #F5C542 100%)",
@@ -594,7 +688,7 @@ export default function PedidoDetalle() {
                       color: "#2D3E2B",
                     }}
                   >
-                    ${pedido.subtotal.toFixed(2)}
+                    ${pedido.subtotal != null ? pedido.subtotal.toFixed(2) : "0.00"}
                   </span>
                 </div>
 
@@ -615,7 +709,7 @@ export default function PedidoDetalle() {
                       color: "#2D3E2B",
                     }}
                   >
-                    ${pedido.iva.toFixed(2)}
+                    ${pedido.iva != null ? pedido.iva.toFixed(2) : "0.00"}
                   </span>
                 </div>
 
@@ -644,12 +738,11 @@ export default function PedidoDetalle() {
                       color: "#2D3E2B",
                     }}
                   >
-                    ${pedido.total.toFixed(2)}
+                    ${pedido.total != null ? pedido.total.toFixed(2) : "0.00"}
                   </span>
                 </div>
               </div>
 
-              {/* Método de Pago */}
               <div
                 style={{
                   background: "white",
@@ -693,7 +786,6 @@ export default function PedidoDetalle() {
                   <option value="TARJETA">💳 Tarjeta</option>
                 </select>
 
-                {/* EFECTIVO */}
                 {metodoPago === "EFECTIVO" && (
                   <div style={{ animation: "fadeIn 0.3s ease-out" }}>
                     <label style={labelStyle}>Monto recibido:</label>
@@ -717,13 +809,14 @@ export default function PedidoDetalle() {
                           }}
                         >
                           ✓ Cambio: $
-                          {(parseFloat(montoEfectivo) - pedido.total).toFixed(2)}
+                          {pedido.total != null
+                            ? (parseFloat(montoEfectivo) - pedido.total).toFixed(2)
+                            : "0.00"}
                         </p>
                       )}
                   </div>
                 )}
 
-                {/* TRANSFERENCIA */}
                 {metodoPago === "TRANSFERENCIA" && (
                   <div style={{ animation: "fadeIn 0.3s ease-out" }}>
                     <label style={labelStyle}>Subir comprobante:</label>
@@ -760,7 +853,6 @@ export default function PedidoDetalle() {
                   </div>
                 )}
 
-                {/* TARJETA */}
                 {metodoPago === "TARJETA" && (
                   <div style={{ animation: "fadeIn 0.3s ease-out" }}>
                     <label style={labelStyle}>Número de tarjeta:</label>
@@ -821,7 +913,6 @@ export default function PedidoDetalle() {
                 )}
               </div>
 
-              {/* BOTÓN FINALIZAR */}
               <button
                 onClick={finalizarCompra}
                 disabled={finalizando}
@@ -843,15 +934,13 @@ export default function PedidoDetalle() {
                 onMouseEnter={(e) => {
                   if (!finalizando) {
                     e.target.style.transform = "translateY(-2px)";
-                    e.target.style.boxShadow =
-                      "0 8px 20px rgba(90, 143, 72, 0.4)";
+                    e.target.style.boxShadow = "0 8px 20px rgba(90, 143, 72, 0.4)";
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!finalizando) {
                     e.target.style.transform = "translateY(0)";
-                    e.target.style.boxShadow =
-                      "0 4px 12px rgba(90, 143, 72, 0.3)";
+                    e.target.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.3)";
                   }
                 }}
               >
