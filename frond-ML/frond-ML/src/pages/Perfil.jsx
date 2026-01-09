@@ -84,16 +84,16 @@ export default function Perfil() {
   const ActionButton = ({ children, onClick, variant = "primary", icon }) => {
     const isPrimary = variant === "primary";
     const isGoogle = variant === "google";
-    
+
     return (
       <button
         onClick={onClick}
         style={{
           padding: "12px 20px",
-          background: isGoogle 
-            ? "white" 
-            : isPrimary 
-              ? "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)" 
+          background: isGoogle
+            ? "white"
+            : isPrimary
+              ? "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)"
               : "#ECF2E3",
           color: isGoogle ? "#2D3E2B" : isPrimary ? "white" : "#5A8F48",
           border: isGoogle ? "2px solid #E0E0E0" : "none",
@@ -106,8 +106,8 @@ export default function Perfil() {
           alignItems: "center",
           gap: "8px",
           justifyContent: "center",
-          boxShadow: isPrimary 
-            ? "0 4px 12px rgba(90, 143, 72, 0.25)" 
+          boxShadow: isPrimary
+            ? "0 4px 12px rgba(90, 143, 72, 0.25)"
             : isGoogle
               ? "0 2px 8px rgba(0, 0, 0, 0.08)"
               : "none"
@@ -118,16 +118,16 @@ export default function Perfil() {
             e.currentTarget.style.transform = "translateY(-2px)";
           } else {
             e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = isPrimary 
-              ? "0 6px 16px rgba(90, 143, 72, 0.35)" 
+            e.currentTarget.style.boxShadow = isPrimary
+              ? "0 6px 16px rgba(90, 143, 72, 0.35)"
               : "0 2px 8px rgba(90, 143, 72, 0.2)";
           }
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = "translateY(0)";
-          e.currentTarget.style.boxShadow = isPrimary 
-            ? "0 4px 12px rgba(90, 143, 72, 0.25)" 
-            : isGoogle 
+          e.currentTarget.style.boxShadow = isPrimary
+            ? "0 4px 12px rgba(90, 143, 72, 0.25)"
+            : isGoogle
               ? "0 2px 8px rgba(0, 0, 0, 0.08)"
               : "none";
         }}
@@ -165,7 +165,7 @@ export default function Perfil() {
           zIndex: "0",
           animation: "float1 8s ease-in-out infinite"
         }}></div>
-        
+
         <div style={{
           position: "absolute",
           top: "50%",
@@ -178,7 +178,7 @@ export default function Perfil() {
           zIndex: "0",
           animation: "float2 10s ease-in-out infinite"
         }}></div>
-        
+
         <div style={{
           position: "absolute",
           bottom: "-60px",
@@ -191,7 +191,7 @@ export default function Perfil() {
           zIndex: "0",
           animation: "float3 12s ease-in-out infinite"
         }}></div>
-        
+
         <div style={{
           position: "absolute",
           top: "20%",
@@ -259,7 +259,7 @@ export default function Perfil() {
               }}>
                 {perfil.nombre} {perfil.apellido}
               </h1>
-              
+
               <div style={{
                 display: "flex",
                 alignItems: "center",
@@ -307,7 +307,7 @@ export default function Perfil() {
                 {perfil.rol === "ADMIN" && "🛡️"}
                 {perfil.rol}
               </span>
-              
+
               {perfil.esAdministrador && (
                 <span style={{
                   padding: "10px 24px",
@@ -324,7 +324,7 @@ export default function Perfil() {
                   ⚙️ Permisos Admin
                 </span>
               )}
-              
+
               <span style={{
                 padding: "10px 24px",
                 background: "rgba(249, 251, 247, 0.8)",
@@ -364,7 +364,7 @@ export default function Perfil() {
           }}>
             Acciones disponibles
           </div>
-          
+
           <h3 style={{
             fontFamily: "'Playfair Display', 'Georgia', serif",
             fontSize: "28px",
@@ -378,7 +378,7 @@ export default function Perfil() {
             <span style={{ fontSize: "32px" }}>⚡</span>
             Acciones Rápidas
           </h3>
-          
+
           <div style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
@@ -392,12 +392,17 @@ export default function Perfil() {
                 <ActionButton onClick={() => navigate("/favoritos")} variant="secondary" icon="❤️">
                   Ver favoritos
                 </ActionButton>
-                <ActionButton onClick={() => navigate("/pedido")} variant="secondary" icon="📦">
+                <ActionButton
+                  onClick={() => navigate("/mis-pedidos", { state: { modo: "perfil" } })}
+                  variant="secondary"
+                  icon="📦"
+                >
                   Mis pedidos
                 </ActionButton>
+
               </>
             )}
-            
+
             {perfil.rol === "VENDEDOR" && (
               <>
                 <ActionButton onClick={() => navigate("/editar-empresa")} icon="✏️">
@@ -411,7 +416,7 @@ export default function Perfil() {
                 </ActionButton>
               </>
             )}
-            
+
             {perfil.rol === "ADMIN" && (
               <>
                 <ActionButton onClick={() => navigate("/admin")} icon="⚙️">
@@ -437,14 +442,14 @@ export default function Perfil() {
             boxShadow: "0 4px 20px rgba(90, 143, 72, 0.12)",
             transition: "all 0.3s ease"
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "translateY(-4px)";
-            e.currentTarget.style.boxShadow = "0 12px 28px rgba(90, 143, 72, 0.18)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "0 4px 20px rgba(90, 143, 72, 0.12)";
-          }}>
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-4px)";
+              e.currentTarget.style.boxShadow = "0 12px 28px rgba(90, 143, 72, 0.18)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 4px 20px rgba(90, 143, 72, 0.12)";
+            }}>
             <div style={{
               fontFamily: "'Playfair Display', 'Georgia', serif",
               fontSize: "12px",
@@ -456,7 +461,7 @@ export default function Perfil() {
             }}>
               Información personal
             </div>
-            
+
             <h3 style={{
               fontFamily: "'Playfair Display', 'Georgia', serif",
               fontSize: "24px",
@@ -470,7 +475,7 @@ export default function Perfil() {
               <span style={{ fontSize: "28px" }}>📄</span>
               Datos Personales
             </h3>
-            
+
             <div>
               <InfoItem label="Correo electrónico" value={perfil.correo} />
               <InfoItem label="Fecha de nacimiento" value={perfil.fechaNacimiento} />
@@ -478,17 +483,17 @@ export default function Perfil() {
             </div>
 
             <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid #ECF2E3" }}>
-              <ActionButton 
+              <ActionButton
                 onClick={() => {
                   console.log("Vincular con Google");
-                }} 
+                }}
                 variant="google"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-                  <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
-                  <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
-                  <path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/>
-                  <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+                  <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" />
+                  <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" />
+                  <path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z" />
+                  <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" />
                 </svg>
                 Vincular cuenta de Google
               </ActionButton>
@@ -503,14 +508,14 @@ export default function Perfil() {
               boxShadow: "0 4px 20px rgba(90, 143, 72, 0.12)",
               transition: "all 0.3s ease"
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-4px)";
-              e.currentTarget.style.boxShadow = "0 12px 28px rgba(90, 143, 72, 0.18)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 4px 20px rgba(90, 143, 72, 0.12)";
-            }}>
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow = "0 12px 28px rgba(90, 143, 72, 0.18)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 4px 20px rgba(90, 143, 72, 0.12)";
+              }}>
               <div style={{
                 fontFamily: "'Playfair Display', 'Georgia', serif",
                 fontSize: "12px",
@@ -522,7 +527,7 @@ export default function Perfil() {
               }}>
                 Perfil de comprador
               </div>
-              
+
               <h3 style={{
                 fontFamily: "'Playfair Display', 'Georgia', serif",
                 fontSize: "24px",
@@ -536,7 +541,7 @@ export default function Perfil() {
                 <span style={{ fontSize: "28px" }}>🛒</span>
                 Datos de Consumidor
               </h3>
-              
+
               <div>
                 <InfoItem label="Dirección" value={perfil.direccionConsumidor} />
                 <InfoItem label="Teléfono" value={perfil.telefonoConsumidor} />
@@ -553,14 +558,14 @@ export default function Perfil() {
               boxShadow: "0 4px 20px rgba(90, 143, 72, 0.12)",
               transition: "all 0.3s ease"
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-4px)";
-              e.currentTarget.style.boxShadow = "0 12px 28px rgba(90, 143, 72, 0.18)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 4px 20px rgba(90, 143, 72, 0.12)";
-            }}>
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow = "0 12px 28px rgba(90, 143, 72, 0.18)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 4px 20px rgba(90, 143, 72, 0.12)";
+              }}>
               <div style={{
                 fontFamily: "'Playfair Display', 'Georgia', serif",
                 fontSize: "12px",
@@ -572,7 +577,7 @@ export default function Perfil() {
               }}>
                 Información comercial
               </div>
-              
+
               <h3 style={{
                 fontFamily: "'Playfair Display', 'Georgia', serif",
                 fontSize: "24px",
@@ -586,7 +591,7 @@ export default function Perfil() {
                 <span style={{ fontSize: "28px" }}>🏪</span>
                 Datos de la Empresa
               </h3>
-              
+
               <div style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
@@ -601,7 +606,7 @@ export default function Perfil() {
                   <InfoItem label="Teléfono" value={perfil.telefonoEmpresa} />
                 </div>
               </div>
-              
+
               <div style={{
                 marginTop: "24px",
                 paddingTop: "24px",
@@ -645,14 +650,14 @@ export default function Perfil() {
               boxShadow: "0 4px 20px rgba(90, 143, 72, 0.12)",
               transition: "all 0.3s ease"
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-4px)";
-              e.currentTarget.style.boxShadow = "0 12px 28px rgba(90, 143, 72, 0.18)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 4px 20px rgba(90, 143, 72, 0.12)";
-            }}>
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow = "0 12px 28px rgba(90, 143, 72, 0.18)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 4px 20px rgba(90, 143, 72, 0.12)";
+              }}>
               <div style={{
                 fontFamily: "'Playfair Display', 'Georgia', serif",
                 fontSize: "12px",
@@ -664,7 +669,7 @@ export default function Perfil() {
               }}>
                 Permisos especiales
               </div>
-              
+
               <h3 style={{
                 fontFamily: "'Playfair Display', 'Georgia', serif",
                 fontSize: "24px",
@@ -678,7 +683,7 @@ export default function Perfil() {
                 <span style={{ fontSize: "28px" }}>🛡️</span>
                 Administrador
               </h3>
-              
+
               <p style={{
                 color: "#6B7F69",
                 fontSize: "15px",
