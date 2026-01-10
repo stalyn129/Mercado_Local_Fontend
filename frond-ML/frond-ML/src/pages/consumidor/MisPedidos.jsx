@@ -87,6 +87,17 @@ const getPasoLabel = (paso) => {
   return labels[paso] || paso.replaceAll("_", " ");
 };
 
+// 🆕 Helper para verificar si el usuario es repartidor/vendedor
+const esRepartidorOVendedor = () => {
+  const userRole = localStorage.getItem('userRole');
+  return userRole === 'ROLE_REPARTIDOR' || userRole === 'ROLE_VENDEDOR';
+};
+
+// 🆕 Helper para verificar si puede marcar como entregado
+const puedeMarcarEntregado = (pedido) => {
+  return esRepartidorOVendedor() && pedido.estadoSeguimiento === 'EN_CAMINO';
+};
+
 export default function MisPedidos({ modo: modoProp }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -99,8 +110,67 @@ export default function MisPedidos({ modo: modoProp }) {
   const [loading, setLoading] = useState(true);
   const [pedidoAbierto, setPedidoAbierto] = useState(null);
 
-  // Estados que permiten ver factura
+  // Estados que permiten ver factura (LÓGICA SIMPLE QUE FUNCIONA)
   const estadosConFactura = ["PENDIENTE_VERIFICACION", "COMPLETADO"];
+
+  // 🆕 Función para cargar pedidos
+  const fetchPedidos = async () => {
+    const token = localStorage.getItem("authToken");
+
+    try {
+      const response = await fetch(`${API_URL}/pedidos/mis-pedidos`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (!response.ok) {
+        const txt = await response.text();
+        throw new Error(`HTTP ${response.status}: ${txt}`);
+      }
+
+      const data = await response.json();
+      setPedidos(data);
+      setLoading(false);
+    } catch (err) {
+      console.error("Error cargando pedidos:", err);
+      setLoading(false);
+    }
+  };
+
+  // 🆕 Función para marcar como entregado
+  const handleMarcarEntregado = async (idPedido, metodoPago) => {
+    const confirmar = window.confirm(
+      metodoPago === 'EFECTIVO'
+        ? '¿Confirmar que el pedido fue entregado y el cliente pagó en efectivo?'
+        : '¿Confirmar que el pedido fue entregado?'
+    );
+
+    if (!confirmar) return;
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_URL}/pedidos/${idPedido}/marcar-entregado`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ pagado: metodoPago === 'EFECTIVO' })
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al marcar como entregado');
+      }
+
+      alert('✅ Pedido marcado como entregado' + (metodoPago === 'EFECTIVO' ? ' y pagado' : ''));
+
+      // Recargar pedidos
+      fetchPedidos();
+
+    } catch (error) {
+      console.error('Error:', error);
+      alert('❌ Error al marcar como entregado: ' + error.message);
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
@@ -110,31 +180,15 @@ export default function MisPedidos({ modo: modoProp }) {
       return;
     }
 
-    fetch(`${API_URL}/pedidos/mis-pedidos`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(`HTTP ${res.status}: ${txt}`);
-        }
-        return res.json();
-      })
-      .then(data => {
-        setPedidos(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Error cargando pedidos:", err);
-        setLoading(false);
-      });
+    fetchPedidos();
   }, []);
 
   // 🔥 FILTRO DEFINITIVO - Solo mostrar pedidos válidos
-const pedidosVisibles = pedidos.filter(p =>
-  p.total > 0 &&
-  ["PENDIENTE", "PENDIENTE_VERIFICACION", "PROCESANDO", "COMPLETADO"].includes(p.estadoPedido)
-);
+  const pedidosVisibles = pedidos.filter(p =>
+    p.total > 0 &&
+    ["PENDIENTE", "PENDIENTE_VERIFICACION", "PROCESANDO", "COMPLETADO"].includes(p.estadoPedido)
+  );
+
   return (
     <div style={{
       minHeight: modo === "lista" ? "100vh" : "auto",
@@ -460,73 +514,109 @@ const pedidosVisibles = pedidos.filter(p =>
 
                     {/* Botones de acción - SOLO EN MODO LISTA */}
                     {modo === "lista" && (
-                      <div style={{ display: "flex", gap: 10 }}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/pedido/${p.idPedido}`);
-                          }}
-                          style={{
-                            padding: "12px 20px",
-                            borderRadius: "12px",
-                            border: "2px solid #5A8F48",
-                            cursor: "pointer",
-                            background: "white",
-                            color: "#5A8F48",
-                            fontSize: "14px",
-                            fontWeight: "700",
-                            transition: "all 0.3s ease",
-                            whiteSpace: "nowrap"
-                          }}
-                          onMouseEnter={(e) => {
-                            e.target.style.background = "#ECF2E3";
-                            e.target.style.transform = "translateY(-2px)";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.background = "white";
-                            e.target.style.transform = "translateY(0)";
-                          }}
-                        >
-                          Ver detalles
-                        </button>
-
-                        {estadosConFactura.includes(p.estadoPedido) && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
+                        {/* 🆕 Botón para marcar como entregado (solo repartidor/vendedor) */}
+                        {puedeMarcarEntregado(p) && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/factura/${p.idPedido}`);
+                              handleMarcarEntregado(p.idPedido, p.metodoPago);
                             }}
                             style={{
                               padding: "12px 20px",
                               borderRadius: "12px",
                               border: "none",
                               cursor: "pointer",
-                              background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
+                              background: "linear-gradient(135deg, #4CAF50 0%, #45A049 100%)",
                               color: "white",
                               fontSize: "14px",
                               fontWeight: "700",
                               transition: "all 0.3s ease",
-                              boxShadow: "0 4px 12px rgba(90, 143, 72, 0.25)",
+                              boxShadow: "0 4px 12px rgba(76, 175, 80, 0.25)",
                               whiteSpace: "nowrap"
                             }}
                             onMouseEnter={(e) => {
                               e.target.style.transform = "translateY(-2px)";
-                              e.target.style.boxShadow = "0 6px 16px rgba(90, 143, 72, 0.35)";
+                              e.target.style.boxShadow = "0 6px 16px rgba(76, 175, 80, 0.35)";
                             }}
                             onMouseLeave={(e) => {
                               e.target.style.transform = "translateY(0)";
-                              e.target.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.25)";
+                              e.target.style.boxShadow = "0 4px 12px rgba(76, 175, 80, 0.25)";
                             }}
                           >
-                            📄 Ver factura
+                            ✅ Marcar como Entregado
                           </button>
                         )}
+
+                        <div style={{ display: "flex", gap: 10 }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/pedido/${p.idPedido}`);
+                            }}
+                            style={{
+                              padding: "12px 20px",
+                              borderRadius: "12px",
+                              border: "2px solid #5A8F48",
+                              cursor: "pointer",
+                              background: "white",
+                              color: "#5A8F48",
+                              fontSize: "14px",
+                              fontWeight: "700",
+                              transition: "all 0.3s ease",
+                              whiteSpace: "nowrap"
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.background = "#ECF2E3";
+                              e.target.style.transform = "translateY(-2px)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.background = "white";
+                              e.target.style.transform = "translateY(0)";
+                            }}
+                          >
+                            Ver detalles
+                          </button>
+
+                          {/* ✅ LÓGICA SIMPLE QUE FUNCIONA */}
+                          {estadosConFactura.includes(p.estadoPedido) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/factura/${p.idPedido}`);
+                              }}
+                              style={{
+                                padding: "12px 20px",
+                                borderRadius: "12px",
+                                border: "none",
+                                cursor: "pointer",
+                                background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
+                                color: "white",
+                                fontSize: "14px",
+                                fontWeight: "700",
+                                transition: "all 0.3s ease",
+                                boxShadow: "0 4px 12px rgba(90, 143, 72, 0.25)",
+                                whiteSpace: "nowrap"
+                              }}
+                              onMouseEnter={(e) => {
+                                e.target.style.transform = "translateY(-2px)";
+                                e.target.style.boxShadow = "0 6px 16px rgba(90, 143, 72, 0.35)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.target.style.transform = "translateY(0)";
+                                e.target.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.25)";
+                              }}
+                            >
+                              📄 Ver factura
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* 🆕 DESPLEGABLE CON SEGUIMIENTO - SOLO EN MODO PERFIL */}
+                {/* DESPLEGABLE CON SEGUIMIENTO - SOLO EN MODO PERFIL */}
                 {modo === "perfil" && pedidoAbierto === p.idPedido && (
                   <div style={{
                     marginTop: 32,
@@ -888,54 +978,28 @@ const pedidosVisibles = pedidos.filter(p =>
         }
 
         @keyframes float1 {
-          0%, 100% {
-            transform: translate(0, 0);
-          }
-          25% {
-            transform: translate(-15px, -20px);
-          }
-          50% {
-            transform: translate(10px, -15px);
-          }
-          75% {
-            transform: translate(-5px, 10px);
-          }
+          0%, 100% { transform: translate(0, 0); }
+          25% { transform: translate(-15px, -20px); }
+          50% { transform: translate(10px, -15px); }
+          75% { transform: translate(-5px, 10px); }
         }
 
         @keyframes float2 {
-          0%, 100% {
-            transform: translate(0, 0);
-          }
-          33% {
-            transform: translate(-20px, 15px);
-          }
-          66% {
-            transform: translate(15px, -10px);
-          }
+          0%, 100% { transform: translate(0, 0); }
+          33% { transform: translate(-20px, 15px); }
+          66% { transform: translate(15px, -10px); }
         }
 
         @keyframes float3 {
-          0%, 100% {
-            transform: translate(0, 0);
-          }
-          30% {
-            transform: translate(20px, -15px);
-          }
-          60% {
-            transform: translate(-10px, 20px);
-          }
+          0%, 100% { transform: translate(0, 0); }
+          30% { transform: translate(20px, -15px); }
+          60% { transform: translate(-10px, 20px); }
         }
 
         @keyframes float4 {
-          0%, 100% {
-            transform: translate(0, 0);
-          }
-          40% {
-            transform: translate(15px, 20px);
-          }
-          80% {
-            transform: translate(-20px, -10px);
-          }
+          0%, 100% { transform: translate(0, 0); }
+          40% { transform: translate(15px, 20px); }
+          80% { transform: translate(-20px, -10px); }
         }
       `}</style>
     </div>
