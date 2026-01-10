@@ -59,6 +59,7 @@ import Pedido from "./pages/consumidor/Pedido.jsx";
 import PedidoDetalle from "./pages/consumidor/PedidoDetalle.jsx";
 import Factura from "./pages/consumidor/Factura.jsx";
 import MisPedidos from "./pages/consumidor/MisPedidos.jsx";
+import CheckoutUnificado from './pages/consumidor/CheckoutUnificado';
 
 // 🎨 Estilos globales
 import "./styles/global.css";
@@ -99,6 +100,7 @@ function LayoutRouter() {
           <Route path="/pedido/:idPedido" element={<PedidoDetalle />} />
           <Route path="/factura/:idPedido" element={<Factura />} />
           <Route path="/mis-pedidos" element={<MisPedidos />} />
+          <Route path="/checkout" element={<CheckoutUnificado />} />
 
           {/* 🧑‍🌾 VENDEDOR PÚBLICO ✅ */}
           <Route path="/vendedores/:id" element={<VendedorPerfil />} />

@@ -131,11 +131,10 @@ export default function MisPedidos({ modo: modoProp }) {
   }, []);
 
   // 🔥 FILTRO DEFINITIVO - Solo mostrar pedidos válidos
-  const pedidosVisibles = pedidos.filter(p =>
-    p.total > 0 &&
-    ["PENDIENTE_VERIFICACION", "COMPLETADO"].includes(p.estadoPedido)
-  );
-
+const pedidosVisibles = pedidos.filter(p =>
+  p.total > 0 &&
+  ["PENDIENTE", "PENDIENTE_VERIFICACION", "PROCESANDO", "COMPLETADO"].includes(p.estadoPedido)
+);
   return (
     <div style={{
       minHeight: modo === "lista" ? "100vh" : "auto",

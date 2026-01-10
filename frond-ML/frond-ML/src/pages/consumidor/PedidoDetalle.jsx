@@ -71,10 +71,13 @@ export default function PedidoDetalle() {
   // Validación del formulario
   const validarFormulario = () => {
     if (metodoPago === "EFECTIVO") {
-      if (!montoEfectivo || parseFloat(montoEfectivo) < pedido.total) {
+      // Ya no es obligatorio el monto, pero si lo pone debe ser mayor o igual
+      if (montoEfectivo && parseFloat(montoEfectivo) < pedido.total) {
         alert("❌ El monto debe ser mayor o igual al total del pedido");
         return false;
       }
+      // Si no pone monto, está bien (pagará el monto exacto)
+      return true;
     }
 
     if (metodoPago === "TRANSFERENCIA") {
@@ -106,72 +109,122 @@ export default function PedidoDetalle() {
     return true;
   };
 
+  // 🆕 FUNCIÓN MEJORADA CON DEBUGGING
   const finalizarCompra = async () => {
-    if (!validarFormulario()) return;
+  if (!validarFormulario()) return;
 
-    const token = localStorage.getItem("authToken");
-    if (!token) return navigate("/loginmodal");
+  const token = localStorage.getItem("authToken");
+  if (!token) return navigate("/loginmodal");
 
-    // Confirmación
-    const confirmar = window.confirm(
+  // 🚨 AVISO ESPECIAL PARA EFECTIVO
+  let confirmar;
+  if (metodoPago === "EFECTIVO") {
+    confirmar = window.confirm(
+      `⚠️ IMPORTANTE - Pago en Efectivo\n\n` +
+      `• Total a pagar: $${pedido.total.toFixed(2)}\n` +
+      `• Pagarás al recibir el pedido\n` +
+      `• Una vez confirmado, NO PODRÁS CANCELAR\n` +
+      `• El vendedor preparará tu pedido de inmediato\n\n` +
+      `¿Confirmas tu pedido?`
+    );
+  } else {
+    confirmar = window.confirm(
       `¿Confirmar pedido por $${pedido.total.toFixed(2)} con ${metodoPago}?`
     );
-    if (!confirmar) return;
+  }
 
-    setFinalizando(true);
+  if (!confirmar) return;
 
-    try {
-      let body;
+  setFinalizando(true);
 
-      if (metodoPago === "TRANSFERENCIA" || metodoPago === "TARJETA") {
-        body = new FormData();
-        body.append("metodoPago", metodoPago);
+  try {
+    let body;
+    let headers = {
+      Authorization: `Bearer ${token}`,
+    };
 
-        if (metodoPago === "TRANSFERENCIA" && comprobante) {
-          body.append("comprobante", comprobante);
-        }
-
-        if (metodoPago === "TARJETA") {
-          body.append("numTarjeta", numTarjeta.replace(/\s/g, ""));
-          body.append("cvv", cvv);
-          body.append("fechaTarjeta", fechaTarjeta);
-          body.append("titular", titular);
-        }
-      } else {
-        body = JSON.stringify({
-          metodoPago,
-          montoEfectivo: parseFloat(montoEfectivo),
-        });
-      }
-
-      const res = await fetch(`${API_URL}/pedidos/finalizar/${idPedido}`, {
-        method: "PUT",
-        headers:
-          metodoPago === "EFECTIVO"
-            ? {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              }
-            : {
-                Authorization: `Bearer ${token}`,
-              },
-        body,
+    // 🔥 CORRECCIÓN PRINCIPAL - Manejo correcto de EFECTIVO
+    if (metodoPago === "EFECTIVO") {
+      headers["Content-Type"] = "application/json";
+      
+      // Si el usuario ingresó un monto, lo enviamos, sino enviamos el total exacto
+      const montoFinal = montoEfectivo && parseFloat(montoEfectivo) >= pedido.total
+        ? parseFloat(montoEfectivo)
+        : pedido.total;
+      
+      body = JSON.stringify({
+        metodoPago: "EFECTIVO",
+        montoEfectivo: montoFinal
       });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "No se pudo finalizar el pedido");
+      
+      console.log("💵 EFECTIVO - Enviando:", {
+        metodoPago: "EFECTIVO",
+        montoEfectivo: montoFinal
+      });
+      
+    } else if (metodoPago === "TRANSFERENCIA") {
+      // Para TRANSFERENCIA usamos FormData
+      body = new FormData();
+      body.append("metodoPago", "TRANSFERENCIA");
+      if (comprobante) {
+        body.append("comprobante", comprobante);
+        console.log("🏦 TRANSFERENCIA - Archivo:", comprobante.name);
       }
-
-      alert("🎉 Compra finalizada con éxito!");
-      await cargarPedido();
-    } catch (err) {
-      console.error("Error al finalizar:", err);
-      alert(`❌ Error: ${err.message}`);
-    } finally {
-      setFinalizando(false);
+      
+    } else if (metodoPago === "TARJETA") {
+      // Para TARJETA usamos FormData
+      body = new FormData();
+      body.append("metodoPago", "TARJETA");
+      body.append("numTarjeta", numTarjeta.replace(/\s/g, ""));
+      body.append("cvv", cvv);
+      body.append("fechaTarjeta", fechaTarjeta);
+      body.append("titular", titular);
+      console.log("💳 TARJETA - Datos enviados");
     }
-  };
+
+    const url = `${API_URL}/pedidos/finalizar/${idPedido}`;
+    console.log("🔵 URL:", url);
+    console.log("🔵 Método de pago:", metodoPago);
+    console.log("🔵 Headers:", headers);
+
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: headers,
+      body: body,
+    });
+
+    console.log("📥 Status de respuesta:", res.status);
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("❌ Error del servidor:", errorText);
+      throw new Error(errorText || "No se pudo finalizar el pedido");
+    }
+
+    const data = await res.json();
+    console.log("✅ Respuesta exitosa:", data);
+
+    // ✅ Éxito - Mostrar mensaje apropiado según el método de pago
+    if (metodoPago === "EFECTIVO") {
+      alert(
+        `🎉 ¡Pedido confirmado!\n\n` +
+        `Pagarás $${pedido.total.toFixed(2)} en efectivo al recibir tu pedido.\n` +
+        `El vendedor está preparando tu orden.`
+      );
+    } else {
+      alert("🎉 ¡Compra finalizada con éxito!");
+    }
+
+    // Recargar el pedido actualizado
+    await cargarPedido();
+
+  } catch (err) {
+    console.error("❌ Error completo:", err);
+    alert(`❌ Error al finalizar pedido:\n${err.message}`);
+  } finally {
+    setFinalizando(false);
+  }
+};
 
   // 🟢 FUNCIÓN MEJORADA PARA VOLVER O CANCELAR
   const confirmarSalir = async () => {
@@ -1077,13 +1130,36 @@ export default function PedidoDetalle() {
 
                   {metodoPago === "EFECTIVO" && (
                     <div style={{ animation: "fadeIn 0.3s ease-out" }}>
-                      <label style={labelStyle}>Monto recibido:</label>
+                      <div
+                        style={{
+                          background: "#FFF3CD",
+                          border: "2px solid #FFC107",
+                          padding: "16px",
+                          borderRadius: "12px",
+                          marginBottom: "16px",
+                        }}
+                      >
+                        <p style={{
+                          margin: 0,
+                          fontSize: "14px",
+                          color: "#856404",
+                          lineHeight: "1.6",
+                          fontWeight: "600"
+                        }}>
+                          💵 <strong>Pago contra entrega</strong><br />
+                          <span style={{ fontWeight: "normal" }}>
+                            Pagarás <strong>${pedido.total.toFixed(2)}</strong> en efectivo cuando recibas tu pedido.
+                          </span>
+                        </p>
+                      </div>
+
+                      <label style={labelStyle}>Monto que entregarás (opcional):</label>
                       <input
                         type="number"
                         step="0.01"
                         value={montoEfectivo}
                         onChange={(e) => setMontoEfectivo(e.target.value)}
-                        placeholder="Ej: 50.00"
+                        placeholder={`Mínimo: $${pedido.total.toFixed(2)}`}
                         style={inputStyle}
                       />
                       {montoEfectivo &&

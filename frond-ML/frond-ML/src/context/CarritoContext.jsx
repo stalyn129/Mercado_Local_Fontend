@@ -51,7 +51,7 @@ export function CarritoProvider({ children }) {
   };
 
   // ============================
-  // AGREGAR PRODUCTO
+  // AGREGAR PRODUCTO (MEJORADO)
   // ============================
   const agregarCarrito = async (idProducto, cantidad = 1) => {
     const user = JSON.parse(localStorage.getItem("user"));
@@ -61,21 +61,58 @@ export function CarritoProvider({ children }) {
       throw new Error("Usuario no autenticado");
     }
 
-    const res = await fetch(`${API_URL}/carrito/agregar`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        idConsumidor: user.idConsumidor,
-        idProducto,
-        cantidad,
-      }),
-    });
+    try {
+      // 🔍 PASO 1: Verificar si el producto ya está en el carrito
+      const itemExistente = carrito.find(
+        item => item.producto?.idProducto === idProducto
+      );
 
-    if (!res.ok) {
-      throw new Error("Error al agregar al carrito");
+      if (itemExistente) {
+        // ✅ Si existe, actualizar la cantidad (sumar la nueva cantidad)
+        console.log(`📦 Producto ya en carrito. Incrementando cantidad...`);
+        const nuevaCantidad = itemExistente.cantidad + cantidad;
+        
+        const res = await fetch(
+          `${API_URL}/carrito/item/${itemExistente.idItem}/cantidad?cantidad=${nuevaCantidad}`,
+          {
+            method: "PUT",
+            headers,
+          }
+        );
+
+        if (!res.ok) {
+          throw new Error("Error al actualizar cantidad");
+        }
+
+        console.log(`✅ Cantidad actualizada a ${nuevaCantidad}`);
+      } else {
+        // ➕ Si NO existe, agregar como nuevo item
+        console.log(`➕ Agregando nuevo producto al carrito...`);
+        
+        const res = await fetch(`${API_URL}/carrito/agregar`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            idConsumidor: user.idConsumidor,
+            idProducto,
+            cantidad,
+          }),
+        });
+
+        if (!res.ok) {
+          throw new Error("Error al agregar al carrito");
+        }
+
+        console.log(`✅ Producto agregado al carrito`);
+      }
+
+      // 🔄 Recargar el carrito para reflejar los cambios
+      await cargarCarrito();
+      
+    } catch (error) {
+      console.error("❌ Error en agregarCarrito:", error);
+      throw error;
     }
-
-    await cargarCarrito();
   };
 
   // ============================
@@ -86,19 +123,24 @@ export function CarritoProvider({ children }) {
     const headers = getHeaders();
     if (!headers) return;
 
-    const res = await fetch(
-      `${API_URL}/carrito/item/${idItem}/cantidad?cantidad=${cantidad}`,
-      {
-        method: "PUT",
-        headers,
+    try {
+      const res = await fetch(
+        `${API_URL}/carrito/item/${idItem}/cantidad?cantidad=${cantidad}`,
+        {
+          method: "PUT",
+          headers,
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error("Error al actualizar cantidad");
       }
-    );
 
-    if (!res.ok) {
-      throw new Error("Error al actualizar cantidad");
+      await cargarCarrito();
+    } catch (error) {
+      console.error("❌ Error al actualizar cantidad:", error);
+      throw error;
     }
-
-    await cargarCarrito();
   };
 
   // ============================
@@ -108,19 +150,24 @@ export function CarritoProvider({ children }) {
     const headers = getHeaders();
     if (!headers) return;
 
-    const res = await fetch(
-      `${API_URL}/carrito/item/${idItem}`,
-      {
-        method: "DELETE",
-        headers,
+    try {
+      const res = await fetch(
+        `${API_URL}/carrito/item/${idItem}`,
+        {
+          method: "DELETE",
+          headers,
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error("Error al eliminar producto");
       }
-    );
 
-    if (!res.ok) {
-      throw new Error("Error al eliminar producto");
+      await cargarCarrito();
+    } catch (error) {
+      console.error("❌ Error al eliminar producto:", error);
+      throw error;
     }
-
-    await cargarCarrito();
   };
 
   // ============================
@@ -132,19 +179,24 @@ export function CarritoProvider({ children }) {
 
     if (!user?.idConsumidor || !headers) return;
 
-    const res = await fetch(
-      `${API_URL}/carrito/vaciar/${user.idConsumidor}`,
-      {
-        method: "DELETE",
-        headers,
+    try {
+      const res = await fetch(
+        `${API_URL}/carrito/vaciar/${user.idConsumidor}`,
+        {
+          method: "DELETE",
+          headers,
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error("Error al vaciar carrito");
       }
-    );
 
-    if (!res.ok) {
-      throw new Error("Error al vaciar carrito");
+      setCarrito([]);
+    } catch (error) {
+      console.error("❌ Error al vaciar carrito:", error);
+      throw error;
     }
-
-    setCarrito([]);
   };
 
   // ============================

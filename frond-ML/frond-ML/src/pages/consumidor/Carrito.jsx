@@ -30,47 +30,25 @@ export default function Carrito() {
     setTotal(sub + ivaCalc);
   }, [carrito]);
 
-  // Comprar TODO el carrito (MULTI-VENDEDOR)
-  // Comprar TODO el carrito (MULTI-VENDEDOR)
-  const comprarCarrito = async () => {
-    const usuario = JSON.parse(localStorage.getItem("user"));
+  // 🔥 FUNCIÓN SIMPLIFICADA - Solo redirige a checkout
+  const realizarCheckout = () => {
+    const user = JSON.parse(localStorage.getItem("user"));
     const token = localStorage.getItem("authToken");
 
-    if (!usuario?.idConsumidor) return navigate("/loginmodal");
-    if (carrito.length === 0) return alert("Tu carrito está vacío.");
-
-    try {
-      const res = await fetch(`${API_URL}/pedidos/checkout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          idConsumidor: usuario.idConsumidor,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Error al procesar el pedido");
-
-      const pedidos = await res.json();
-
-      await limpiarCarrito();
-
-      // 🔥 REDIRECCIÓN CORRECTA
-      if (Array.isArray(pedidos) && pedidos.length > 0) {
-        navigate(`/pedido/${pedidos[0].idPedido}`);
-      } else {
-        navigate("/mis-pedidos");
-      }
-
-
-    } catch (error) {
-      console.error("Error al comprar carrito:", error);
-      alert("Error al procesar la compra");
+    if (!token || !user?.idConsumidor) {
+      alert("❌ Debes iniciar sesión");
+      navigate("/loginmodal");
+      return;
     }
-  };
 
+    if (!carrito || carrito.length === 0) {
+      alert("❌ Tu carrito está vacío");
+      return;
+    }
+
+    // Redirigir a la página de checkout unificado
+    navigate("/checkout");
+  };
 
   return (
     <div style={{
@@ -400,7 +378,8 @@ export default function Carrito() {
                 </div>
 
                 <button
-                  onClick={comprarCarrito}
+                  onClick={realizarCheckout}
+                  disabled={!carrito || carrito.length === 0}
                   style={{
                     width: "100%",
                     padding: "18px",
@@ -413,17 +392,24 @@ export default function Carrito() {
                     fontSize: "17px",
                     transition: "all 0.3s ease",
                     boxShadow: "0 4px 12px rgba(90, 143, 72, 0.25)",
-                    marginBottom: "16px"
+                    marginBottom: "16px",
+                    opacity: (!carrito || carrito.length === 0) ? 0.6 : 1
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.transform = "translateY(-2px)";
-                    e.target.style.boxShadow = "0 6px 20px rgba(90, 143, 72, 0.35)";
+                    if (carrito && carrito.length > 0) {
+                      e.target.style.transform = "translateY(-2px)";
+                      e.target.style.boxShadow = "0 6px 20px rgba(90, 143, 72, 0.35)";
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    e.target.style.transform = "translateY(0)";
-                    e.target.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.25)";
+                    if (carrito && carrito.length > 0) {
+                      e.target.style.transform = "translateY(0)";
+                      e.target.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.25)";
+                    }
                   }}
-                >🛍️ Finalizar Compra</button>
+                >
+                  🛒 Finalizar Compra
+                </button>
 
                 <button
                   onClick={() => navigate("/explorar")}
