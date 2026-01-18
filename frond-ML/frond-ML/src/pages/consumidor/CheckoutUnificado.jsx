@@ -26,9 +26,16 @@ export default function CheckoutUnificado() {
   const total = subtotal + iva;
 
   // Validar formulario
+  // Validar formulario
   const validarFormulario = () => {
     if (metodoPago === "EFECTIVO") {
-      if (montoEfectivo && parseFloat(montoEfectivo) < total) {
+      // Validar que se haya ingresado un monto
+      if (!montoEfectivo || montoEfectivo.trim() === "") {
+        alert("❌ Debes ingresar el monto con el que pagarás");
+        return false;
+      }
+      // Validar que el monto sea suficiente
+      if (parseFloat(montoEfectivo) < total) {
         alert("❌ El monto debe ser mayor o igual al total");
         return false;
       }
@@ -40,6 +47,7 @@ export default function CheckoutUnificado() {
         alert("❌ Debes subir el comprobante de transferencia");
         return false;
       }
+      return true;
     }
 
     if (metodoPago === "TARJETA") {
@@ -55,10 +63,23 @@ export default function CheckoutUnificado() {
         alert("❌ Fecha de expiración requerida");
         return false;
       }
+      
+      // Validar que la fecha no sea anterior al mes actual
+      const [anio, mes] = fechaTarjeta.split("-");
+      const fechaSeleccionada = new Date(parseInt(anio), parseInt(mes) - 1);
+      const hoy = new Date();
+      const mesActual = new Date(hoy.getFullYear(), hoy.getMonth());
+      
+      if (fechaSeleccionada < mesActual) {
+        alert("❌ La tarjeta está vencida");
+        return false;
+      }
+      
       if (!titular.trim()) {
         alert("❌ Nombre del titular requerido");
         return false;
       }
+      return true;
     }
 
     return true;

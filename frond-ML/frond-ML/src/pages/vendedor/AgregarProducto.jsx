@@ -197,41 +197,48 @@ export default function AgregarProducto() {
 
   const gridLayout = screenSize === "desktop" ? "0.9fr 1.3fr" : "1fr";
 
-  const analizarPrecio = async () => {
-    if (!form.nombreProducto || !form.precioProducto) return;
-
-    setAnalizando(true);
-
-    try {
-      const res = await fetch(`${API_URL}/api/ia/precio/recomendar`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          nombre: form.nombreProducto,
-          precio: form.precioProducto
-        })
-      });
-
-      const data = await res.json();
-      setPrecioIA(data);
-    } catch (err) {
-      console.error("❌ Error recomendador IA:", err);
-    } finally {
-      setAnalizando(false);
-    }
-  };
-
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const { name, value } = e.target;
+  setForm({ ...form, [name]: value });
+};
 
-    if (e.target.name === "nombreProducto" || e.target.name === "precioProducto") {
-      setTimeout(() => {
-        analizarPrecio();
-      }, 400);
-    }
-  };
+// 2. Nueva función analizarPrecio (Corregida)
+const analizarPrecio = async () => {
+  // Quitamos la restricción de precioProducto para que la IA pueda recomendar
+  if (!form.nombreProducto || form.nombreProducto.length < 3) return;
+
+  setAnalizando(true);
+  try {
+    const res = await fetch(`${API_URL}/api/ia/precio/recomendar`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nombre: form.nombreProducto,
+        // Enviamos el precio si existe, si no, enviamos 0
+        precio: parseFloat(form.precioProducto) || 0 
+      })
+    });
+
+    const data = await res.json();
+    console.log("Respuesta IA:", data); // Revisa esto en tu consola F12
+    setPrecioIA(data);
+  } catch (err) {
+    console.error("❌ Error recomendador IA:", err);
+  } finally {
+    setAnalizando(false);
+  }
+};
+
+// 3. El "vigilante" (Colócalo con tus otros useEffect)
+useEffect(() => {
+  if (form.nombreProducto.trim().length > 3) {
+    const timer = setTimeout(() => {
+      analizarPrecio();
+    }, 800); // Espera 800ms para no saturar
+
+    return () => clearTimeout(timer); // Limpia el timer si el usuario sigue escribiendo
+  }
+}, [form.nombreProducto, form.precioProducto]);
 
   {
     precioIA && (

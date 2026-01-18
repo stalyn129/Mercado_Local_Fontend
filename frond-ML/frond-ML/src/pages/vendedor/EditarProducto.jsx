@@ -59,7 +59,7 @@ export default function EditarProducto() {
 
   const cargarCategorias = async () => {
     try {
-      const res = await fetch(`${API_URL}/categorias/listar`);
+      const res = await fetch(`${API_URL}/api/categorias/listar`);
       const data = await res.json();
       setCategorias(data);
     } catch (error) {
@@ -69,7 +69,7 @@ export default function EditarProducto() {
 
   const cargarSubcategoriasPorCategoria = async (idCategoria) => {
     try {
-      const res = await fetch(`${API_URL}/subcategorias/categoria/${idCategoria}`);
+      const res = await fetch(`${API_URL}/api/subcategorias/categoria/${idCategoria}`);
       const data = await res.json();
       setSubcategorias(data);
     } catch (error) {

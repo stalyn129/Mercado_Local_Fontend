@@ -25,7 +25,7 @@ export default function ProductosAdmin() {
 
   async function cargarCategorias() {
     try {
-      const res = await fetch(`${API_URL}/categorias`);
+      const res = await fetch(`${API_URL}/api/categorias`);
       const data = await res.json();
       console.log("Categorías:", data);
       setCategorias(data);
@@ -45,7 +45,7 @@ export default function ProductosAdmin() {
 
   async function cargarSubcategorias(idCategoria) {
     try {
-      const res = await fetch(`${API_URL}/subcategorias/categoria/${idCategoria}`);
+      const res = await fetch(`${API_URL}/api/subcategorias/categoria/${idCategoria}`);
       const data = await res.json();
       console.log("Subcategorías:", data);
       setSubcategorias(data);
@@ -59,16 +59,25 @@ export default function ProductosAdmin() {
     cargarVendedores();
   }, []);
 
-  async function cargarVendedores() {
-    try {
-      const res = await fetch(`${API_URL}/vendedor/listar`);
-      const data = await res.json();
-      console.log("Vendedores:", data);
-      setVendedores(data);
-    } catch (e) {
-      console.error("Error cargando vendedores:", e);
-    }
+async function cargarVendedores() {
+  try {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(`${API_URL}/vendedor/listar`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) throw new Error(res.status);
+
+    const data = await res.json();
+    console.log("Vendedores:", data);
+    setVendedores(data);
+  } catch (e) {
+    console.error("Error cargando vendedores:", e);
   }
+}
 
   // =================== Cargar Productos ===================
   useEffect(() => {

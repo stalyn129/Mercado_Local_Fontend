@@ -231,8 +231,8 @@ export default function PedidoDetalle() {
     if (!pedido) return;
 
     const pedidoFinalizado =
-      pedido.estadoPedido === "COMPLETADO" ||
-      pedido.estadoPedido === "PENDIENTE_VERIFICACION" ||
+      pedido.estadoPedido === "CREADO" ||
+      pedido.estadoPedido === "PENDIENTE" ||
       pedido.estadoPedido === "PROCESANDO";
 
     const vieneDeMisPedidos = origen === "MIS_PEDIDOS";
@@ -341,8 +341,8 @@ export default function PedidoDetalle() {
   };
 
   const pedidoFinalizado =
-    pedido.estadoPedido === "COMPLETADO" ||
-    pedido.estadoPedido === "PENDIENTE_VERIFICACION" ||
+    pedido.estadoPedido === "CREADO" ||
+    pedido.estadoPedido === "PENDIENTE" ||
     pedido.estadoPedido === "PROCESANDO";
 
   const vieneDeMisPedidos = origen === "MIS_PEDIDOS";
@@ -789,12 +789,12 @@ export default function PedidoDetalle() {
                           lineHeight: "1.6",
                         }}
                       >
-                        {pedido.estadoPedido === "COMPLETADO" && (
+                        {pedido.estadoPedido === "CREADO" && (
                           <>
-                            ✓ Tu pedido ha sido completado exitosamente. Gracias por tu compra.
+                            ✓ Tu pedido ha sido creado exitosamente. Gracias por tu compra.
                           </>
                         )}
-                        {pedido.estadoPedido === "PENDIENTE_VERIFICACION" && (
+                        {pedido.estadoPedido === "PENDIENTE" && (
                           <>
                             ⏳ Tu pedido está en verificación. Te notificaremos cuando sea procesado.
                           </>

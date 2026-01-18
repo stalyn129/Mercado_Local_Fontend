@@ -1,6 +1,37 @@
 import { useState } from "react";
 import { enviarMensaje } from "../services/chatbotService";
 
+/* ===============================
+   Convierte URLs en links
+================================ */
+const linkify = (text) => {
+  if (!text) return text;
+
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+
+  return text.split(urlRegex).map((part, index) => {
+    if (part.match(urlRegex)) {
+      // Quitar signos de puntuación al final
+      const cleanUrl = part.replace(/[)\].,;:]+$/, "");
+
+      return (
+        <a
+          key={index}
+          href={cleanUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "#1d4ed8", textDecoration: "underline" }}
+        >
+          {cleanUrl}
+        </a>
+      );
+    }
+
+    return part;
+  });
+};
+
+
 export default function Chatbot() {
   const [mensajes, setMensajes] = useState([]);
   const [input, setInput] = useState("");
@@ -15,7 +46,7 @@ export default function Chatbot() {
     const mensajeUsuario = input;
 
     // Mostrar mensaje del usuario
-    setMensajes(prev => [
+    setMensajes((prev) => [
       ...prev,
       { autor: "user", texto: mensajeUsuario }
     ]);
@@ -24,7 +55,7 @@ export default function Chatbot() {
 
     try {
       const data = await enviarMensaje(
-        input,
+        mensajeUsuario,
         user?.rol,
         user?.idConsumidor,
         user?.idVendedor,
@@ -32,12 +63,12 @@ export default function Chatbot() {
       );
 
       // Respuesta del bot
-      setMensajes(prev => [
+      setMensajes((prev) => [
         ...prev,
         { autor: "bot", texto: data.respuesta }
       ]);
     } catch (error) {
-      setMensajes(prev => [
+      setMensajes((prev) => [
         ...prev,
         {
           autor: "bot",
@@ -87,7 +118,7 @@ export default function Chatbot() {
                       m.autor === "bot" ? "#000" : "#fff"
                   }}
                 >
-                  {m.texto}
+                  {linkify(m.texto)}
                 </span>
               </p>
             ))}
@@ -96,10 +127,10 @@ export default function Chatbot() {
           <div style={styles.inputBox}>
             <input
               value={input}
-              onChange={e => setInput(e.target.value)}
+              onChange={(e) => setInput(e.target.value)}
               placeholder="Escribe tu mensaje..."
               style={styles.input}
-              onKeyDown={e => e.key === "Enter" && enviar()}
+              onKeyDown={(e) => e.key === "Enter" && enviar()}
             />
             <button onClick={enviar} style={styles.button}>
               Enviar
@@ -111,6 +142,9 @@ export default function Chatbot() {
   );
 }
 
+/* ===============================
+   Estilos
+================================ */
 const styles = {
   floatingButton: {
     position: "fixed",
