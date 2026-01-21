@@ -1,19 +1,80 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import Footer from "../../components/Footer.jsx";
 
 export default function Factura() {
-  const { idPedido } = useParams();
+  const { idPedido, idCompra } = useParams(); // Ahora soporta dos parámetros
   const navigate = useNavigate();
+  const location = useLocation();
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
-  const [pedido, setPedido] = useState(null);
+  const [facturaData, setFacturaData] = useState(null);
   const [detalles, setDetalles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tipoFactura, setTipoFactura] = useState("individual"); // "individual" o "consolidada"
 
   const facturaRef = useRef();
+
+  // Función para cargar detalles de un pedido
+  const cargarDetallesPedido = async (token, idPedido) => {
+    try {
+      const response = await fetch(`${API_URL}/pedidos/${idPedido}/detalles`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error al cargar detalles del pedido ${idPedido}`);
+      }
+      
+      const detallesData = await response.json();
+      return detallesData;
+    } catch (error) {
+      console.error(`Error cargando detalles del pedido ${idPedido}:`, error);
+      return [];
+    }
+  };
+
+  // Función para cargar productos de múltiples pedidos (compra unificada)
+  const cargarProductosDePedidos = async (token, pedidos) => {
+    if (!pedidos || pedidos.length === 0) return [];
+    
+    const todosLosProductos = [];
+    
+    // Cargar detalles de cada pedido
+    for (const pedido of pedidos) {
+      const pedidoId = pedido.idPedido || pedido.id;
+      if (!pedidoId) continue;
+      
+      try {
+        const detalles = await cargarDetallesPedido(token, pedidoId);
+        
+        // Procesar cada detalle del pedido
+        detalles.forEach(detalle => {
+          const productoInfo = detalle.producto || {};
+          const precioUnitario = detalle.precioUnitario || (detalle.subtotal / detalle.cantidad) || 0;
+          const cantidad = detalle.cantidad || 1;
+          const subtotal = detalle.subtotal || (precioUnitario * cantidad);
+          
+          todosLosProductos.push({
+            idProducto: productoInfo.idProducto || detalle.idProducto,
+            nombreProducto: productoInfo.nombreProducto || "Producto",
+            precio: precioUnitario,
+            cantidad: cantidad,
+            subtotal: subtotal,
+            vendedor: pedido.vendedor || { idVendedor: pedido.idVendedor, nombre: `Vendedor #${pedido.idVendedor}` },
+            idPedido: pedidoId
+          });
+        });
+        
+      } catch (error) {
+        console.error(`Error procesando pedido ${pedidoId}:`, error);
+      }
+    }
+    
+    return todosLosProductos;
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
@@ -21,44 +82,152 @@ export default function Factura() {
 
     setLoading(true);
 
-    Promise.all([
-      fetch(`${API_URL}/pedidos/${idPedido}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      }).then(res => res.json()),
-      fetch(`${API_URL}/pedidos/${idPedido}/detalles`, {
-        headers: { Authorization: `Bearer ${token}` }
-      }).then(res => res.json())
-    ])
-      .then(([pedidoData, detallesData]) => {
-        setPedido(pedidoData);
-        setDetalles(detallesData);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error("Error cargando factura:", err);
-        setLoading(false);
-      });
-  }, [idPedido]);
+    // 🔍 DEBUG: Ver qué datos llegan
+    console.log("🔍 location.state recibido:", location.state);
+    console.log("🔍 Parámetros:", { idPedido, idCompra });
 
-  // Generar número de factura profesional (formato corto)
-  const generarNumeroFactura = (idPedido) => {
-    return `FAC-${String(idPedido).padStart(6, "0")}`;
+    const compraUnificadaData = location.state?.compraData;
+    
+    // PRIMERO: Si viene de una compra unificada (navegación con state)
+    if (compraUnificadaData) {
+      console.log("📊 Cargando factura consolidada desde state");
+      console.log("📊 Datos de compra recibidos:", compraUnificadaData);
+      console.log("📊 Pedidos recibidos:", compraUnificadaData.pedidos);
+      
+      setTipoFactura("consolidada");
+      setFacturaData(compraUnificadaData);
+      
+      // Cargar productos de todos los pedidos
+      cargarProductosDePedidos(token, compraUnificadaData.pedidos || [])
+        .then(productos => {
+          console.log("✅ Productos cargados:", productos);
+          setDetalles(productos);
+          setLoading(false);
+        })
+        .catch(error => {
+          console.error("Error cargando productos:", error);
+          setLoading(false);
+        });
+    } 
+    // SEGUNDO: Si hay idCompra en los parámetros (ruta directa)
+    else if (idCompra) {
+      console.log("📊 Cargando factura consolidada por idCompra:", idCompra);
+      setTipoFactura("consolidada");
+      
+      // 1. Obtener datos de la compra unificada
+      fetch(`${API_URL}/pedidos/compra-unificada/${idCompra}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => {
+          if (!res.ok) throw new Error(`Error ${res.status} al cargar compra unificada`);
+          return res.json();
+        })
+        .then(async (data) => {
+          console.log("✅ Datos de compra unificada recibidos:", data);
+          setFacturaData(data);
+          
+          // 2. Cargar productos de todos los pedidos
+          const productos = await cargarProductosDePedidos(token, data.pedidos || []);
+          console.log("✅ Productos cargados para compra unificada:", productos);
+          setDetalles(productos);
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error("Error cargando factura consolidada:", err);
+          setLoading(false);
+        });
+    }
+    // TERCERO: Si es un pedido individual normal
+    else if (idPedido) {
+      console.log("📊 Cargando factura individual:", idPedido);
+      setTipoFactura("individual");
+      
+      Promise.all([
+        fetch(`${API_URL}/pedidos/${idPedido}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).then(res => {
+          if (!res.ok) throw new Error(`Error ${res.status} al cargar pedido`);
+          return res.json();
+        }),
+        fetch(`${API_URL}/pedidos/${idPedido}/detalles`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).then(res => {
+          if (!res.ok) throw new Error(`Error ${res.status} al cargar detalles`);
+          return res.json();
+        })
+      ])
+        .then(([pedidoData, detallesData]) => {
+          console.log("✅ Datos de pedido individual:", pedidoData);
+          console.log("✅ Detalles del pedido:", detallesData);
+          
+          setFacturaData(pedidoData);
+          setDetalles(detallesData);
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error("Error cargando factura:", err);
+          setLoading(false);
+        });
+    } else {
+      setLoading(false);
+    }
+  }, [idPedido, idCompra, location.state]);
+
+  // Generar número de factura
+  const generarNumeroFactura = () => {
+    if (tipoFactura === "consolidada") {
+      const compraId = facturaData?.idCompraUnificada || idCompra;
+      const idCorto = compraId ? compraId.split('-').pop().substring(0, 6) : "000000";
+      return `FAC-CONS-${idCorto}`;
+    } else {
+      return `FAC-${String(facturaData?.idPedido || "000000").padStart(6, "0")}`;
+    }
   };
 
-  // Descargar PDF con html2canvas ULTRA MEJORADO para máxima nitidez
+  // Calcular totales para factura consolidada
+  const calcularTotalesConsolidada = () => {
+    if (tipoFactura !== "consolidada" || !detalles.length) {
+      // Si es individual o no hay detalles, usar los datos del pedido
+      return { 
+        subtotal: facturaData?.subtotal || 0, 
+        iva: facturaData?.iva || 0, 
+        total: facturaData?.total || 0 
+      };
+    }
+    
+    const subtotal = detalles.reduce((sum, producto) => {
+      return sum + (producto.subtotal || 0);
+    }, 0);
+    
+    const iva = subtotal * 0.12; // 12% IVA
+    const total = subtotal + iva;
+    
+    return { subtotal, iva, total };
+  };
+
+  // Calcular totales para factura individual
+  const calcularTotalesIndividual = () => {
+    if (tipoFactura === "consolidada") return calcularTotalesConsolidada();
+    
+    return { 
+      subtotal: facturaData?.subtotal || 0, 
+      iva: facturaData?.iva || 0, 
+      total: facturaData?.total || 0 
+    };
+  };
+
+  // Descargar PDF
   const descargarPDF = async () => {
     const elemento = facturaRef.current;
     
-    // Esperar a que todo esté renderizado
     await new Promise(resolve => setTimeout(resolve, 300));
     
-    // Configuración ÓPTIMA para PDF nítido
     const canvas = await html2canvas(elemento, {
-      scale: 4,                    // 🔥 MÁXIMA CALIDAD (antes era 3)
+      scale: 4,
       useCORS: true,
       logging: false,
       backgroundColor: "#ffffff",
-      windowWidth: 1200,           // Ancho fijo para consistencia
+      windowWidth: 1200,
       windowHeight: elemento.scrollHeight,
       imageTimeout: 0,
       removeContainer: true,
@@ -71,7 +240,7 @@ export default function Factura() {
       }
     });
     
-    const imgData = canvas.toDataURL("image/png", 1.0);  // Calidad máxima
+    const imgData = canvas.toDataURL("image/png", 1.0);
     const pdf = new jsPDF("p", "mm", "a4");
     
     const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -79,9 +248,8 @@ export default function Factura() {
     const imgWidth = canvas.width;
     const imgHeight = canvas.height;
     
-    // Calcular ratio manteniendo proporciones
     const ratio = Math.min(
-      (pdfWidth - 20) / imgWidth,    // Margen de 10mm a cada lado
+      (pdfWidth - 20) / imgWidth,
       (pdfHeight - 20) / imgHeight
     );
     
@@ -90,11 +258,16 @@ export default function Factura() {
 
     pdf.addImage(imgData, "PNG", imgX, imgY, imgWidth * ratio, imgHeight * ratio);
     
-    const numeroFactura = generarNumeroFactura(pedido.idPedido);
-    pdf.save(`Factura_${numeroFactura}.pdf`);
+    const numeroFactura = generarNumeroFactura();
+    const nombreArchivo = tipoFactura === "consolidada" 
+      ? `Factura_Consolidada_${numeroFactura}.pdf`
+      : `Factura_${numeroFactura}.pdf`;
+    
+    pdf.save(nombreArchivo);
   };
 
   const formatearFecha = (fecha) => {
+    if (!fecha) return "Fecha no disponible";
     const date = new Date(fecha);
     return date.toLocaleDateString("es-ES", {
       day: "2-digit",
@@ -141,14 +314,14 @@ export default function Factura() {
             color: "#6B7F69",
             fontWeight: "600"
           }}>
-            Cargando factura...
+            {tipoFactura === "consolidada" ? "Cargando factura consolidada..." : "Cargando factura..."}
           </p>
         </div>
       </div>
     );
   }
 
-  if (!pedido) {
+  if (!facturaData) {
     return (
       <div style={{
         minHeight: "100vh",
@@ -190,8 +363,20 @@ export default function Factura() {
     );
   }
 
-  const estadoInfo = getEstadoInfo(pedido.estadoPedido);
-  const numeroFactura = generarNumeroFactura(pedido.idPedido);
+  // 🔍 DEBUG: Mostrar estado actual
+  console.log("🔍 DEBUG - Estado actual:");
+  console.log("  tipoFactura:", tipoFactura);
+  console.log("  facturaData:", facturaData);
+  console.log("  detalles:", detalles);
+
+  const estadoInfo = tipoFactura === "consolidada" 
+    ? getEstadoInfo(facturaData.estadoCompra || "PROCESANDO")
+    : getEstadoInfo(facturaData.estadoPedido);
+    
+  const numeroFactura = generarNumeroFactura();
+  const totales = tipoFactura === "consolidada" 
+    ? calcularTotalesConsolidada()
+    : calcularTotalesIndividual();
 
   return (
     <>
@@ -213,7 +398,6 @@ export default function Factura() {
             to { opacity: 1; transform: translateY(0); }
           }
 
-          /* CSS DE IMPRESIÓN PROFESIONAL */
           @media print {
             body {
               background: white !important;
@@ -235,7 +419,7 @@ export default function Factura() {
               width: 100%;
               max-width: 800px !important;
               margin: 0 auto;
-              box-shadow: none !important;
+              boxShadow: none !important;
             }
 
             nav,
@@ -315,15 +499,19 @@ export default function Factura() {
               <div style={{
                 width: "50px",
                 height: "50px",
-                background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
+                background: tipoFactura === "consolidada" 
+                  ? "linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%)" 
+                  : "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
                 borderRadius: "12px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: "28px",
-                boxShadow: "0 4px 12px rgba(90, 143, 72, 0.3)"
+                boxShadow: tipoFactura === "consolidada" 
+                  ? "0 4px 12px rgba(156, 39, 176, 0.3)" 
+                  : "0 4px 12px rgba(90, 143, 72, 0.3)"
               }}>
-                🏪
+                {tipoFactura === "consolidada" ? "🛍️" : "🏪"}
               </div>
               <div>
                 <div style={{
@@ -331,11 +519,11 @@ export default function Factura() {
                   fontSize: "13px",
                   letterSpacing: "3px",
                   textTransform: "uppercase",
-                  color: "#6B7F69",
+                  color: tipoFactura === "consolidada" ? "#9C27B0" : "#6B7F69",
                   marginBottom: "4px",
                   fontWeight: "600"
                 }}>
-                  Don Carlos Market
+                  {tipoFactura === "consolidada" ? "Compra Unificada" : "Don Carlos Market"}
                 </div>
                 <h1 style={{
                   fontFamily: "'Playfair Display', serif",
@@ -345,7 +533,7 @@ export default function Factura() {
                   margin: "0",
                   letterSpacing: "1px"
                 }}>
-                  FACTURA
+                  FACTURA {tipoFactura === "consolidada" && "CONSOLIDADA"}
                 </h1>
               </div>
             </div>
@@ -353,14 +541,18 @@ export default function Factura() {
             {/* Número de factura */}
             <div style={{
               textAlign: "right",
-              background: "linear-gradient(135deg, #F5F9F3 0%, #EAF2E6 100%)",
+              background: tipoFactura === "consolidada" 
+                ? "linear-gradient(135deg, #F3E5F5 0%, #E1BEE7 100%)" 
+                : "linear-gradient(135deg, #F5F9F3 0%, #EAF2E6 100%)",
               padding: "18px 22px",
               borderRadius: "12px",
-              border: "2px solid #E3EBD9"
+              border: tipoFactura === "consolidada" 
+                ? "2px solid #E1BEE7" 
+                : "2px solid #E3EBD9"
             }}>
               <div style={{
                 fontSize: "11px",
-                color: "#6B7F69",
+                color: tipoFactura === "consolidada" ? "#9C27B0" : "#6B7F69",
                 marginBottom: "6px",
                 fontWeight: "600",
                 textTransform: "uppercase",
@@ -371,14 +563,16 @@ export default function Factura() {
               <div style={{
                 fontSize: "24px",
                 fontWeight: "900",
-                color: "#5A8F48",
+                color: tipoFactura === "consolidada" ? "#9C27B0" : "#5A8F48",
                 fontFamily: "'Playfair Display', serif",
                 marginBottom: "2px"
               }}>
                 {numeroFactura}
               </div>
               <div style={{ fontSize: "10px", color: "#9AAA98" }}>
-                Pedido #{pedido.idPedido}
+                {tipoFactura === "consolidada" 
+                  ? `Compra #${facturaData.idCompraUnificada || idCompra}` 
+                  : `Pedido #${facturaData.idPedido}`}
               </div>
             </div>
           </div>
@@ -390,7 +584,7 @@ export default function Factura() {
             gap: "25px",
             marginBottom: "35px"
           }}>
-            {/* DETALLES DEL PEDIDO */}
+            {/* DETALLES */}
             <div>
               <h3 style={{
                 fontSize: "12px",
@@ -400,7 +594,7 @@ export default function Factura() {
                 marginBottom: "16px",
                 fontWeight: "700"
               }}>
-                Detalles del Pedido
+                {tipoFactura === "consolidada" ? "Detalles de la Compra" : "Detalles del Pedido"}
               </h3>
               
               <div style={{
@@ -424,11 +618,11 @@ export default function Factura() {
                     color: "#2D3E2B",
                     fontWeight: "600"
                   }}>
-                    {formatearFecha(pedido.fechaPedido)}
+                    {formatearFecha(facturaData.fechaCompra || facturaData.fechaPedido)}
                   </div>
                 </div>
 
-                <div>
+                <div style={{ marginBottom: "12px" }}>
                   <div style={{
                     fontSize: "10px",
                     color: "#9AAA98",
@@ -443,11 +637,33 @@ export default function Factura() {
                     color: "#2D3E2B",
                     fontWeight: "600"
                   }}>
-                    {pedido.metodoPago === "EFECTIVO" && "Efectivo"}
-                    {pedido.metodoPago === "TRANSFERENCIA" && "Transferencia bancaria"}
-                    {pedido.metodoPago === "TARJETA" && "Tarjeta de crédito"}
+                    {facturaData.metodoPago === "EFECTIVO" && "Efectivo"}
+                    {facturaData.metodoPago === "TRANSFERENCIA" && "Transferencia bancaria"}
+                    {facturaData.metodoPago === "TARJETA" && "Tarjeta de crédito"}
+                    {!facturaData.metodoPago && "No especificado"}
                   </div>
                 </div>
+
+                {tipoFactura === "consolidada" && facturaData.cantidadPedidos && (
+                  <div>
+                    <div style={{
+                      fontSize: "10px",
+                      color: "#9AAA98",
+                      marginBottom: "4px",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px"
+                    }}>
+                      📦 Pedidos incluidos
+                    </div>
+                    <div style={{
+                      fontSize: "14px",
+                      color: "#2D3E2B",
+                      fontWeight: "600"
+                    }}>
+                      {facturaData.cantidadPedidos} pedido(s)
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -490,6 +706,16 @@ export default function Factura() {
                 }}>
                   {estadoInfo.texto}
                 </div>
+                {tipoFactura === "consolidada" && (
+                  <div style={{
+                    fontSize: "11px",
+                    color: "#9AAA98",
+                    marginTop: "8px",
+                    fontStyle: "italic"
+                  }}>
+                    Todos los pedidos están {estadoInfo.texto.toLowerCase()}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -504,113 +730,181 @@ export default function Factura() {
               marginBottom: "14px",
               fontWeight: "700"
             }}>
-              Productos del Pedido
+              {tipoFactura === "consolidada" ? "Productos de la Compra" : "Productos del Pedido"}
+              {tipoFactura === "consolidada" && (
+                <span style={{
+                  fontSize: "11px",
+                  color: "#9C27B0",
+                  marginLeft: "10px",
+                  fontWeight: "600"
+                }}>
+                  (Consolidada de múltiples vendedores)
+                </span>
+              )}
             </h3>
 
-            <table style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              background: "#FAFBF9",
-              borderRadius: "10px",
-              overflow: "hidden"
-            }}>
-              <thead>
-                <tr style={{
-                  background: "linear-gradient(135deg, #F5F9F3 0%, #EAF2E6 100%)",
-                  borderBottom: "2px solid #E3EBD9"
-                }}>
-                  <th style={{
-                    padding: "14px 16px",
-                    textAlign: "left",
-                    fontSize: "11px",
-                    fontWeight: "700",
-                    color: "#2D3E2B",
-                    textTransform: "uppercase",
-                    letterSpacing: "1px"
+            {detalles.length === 0 ? (
+              <div style={{
+                background: "#FAFBF9",
+                padding: "40px",
+                borderRadius: "10px",
+                textAlign: "center",
+                border: "2px dashed #ECF2E3"
+              }}>
+                <div style={{ fontSize: "48px", marginBottom: "16px", color: "#9AAA98" }}>
+                  🛒
+                </div>
+                <p style={{ color: "#6B7F69", fontSize: "16px", marginBottom: "8px" }}>
+                  No se encontraron productos para mostrar
+                </p>
+                <p style={{ color: "#9AAA98", fontSize: "14px" }}>
+                  Es posible que los productos no se hayan cargado correctamente
+                </p>
+              </div>
+            ) : (
+              <table style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                background: "#FAFBF9",
+                borderRadius: "10px",
+                overflow: "hidden"
+              }}>
+                <thead>
+                  <tr style={{
+                    background: tipoFactura === "consolidada"
+                      ? "linear-gradient(135deg, #F3E5F5 0%, #E1BEE7 100%)"
+                      : "linear-gradient(135deg, #F5F9F3 0%, #EAF2E6 100%)",
+                    borderBottom: tipoFactura === "consolidada"
+                      ? "2px solid #E1BEE7"
+                      : "2px solid #E3EBD9"
                   }}>
-                    Producto
-                  </th>
-                  <th style={{
-                    padding: "14px 16px",
-                    textAlign: "center",
-                    fontSize: "11px",
-                    fontWeight: "700",
-                    color: "#2D3E2B",
-                    textTransform: "uppercase",
-                    letterSpacing: "1px",
-                    width: "80px"
-                  }}>
-                    Cant.
-                  </th>
-                  <th style={{
-                    padding: "14px 16px",
-                    textAlign: "right",
-                    fontSize: "11px",
-                    fontWeight: "700",
-                    color: "#2D3E2B",
-                    textTransform: "uppercase",
-                    letterSpacing: "1px",
-                    width: "100px"
-                  }}>
-                    Precio Unit.
-                  </th>
-                  <th style={{
-                    padding: "14px 16px",
-                    textAlign: "right",
-                    fontSize: "11px",
-                    fontWeight: "700",
-                    color: "#2D3E2B",
-                    textTransform: "uppercase",
-                    letterSpacing: "1px",
-                    width: "100px"
-                  }}>
-                    Subtotal
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {detalles.map((d, i) => (
-                  <tr key={i} style={{
-                    borderBottom: i < detalles.length - 1 ? "1px solid #ECF2E3" : "none"
-                  }}>
-                    <td style={{
+                    <th style={{
                       padding: "14px 16px",
-                      fontSize: "14px",
+                      textAlign: "left",
+                      fontSize: "11px",
+                      fontWeight: "700",
                       color: "#2D3E2B",
-                      fontWeight: "500"
+                      textTransform: "uppercase",
+                      letterSpacing: "1px"
                     }}>
-                      {d.producto?.nombreProducto || "Producto"}
-                    </td>
-                    <td style={{
+                      Producto
+                    </th>
+                    {tipoFactura === "consolidada" && (
+                      <th style={{
+                        padding: "14px 16px",
+                        textAlign: "left",
+                        fontSize: "11px",
+                        fontWeight: "700",
+                        color: "#2D3E2B",
+                        textTransform: "uppercase",
+                        letterSpacing: "1px",
+                        width: "120px"
+                      }}>
+                        Vendedor
+                      </th>
+                    )}
+                    <th style={{
                       padding: "14px 16px",
                       textAlign: "center",
-                      fontSize: "14px",
+                      fontSize: "11px",
+                      fontWeight: "700",
                       color: "#2D3E2B",
-                      fontWeight: "600"
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      width: "80px"
                     }}>
-                      {d.cantidad}
-                    </td>
-                    <td style={{
+                      Cant.
+                    </th>
+                    <th style={{
                       padding: "14px 16px",
                       textAlign: "right",
-                      fontSize: "14px",
-                      color: "#6B7F69"
+                      fontSize: "11px",
+                      fontWeight: "700",
+                      color: "#2D3E2B",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      width: "100px"
                     }}>
-                      ${(d.subtotal / d.cantidad).toFixed(2)}
-                    </td>
-                    <td style={{
+                      Precio Unit.
+                    </th>
+                    <th style={{
                       padding: "14px 16px",
                       textAlign: "right",
-                      fontSize: "15px",
-                      color: "#5A8F48",
-                      fontWeight: "700"
+                      fontSize: "11px",
+                      fontWeight: "700",
+                      color: "#2D3E2B",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                      width: "100px"
                     }}>
-                      ${d.subtotal.toFixed(2)}
-                    </td>
+                      Subtotal
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {detalles.map((d, i) => {
+                    const precio = d.precio || d.precioUnitario || 0;
+                    const cantidad = d.cantidad || 1;
+                    const subtotal = d.subtotal || (precio * cantidad);
+                    
+                    return (
+                      <tr key={i} style={{
+                        borderBottom: i < detalles.length - 1 
+                          ? tipoFactura === "consolidada" 
+                            ? "1px solid #E1BEE7" 
+                            : "1px solid #ECF2E3" 
+                          : "none"
+                      }}>
+                        <td style={{
+                          padding: "14px 16px",
+                          fontSize: "14px",
+                          color: "#2D3E2B",
+                          fontWeight: "500"
+                        }}>
+                          {d.nombreProducto || d.producto?.nombreProducto || d.nombre || "Producto"}
+                        </td>
+                        {tipoFactura === "consolidada" && (
+                          <td style={{
+                            padding: "14px 16px",
+                            fontSize: "12px",
+                            color: "#9C27B0",
+                            fontWeight: "600"
+                          }}>
+                            {d.vendedor?.nombre || `Vendedor #${d.vendedor?.idVendedor || d.idPedido}`}
+                          </td>
+                        )}
+                        <td style={{
+                          padding: "14px 16px",
+                          textAlign: "center",
+                          fontSize: "14px",
+                          color: "#2D3E2B",
+                          fontWeight: "600"
+                        }}>
+                          {cantidad}
+                        </td>
+                        <td style={{
+                          padding: "14px 16px",
+                          textAlign: "right",
+                          fontSize: "14px",
+                          color: "#6B7F69"
+                        }}>
+                          ${precio.toFixed(2)}
+                        </td>
+                        <td style={{
+                          padding: "14px 16px",
+                          textAlign: "right",
+                          fontSize: "15px",
+                          color: tipoFactura === "consolidada" ? "#9C27B0" : "#5A8F48",
+                          fontWeight: "700"
+                        }}>
+                          ${subtotal.toFixed(2)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
 
           {/* TOTALES */}
@@ -621,23 +915,29 @@ export default function Factura() {
           }}>
             <div style={{
               minWidth: "350px",
-              background: "linear-gradient(135deg, #F5F9F3 0%, #EAF2E6 100%)",
+              background: tipoFactura === "consolidada"
+                ? "linear-gradient(135deg, #F3E5F5 0%, #E1BEE7 100%)"
+                : "linear-gradient(135deg, #F5F9F3 0%, #EAF2E6 100%)",
               padding: "24px",
               borderRadius: "12px",
-              border: "2px solid #E3EBD9"
+              border: tipoFactura === "consolidada"
+                ? "2px solid #E1BEE7"
+                : "2px solid #E3EBD9"
             }}>
               <div style={{
                 display: "flex",
                 justifyContent: "space-between",
                 marginBottom: "10px",
                 paddingBottom: "10px",
-                borderBottom: "1px solid #D5E3CC"
+                borderBottom: tipoFactura === "consolidada"
+                  ? "1px solid #D1C4E9"
+                  : "1px solid #D5E3CC"
               }}>
                 <span style={{ fontSize: "14px", color: "#6B7F69" }}>
                   Subtotal
                 </span>
                 <span style={{ fontSize: "15px", fontWeight: "600", color: "#2D3E2B" }}>
-                  ${pedido.subtotal.toFixed(2)}
+                  ${totales.subtotal.toFixed(2)}
                 </span>
               </div>
 
@@ -646,13 +946,15 @@ export default function Factura() {
                 justifyContent: "space-between",
                 marginBottom: "14px",
                 paddingBottom: "14px",
-                borderBottom: "2px solid #C5D9BA"
+                borderBottom: tipoFactura === "consolidada"
+                  ? "2px solid #B39DDB"
+                  : "2px solid #C5D9BA"
               }}>
                 <span style={{ fontSize: "14px", color: "#6B7F69" }}>
                   IVA (12%)
                 </span>
                 <span style={{ fontSize: "15px", fontWeight: "600", color: "#2D3E2B" }}>
-                  ${pedido.iva.toFixed(2)}
+                  ${totales.iva.toFixed(2)}
                 </span>
               </div>
 
@@ -673,19 +975,33 @@ export default function Factura() {
                 <span style={{
                   fontSize: "32px",
                   fontWeight: "900",
-                  color: "#5A8F48",
+                  color: tipoFactura === "consolidada" ? "#9C27B0" : "#5A8F48",
                   fontFamily: "'Playfair Display', serif"
                 }}>
-                  ${pedido.total.toFixed(2)}
+                  ${totales.total.toFixed(2)}
                 </span>
               </div>
+              
+              {tipoFactura === "consolidada" && (
+                <div style={{
+                  fontSize: "11px",
+                  color: "#9C27B0",
+                  marginTop: "12px",
+                  textAlign: "center",
+                  fontStyle: "italic"
+                }}>
+                  Factura consolidada - Incluye productos de múltiples vendedores
+                </div>
+              )}
             </div>
           </div>
 
           {/* FOOTER */}
           <div style={{
             paddingTop: "25px",
-            borderTop: "2px solid #ECF2E3",
+            borderTop: tipoFactura === "consolidada" 
+              ? "2px solid #E1BEE7" 
+              : "2px solid #ECF2E3",
             textAlign: "center"
           }}>
             <p style={{
@@ -694,7 +1010,9 @@ export default function Factura() {
               margin: "0 0 6px 0",
               lineHeight: "1.6"
             }}>
-              Gracias por tu compra en Don Carlos Market
+              {tipoFactura === "consolidada" 
+                ? "Gracias por tu compra unificada en Don Carlos Market" 
+                : "Gracias por tu compra en Don Carlos Market"}
             </p>
             <p style={{
               fontSize: "11px",
@@ -705,7 +1023,7 @@ export default function Factura() {
               Este documento es una factura válida para efectos tributarios
             </p>
             
-            {pedido.estadoPedido === "PENDIENTE_VERIFICACION" && (
+            {(estadoInfo.texto === "Verificando" || estadoInfo.texto === "Pendiente") && (
               <div style={{
                 fontSize: "12px",
                 color: "#F57C00",
@@ -721,17 +1039,17 @@ export default function Factura() {
               </div>
             )}
             
-            {pedido.estadoPedido === "COMPLETADO" && (
+            {estadoInfo.texto === "Completado" && (
               <div style={{
                 fontSize: "12px",
-                color: "#5A8F48",
+                color: tipoFactura === "consolidada" ? "#9C27B0" : "#5A8F48",
                 margin: "12px auto 0 auto",
                 fontWeight: "600",
                 padding: "10px 16px",
-                background: "#E8F5E9",
+                background: tipoFactura === "consolidada" ? "#F3E5F5" : "#E8F5E9",
                 borderRadius: "8px",
                 display: "inline-block",
-                border: "1px solid #C8E6C9"
+                border: tipoFactura === "consolidada" ? "1px solid #E1BEE7" : "1px solid #C8E6C9"
               }}>
                 ✅ Pago verificado y confirmado
               </div>
@@ -752,14 +1070,18 @@ export default function Factura() {
             onClick={descargarPDF}
             style={{
               padding: "14px 28px",
-              background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
+              background: tipoFactura === "consolidada" 
+                ? "linear-gradient(135deg, #9C27B0 0%, #7B1FA2 100%)" 
+                : "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
               color: "white",
               border: "none",
               borderRadius: "12px",
               fontWeight: "700",
               fontSize: "15px",
               cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(90, 143, 72, 0.3)",
+              boxShadow: tipoFactura === "consolidada" 
+                ? "0 4px 12px rgba(156, 39, 176, 0.3)" 
+                : "0 4px 12px rgba(90, 143, 72, 0.3)",
               transition: "all 0.3s ease",
               display: "flex",
               alignItems: "center",
@@ -767,11 +1089,15 @@ export default function Factura() {
             }}
             onMouseEnter={(e) => {
               e.target.style.transform = "translateY(-2px)";
-              e.target.style.boxShadow = "0 8px 20px rgba(90, 143, 72, 0.4)";
+              e.target.style.boxShadow = tipoFactura === "consolidada" 
+                ? "0 8px 20px rgba(156, 39, 176, 0.4)" 
+                : "0 8px 20px rgba(90, 143, 72, 0.4)";
             }}
             onMouseLeave={(e) => {
               e.target.style.transform = "translateY(0)";
-              e.target.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.3)";
+              e.target.style.boxShadow = tipoFactura === "consolidada" 
+                ? "0 4px 12px rgba(156, 39, 176, 0.3)" 
+                : "0 4px 12px rgba(90, 143, 72, 0.3)";
             }}
           >
             <span style={{ fontSize: "18px" }}>📥</span>
@@ -783,8 +1109,8 @@ export default function Factura() {
             style={{
               padding: "14px 28px",
               background: "white",
-              color: "#5A8F48",
-              border: "2px solid #5A8F48",
+              color: tipoFactura === "consolidada" ? "#9C27B0" : "#5A8F48",
+              border: `2px solid ${tipoFactura === "consolidada" ? "#9C27B0" : "#5A8F48"}`,
               borderRadius: "12px",
               fontWeight: "700",
               fontSize: "15px",
@@ -795,7 +1121,7 @@ export default function Factura() {
               gap: "8px"
             }}
             onMouseEnter={(e) => {
-              e.target.style.background = "#ECF2E3";
+              e.target.style.background = tipoFactura === "consolidada" ? "#F3E5F5" : "#ECF2E3";
               e.target.style.transform = "translateY(-2px)";
             }}
             onMouseLeave={(e) => {
@@ -807,34 +1133,67 @@ export default function Factura() {
             Imprimir
           </button>
 
-          <button
-            onClick={() => navigate(`/pedido/${idPedido}`)}
-            style={{
-              padding: "14px 28px",
-              background: "white",
-              color: "#2D3E2B",
-              border: "2px solid #E3EBD9",
-              borderRadius: "12px",
-              fontWeight: "600",
-              fontSize: "15px",
-              cursor: "pointer",
-              transition: "all 0.3s ease",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px"
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = "#FAFBF9";
-              e.target.style.transform = "translateY(-2px)";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = "white";
-              e.target.style.transform = "translateY(0)";
-            }}
-          >
-            <span style={{ fontSize: "18px" }}>📦</span>
-            Ver pedido
-          </button>
+          {tipoFactura === "consolidada" ? (
+            <button
+              onClick={() => navigate(`/mi-compra-unificada/${facturaData.idCompraUnificada || idCompra}`, {
+                state: { compraData: facturaData }
+              })}
+              style={{
+                padding: "14px 28px",
+                background: "white",
+                color: "#2D3E2B",
+                border: "2px solid #E3EBD9",
+                borderRadius: "12px",
+                fontWeight: "600",
+                fontSize: "15px",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px"
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#FAFBF9";
+                e.target.style.transform = "translateY(-2px)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "white";
+                e.target.style.transform = "translateY(0)";
+              }}
+            >
+              <span style={{ fontSize: "18px" }}>🛍️</span>
+              Ver compra unificada
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate(`/pedido/${idPedido}`)}
+              style={{
+                padding: "14px 28px",
+                background: "white",
+                color: "#2D3E2B",
+                border: "2px solid #E3EBD9",
+                borderRadius: "12px",
+                fontWeight: "600",
+                fontSize: "15px",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px"
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = "#FAFBF9";
+                e.target.style.transform = "translateY(-2px)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = "white";
+                e.target.style.transform = "translateY(0)";
+              }}
+            >
+              <span style={{ fontSize: "18px" }}>📦</span>
+              Ver pedido
+            </button>
+          )}
         </div>
       </div>
 

@@ -48,56 +48,6 @@ const formatearFecha = (fecha) => {
   return date.toLocaleDateString('es-ES', opciones);
 };
 
-// 🆕 HELPERS PARA SEGUIMIENTO Y PROGRESO
-const pasosSeguimiento = [
-  "PEDIDO_REALIZADO",
-  "RECOLECTANDO",
-  "EMPACANDO",
-  "EN_CAMINO",
-  "LISTO_PARA_RETIRO",
-  "ENTREGADO"
-];
-
-const getPasoActivo = (estado) => {
-  const index = pasosSeguimiento.indexOf(estado);
-  return index !== -1 ? index : 0;
-};
-
-const getSeguimientoTexto = (estado) => {
-  const textos = {
-    PEDIDO_REALIZADO: "Pedido confirmado",
-    RECOLECTANDO: "Recolectando productos",
-    EMPACANDO: "Empacando pedido",
-    EN_CAMINO: "Tu pedido va en camino",
-    LISTO_PARA_RETIRO: "Listo para retirar",
-    ENTREGADO: "Pedido entregado"
-  };
-  return textos[estado] || "Procesando pedido";
-};
-
-const getPasoLabel = (paso) => {
-  const labels = {
-    PEDIDO_REALIZADO: "Realizado",
-    RECOLECTANDO: "Recolectando",
-    EMPACANDO: "Empacando",
-    EN_CAMINO: "En camino",
-    LISTO_PARA_RETIRO: "Listo",
-    ENTREGADO: "Entregado"
-  };
-  return labels[paso] || paso.replaceAll("_", " ");
-};
-
-// 🆕 Helper para verificar si el usuario es repartidor/vendedor
-const esRepartidorOVendedor = () => {
-  const userRole = localStorage.getItem('userRole');
-  return userRole === 'ROLE_REPARTIDOR' || userRole === 'ROLE_VENDEDOR';
-};
-
-// 🆕 Helper para verificar si puede marcar como entregado
-const puedeMarcarEntregado = (pedido) => {
-  return esRepartidorOVendedor() && pedido.estadoSeguimiento === 'EN_CAMINO';
-};
-
 export default function MisPedidos({ modo: modoProp }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -106,20 +56,27 @@ export default function MisPedidos({ modo: modoProp }) {
   // 🎯 MODO REAL - Prioridad: prop > state > default
   const modo = modoProp || location.state?.modo || "lista";
 
-  const [pedidos, setPedidos] = useState([]);
+  const [pedidosIndividuales, setPedidosIndividuales] = useState([]);
+  const [comprasUnificadas, setComprasUnificadas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pedidoAbierto, setPedidoAbierto] = useState(null);
 
-  // Estados que permiten ver factura (LÓGICA SIMPLE QUE FUNCIONA)
+  // Estados que permiten ver factura
   const estadosConFactura = ["PENDIENTE_VERIFICACION", "COMPLETADO"];
 
-  // 🆕 Función para cargar pedidos
-  const fetchPedidos = async () => {
+  // 🆕 Función para cargar pedidos y compras unificadas
+  const fetchDatos = async () => {
     const token = localStorage.getItem("authToken");
 
     try {
+      console.log("🔍 Cargando datos del historial...");
+      
+      // 🔥 LLAMADA AL NUEVO ENDPOINT QUE DEVUELVE AMBOS TIPOS
       const response = await fetch(`${API_URL}/pedidos/mis-pedidos`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
@@ -128,10 +85,55 @@ export default function MisPedidos({ modo: modoProp }) {
       }
 
       const data = await response.json();
-      setPedidos(data);
+      
+      // 🔥 DEBUG DETALLADO - IMPORTANTE PARA DIAGNÓSTICO
+      console.log("✅ Respuesta completa del backend:", JSON.stringify(data, null, 2));
+      
+      // Verificar la estructura de la respuesta
+      if (data.comprasUnificadas && Array.isArray(data.comprasUnificadas)) {
+        console.log(`📦 El backend devolvió ${data.comprasUnificadas.length} compras unificadas`);
+        data.comprasUnificadas.forEach((compra, idx) => {
+          console.log(`  Compra ${idx}: ID=${compra.idCompraUnificada}, Pedidos=${compra.pedidos?.length || 0}`);
+        });
+      }
+      
+      // Verificar pedidos individuales
+      const pedidos = data.pedidosIndividuales || data || [];
+      console.log(`📋 Total de pedidos recibidos: ${pedidos.length}`);
+      
+      // Verificar si los pedidos tienen idCompraUnificada
+      const pedidosConIdCompra = pedidos.filter(p => p.idCompraUnificada);
+      const pedidosSinIdCompra = pedidos.filter(p => !p.idCompraUnificada);
+      
+      console.log(`🔄 Pedidos CON idCompraUnificada: ${pedidosConIdCompra.length}`);
+      console.log(`📝 Pedidos SIN idCompraUnificada: ${pedidosSinIdCompra.length}`);
+      
+      // Mostrar detalles de los primeros 10 pedidos para diagnóstico
+      pedidos.slice(0, 10).forEach((p, i) => {
+        console.log(`  Pedido ${i}: #${p.idPedido}, idCompraUnificada=${p.idCompraUnificada || '(ninguno)'}, Estado=${p.estadoPedido}, Total=$${p.total || p.montoTotal || 0}`);
+      });
+      
+      // 🔥 PROCESAR RESPUESTA SEGÚN FORMATO
+      if (data.pedidosIndividuales && data.comprasUnificadas) {
+        // Nuevo formato: objeto con ambos arrays
+        setPedidosIndividuales(data.pedidosIndividuales || []);
+        setComprasUnificadas(data.comprasUnificadas || []);
+      } else if (Array.isArray(data)) {
+        // Formato antiguo: solo array de pedidos
+        setPedidosIndividuales(data);
+        setComprasUnificadas([]);
+      } else {
+        // Formato inesperado
+        setPedidosIndividuales([]);
+        setComprasUnificadas([]);
+      }
+      
       setLoading(false);
+      
     } catch (err) {
-      console.error("Error cargando pedidos:", err);
+      console.error("Error cargando datos:", err);
+      console.error("URL llamada:", `${API_URL}/pedidos/mis-pedidos`);
+      console.error("Token usado:", token ? "Presente" : "Ausente");
       setLoading(false);
     }
   };
@@ -163,8 +165,8 @@ export default function MisPedidos({ modo: modoProp }) {
 
       alert('✅ Pedido marcado como entregado' + (metodoPago === 'EFECTIVO' ? ' y pagado' : ''));
 
-      // Recargar pedidos
-      fetchPedidos();
+      // Recargar datos
+      fetchDatos();
 
     } catch (error) {
       console.error('Error:', error);
@@ -180,14 +182,128 @@ export default function MisPedidos({ modo: modoProp }) {
       return;
     }
 
-    fetchPedidos();
+    fetchDatos();
   }, []);
 
-  // 🔥 FILTRO DEFINITIVO - Solo mostrar pedidos válidos
-  const pedidosVisibles = pedidos.filter(p =>
-    p.total > 0 &&
-    ["PENDIENTE", "PENDIENTE_VERIFICACION", "PROCESANDO", "COMPLETADO"].includes(p.estadoPedido)
-  );
+  // 🔥 LÓGICA CORREGIDA PARA DETECTAR COMPRAS UNIFICADAS
+  const [comprasUnificadasReales, setComprasUnificadasReales] = useState([]);
+  const [pedidosIndividualesReales, setPedidosIndividualesReales] = useState([]);
+  const [totalCompras, setTotalCompras] = useState(0);
+
+  useEffect(() => {
+    if (loading) return;
+
+    console.log("🔄 Procesando datos para detectar compras unificadas...");
+    
+    // 1. Si el backend ya devolvió compras unificadas, usarlas directamente
+    if (comprasUnificadas.length > 0) {
+      console.log("✅ Usando compras unificadas del backend:", comprasUnificadas.length);
+      setComprasUnificadasReales(comprasUnificadas);
+      setPedidosIndividualesReales(pedidosIndividuales);
+      setTotalCompras(comprasUnificadas.length + pedidosIndividuales.length);
+      return;
+    }
+    
+    // 2. Si no, procesar los pedidos individuales para detectar compras unificadas
+    console.log("🔍 Analizando", pedidosIndividuales.length, "pedidos para detectar compras unificadas...");
+    
+    // Agrupar pedidos por idCompraUnificada
+    const gruposPorCompra = {};
+    
+    pedidosIndividuales.forEach(pedido => {
+      const idCompra = pedido.idCompraUnificada;
+      
+      if (idCompra && idCompra !== null && idCompra !== undefined && idCompra !== '') {
+        if (!gruposPorCompra[idCompra]) {
+          gruposPorCompra[idCompra] = [];
+        }
+        gruposPorCompra[idCompra].push(pedido);
+      }
+    });
+    
+    console.log("📊 Grupos detectados:", Object.keys(gruposPorCompra));
+    
+    // Crear compras unificadas solo para grupos con más de 1 pedido
+    const comprasUnificadasDetectadas = [];
+    const pedidosIndividualesDetectados = [];
+    
+    Object.entries(gruposPorCompra).forEach(([idCompra, pedidosEnGrupo]) => {
+      console.log(`  Grupo ${idCompra}: ${pedidosEnGrupo.length} pedidos`);
+      
+      if (pedidosEnGrupo.length > 1) {
+        // Es una compra unificada
+        const totalGeneral = pedidosEnGrupo.reduce((sum, p) => sum + (p.total || p.montoTotal || 0), 0);
+        const primerPedido = pedidosEnGrupo[0];
+        
+        // Ordenar pedidos por ID (opcional)
+        const pedidosOrdenados = [...pedidosEnGrupo].sort((a, b) => a.idPedido - b.idPedido);
+        
+        // Determinar estado de la compra
+        const estados = pedidosOrdenados.map(p => p.estadoPedido);
+        const estadoCompra = estados.every(e => e === "COMPLETADO") ? "COMPLETADA" :
+                            estados.some(e => e === "PENDIENTE" || e === "PENDIENTE_VERIFICACION") ? "PENDIENTE" : "PROCESANDO";
+        
+        comprasUnificadasDetectadas.push({
+          idCompraUnificada: idCompra,
+          pedidos: pedidosOrdenados,
+          totalGeneral,
+          fechaCompra: primerPedido.fechaPedido || primerPedido.fechaCreacion,
+          metodoPago: primerPedido.metodoPago || 'PENDIENTE',
+          estadoCompra,
+          cantidadPedidos: pedidosOrdenados.length,
+          cantidadVendedores: new Set(pedidosOrdenados.map(p => p.vendedor?.idVendedor || p.idVendedor || 0)).size
+        });
+        
+        console.log(`    -> Creando compra unificada: ${idCompra} con ${pedidosOrdenados.length} pedidos, total: $${totalGeneral}`);
+      } else {
+        // Es un pedido individual (aunque tenga idCompraUnificada)
+        pedidosIndividualesDetectados.push(...pedidosEnGrupo);
+      }
+    });
+    
+    // Agregar pedidos que no tienen idCompraUnificada
+    const pedidosSinIdCompra = pedidosIndividuales.filter(p => 
+      !p.idCompraUnificada || 
+      p.idCompraUnificada === null || 
+      p.idCompraUnificada === undefined || 
+      p.idCompraUnificada === ''
+    );
+    
+    pedidosIndividualesDetectados.push(...pedidosSinIdCompra);
+    
+    // Ordenar compras unificadas por fecha (más reciente primero)
+    const comprasOrdenadas = comprasUnificadasDetectadas.sort((a, b) => 
+      new Date(b.fechaCompra) - new Date(a.fechaCompra)
+    );
+    
+    // Ordenar pedidos individuales por fecha (más reciente primero)
+    const pedidosOrdenados = pedidosIndividualesDetectados.sort((a, b) => 
+      new Date(b.fechaPedido || b.fechaCreacion) - new Date(a.fechaPedido || a.fechaCreacion)
+    );
+    
+    console.log("✅ Resultados del procesamiento:");
+    console.log(`   Compras unificadas: ${comprasOrdenadas.length}`);
+    console.log(`   Pedidos individuales: ${pedidosOrdenados.length}`);
+    console.log(`   Total compras: ${comprasOrdenadas.length + pedidosOrdenados.length}`);
+    
+    // Verificar si hay pedidos #33 y #34 juntos
+    const pedidos33y34 = pedidosIndividuales.filter(p => 
+      p.idPedido === 33 || p.idPedido === 34
+    );
+    
+    if (pedidos33y34.length > 0) {
+      console.log("🔍 Pedidos #33 y #34 encontrados:", pedidos33y34.map(p => ({
+        id: p.idPedido,
+        idCompra: p.idCompraUnificada,
+        estado: p.estadoPedido
+      })));
+    }
+    
+    setComprasUnificadasReales(comprasOrdenadas);
+    setPedidosIndividualesReales(pedidosOrdenados);
+    setTotalCompras(comprasOrdenadas.length + pedidosOrdenados.length);
+    
+  }, [loading, pedidosIndividuales, comprasUnificadas]);
 
   return (
     <div style={{
@@ -208,59 +324,6 @@ export default function MisPedidos({ modo: modoProp }) {
           position: "relative",
           overflow: "hidden"
         }}>
-          {/* Decoración de fondo - Círculos suaves CON ANIMACIÓN */}
-          <div style={{
-            position: "absolute",
-            top: "-80px",
-            right: "-80px",
-            width: "250px",
-            height: "250px",
-            background: "linear-gradient(135deg, rgba(90, 143, 72, 0.15) 0%, rgba(74, 122, 58, 0.08) 100%)",
-            borderRadius: "50%",
-            filter: "blur(40px)",
-            zIndex: "0",
-            animation: "float1 8s ease-in-out infinite"
-          }}></div>
-          
-          <div style={{
-            position: "absolute",
-            top: "50%",
-            right: "10%",
-            width: "150px",
-            height: "150px",
-            background: "linear-gradient(135deg, rgba(236, 242, 227, 0.8) 0%, rgba(221, 232, 208, 0.5) 100%)",
-            borderRadius: "50%",
-            filter: "blur(30px)",
-            zIndex: "0",
-            animation: "float2 10s ease-in-out infinite"
-          }}></div>
-          
-          <div style={{
-            position: "absolute",
-            bottom: "-60px",
-            left: "-60px",
-            width: "200px",
-            height: "200px",
-            background: "linear-gradient(135deg, rgba(90, 143, 72, 0.12) 0%, rgba(74, 122, 58, 0.06) 100%)",
-            borderRadius: "50%",
-            filter: "blur(35px)",
-            zIndex: "0",
-            animation: "float3 12s ease-in-out infinite"
-          }}></div>
-          
-          <div style={{
-            position: "absolute",
-            top: "20%",
-            left: "15%",
-            width: "120px",
-            height: "120px",
-            background: "linear-gradient(135deg, rgba(90, 143, 72, 0.1) 0%, rgba(74, 122, 58, 0.05) 100%)",
-            borderRadius: "50%",
-            filter: "blur(25px)",
-            zIndex: "0",
-            animation: "float4 9s ease-in-out infinite"
-          }}></div>
-
           <div style={{ position: "relative", zIndex: "1" }}>
             {/* Icono decorativo */}
             <div style={{
@@ -271,7 +334,7 @@ export default function MisPedidos({ modo: modoProp }) {
               🛍️
             </div>
 
-            {/* Título estilo Don Carlos Market */}
+            {/* Título */}
             <div style={{
               fontFamily: "'Playfair Display', 'Georgia', serif",
               fontSize: "14px",
@@ -304,8 +367,8 @@ export default function MisPedidos({ modo: modoProp }) {
               maxWidth: "600px",
               lineHeight: "1.6"
             }}>
-              {pedidosVisibles.length > 0 
-                ? `Tienes ${pedidosVisibles.length} compra${pedidosVisibles.length > 1 ? 's' : ''} realizada${pedidosVisibles.length > 1 ? 's' : ''}`
+              {totalCompras > 0 
+                ? `Tienes ${totalCompras} compra${totalCompras > 1 ? 's' : ''} realizada${totalCompras > 1 ? 's' : ''}`
                 : "Aquí aparecerán todas tus compras realizadas"
               }
             </p>
@@ -346,7 +409,7 @@ export default function MisPedidos({ modo: modoProp }) {
               Cargando tus compras...
             </p>
           </div>
-        ) : pedidosVisibles.length === 0 ? (
+        ) : totalCompras === 0 ? (
           <div style={{
             textAlign: "center",
             padding: "80px 20px",
@@ -402,558 +465,512 @@ export default function MisPedidos({ modo: modoProp }) {
           <div style={{
             display: "flex",
             flexDirection: "column",
-            gap: "20px"
+            gap: "30px"
           }}>
-            {pedidosVisibles.map((p) => (
-              <div
-                key={p.idPedido}
-                onClick={() => {
-                  if (modo === "perfil") {
-                    setPedidoAbierto(
-                      pedidoAbierto === p.idPedido ? null : p.idPedido
-                    );
-                  }
-                }}
-                style={{
-                  background: "white",
-                  borderRadius: "16px",
-                  padding: "28px",
-                  boxShadow: "0 4px 20px rgba(90, 143, 72, 0.1)",
-                  transition: "all 0.3s ease",
-                  cursor: modo === "perfil" ? "pointer" : "default"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateY(-4px)";
-                  e.currentTarget.style.boxShadow = "0 12px 28px rgba(90, 143, 72, 0.18)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "0 4px 20px rgba(90, 143, 72, 0.1)";
-                }}
-              >
-                {/* Contenedor principal con flex */}
-                <div style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 24,
-                  flexWrap: "wrap"
+            {/* 🔥 SECCIÓN DE COMPRAS UNIFICADAS */}
+            {comprasUnificadasReales.length > 0 && modo === "lista" && (
+              <div>
+                <h2 style={{
+                  fontSize: "24px",
+                  fontWeight: "700",
+                  color: "#2D3E2B",
+                  marginBottom: "20px",
+                  fontFamily: "'Playfair Display', serif"
                 }}>
-                  {/* Sección izquierda - Info del pedido */}
-                  <div style={{ flex: 1, minWidth: "280px" }}>
-                    {/* Título con emoji */}
-                    <div style={{ 
-                      display: "flex", 
-                      alignItems: "center", 
-                      gap: 12, 
-                      marginBottom: 12 
-                    }}>
-                      <span style={{ fontSize: "32px" }}>
-                        {getEstadoEmoji(p.estadoPedido)}
-                      </span>
-                      <h3 style={{ 
-                        margin: 0, 
-                        fontSize: "22px", 
-                        color: "#2D3E2B",
-                        fontFamily: "'Playfair Display', 'Georgia', serif",
-                        fontWeight: "700"
-                      }}>
-                        Compra del {formatearFecha(p.fechaPedido).split(',')[0]}
-                      </h3>
-                    </div>
-                    
-                    {/* Fecha completa */}
-                    <p style={{ 
-                      margin: "0 0 12px 0", 
-                      color: "#6B7F69", 
-                      fontSize: "14px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6
-                    }}>
-                      <span style={{ fontSize: "16px" }}>📅</span>
-                      {formatearFecha(p.fechaPedido)}
-                    </p>
-                    
-                    {/* Badge de estado */}
-                    <div style={{
-                      display: "inline-block",
-                      padding: "8px 16px",
-                      borderRadius: "20px",
-                      background: p.estadoPedido === "COMPLETADO" 
-                        ? "#E8F5E9" 
-                        : "#FFF8E1",
-                      fontSize: "13px",
-                      fontWeight: "600",
-                      color: p.estadoPedido === "COMPLETADO" 
-                        ? "#2E7D32" 
-                        : "#F57C00"
-                    }}>
-                      {getEstadoLabel(p.estadoPedido)}
-                    </div>
-                  </div>
-
-                  {/* Sección derecha - Precio y acciones */}
-                  <div style={{ 
-                    textAlign: "right",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-end",
-                    gap: 16
+                  🛍️ Compras Unificadas ({comprasUnificadasReales.length})
+                  <span style={{
+                    fontSize: "14px",
+                    color: "#6B7F69",
+                    marginLeft: "12px",
+                    fontWeight: "normal"
                   }}>
-                    {/* Precio destacado */}
-                    <div style={{ 
-                      fontWeight: "800", 
-                      fontSize: "32px", 
-                      color: "#5A8F48",
-                      fontFamily: "'Playfair Display', 'Georgia', serif",
-                      lineHeight: 1
-                    }}>
-                      ${money(p.total)}
-                    </div>
-
-                    {/* Botones de acción - SOLO EN MODO LISTA */}
-                    {modo === "lista" && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
-                        {/* 🆕 Botón para marcar como entregado (solo repartidor/vendedor) */}
-                        {puedeMarcarEntregado(p) && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMarcarEntregado(p.idPedido, p.metodoPago);
-                            }}
-                            style={{
-                              padding: "12px 20px",
-                              borderRadius: "12px",
-                              border: "none",
-                              cursor: "pointer",
-                              background: "linear-gradient(135deg, #4CAF50 0%, #45A049 100%)",
-                              color: "white",
-                              fontSize: "14px",
-                              fontWeight: "700",
-                              transition: "all 0.3s ease",
-                              boxShadow: "0 4px 12px rgba(76, 175, 80, 0.25)",
-                              whiteSpace: "nowrap"
-                            }}
-                            onMouseEnter={(e) => {
-                              e.target.style.transform = "translateY(-2px)";
-                              e.target.style.boxShadow = "0 6px 16px rgba(76, 175, 80, 0.35)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.target.style.transform = "translateY(0)";
-                              e.target.style.boxShadow = "0 4px 12px rgba(76, 175, 80, 0.25)";
-                            }}
-                          >
-                            ✅ Marcar como Entregado
-                          </button>
-                        )}
-
-                        <div style={{ display: "flex", gap: 10 }}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/pedido/${p.idPedido}`);
-                            }}
-                            style={{
-                              padding: "12px 20px",
-                              borderRadius: "12px",
-                              border: "2px solid #5A8F48",
-                              cursor: "pointer",
-                              background: "white",
+                    (Varios pedidos en una sola compra)
+                  </span>
+                </h2>
+                
+                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                  {comprasUnificadasReales.map((compra) => (
+                    <div 
+                      key={compra.idCompraUnificada} 
+                      style={{
+                        background: "white",
+                        borderRadius: "16px",
+                        padding: "28px",
+                        boxShadow: "0 4px 20px rgba(90, 143, 72, 0.1)",
+                        border: "2px solid #E8F5E9",
+                        transition: "all 0.3s ease"
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
+                        <div style={{ flex: 1 }}>
+                          <h3 style={{ 
+                            margin: 0, 
+                            fontSize: "22px", 
+                            color: "#2D3E2B",
+                            fontWeight: "700",
+                            marginBottom: "12px",
+                            fontFamily: "'Playfair Display', 'Georgia', serif"
+                          }}>
+                            🛍️ Compra Unificada #{compra.idCompraUnificada}
+                          </h3>
+                          
+                          {/* Estado de la compra */}
+                          <div style={{ 
+                            display: "inline-block",
+                            padding: "8px 16px",
+                            borderRadius: "20px",
+                            background: compra.estadoCompra === "COMPLETADA" 
+                              ? "#E8F5E9" 
+                              : compra.estadoCompra === "PENDIENTE" 
+                              ? "#FFF3CD" 
+                              : "#FFF8E1",
+                            fontSize: "13px",
+                            fontWeight: "600",
+                            color: compra.estadoCompra === "COMPLETADA" 
+                              ? "#2E7D32" 
+                              : compra.estadoCompra === "PENDIENTE" 
+                              ? "#856404" 
+                              : "#F57C00",
+                            marginBottom: "12px"
+                          }}>
+                            {compra.estadoCompra === "COMPLETADA" ? "✅ Completada" : 
+                             compra.estadoCompra === "PENDIENTE" ? "⏳ Pendiente" : 
+                             "🔄 En proceso"}
+                          </div>
+                          
+                          <p style={{ 
+                            margin: "12px 0", 
+                            color: "#6B7F69", 
+                            fontSize: "15px"
+                          }}>
+                            <span style={{ fontWeight: "600" }}>{compra.cantidadPedidos || compra.pedidos?.length || 0} pedido(s)</span> • 
+                            <span style={{ fontWeight: "600" }}> {compra.cantidadVendedores || new Set(compra.pedidos?.map(p => p.vendedor?.idVendedor || p.idVendedor)).size || 0} vendedor(es)</span>
+                          </p>
+                          
+                          {/* Lista de pedidos incluidos */}
+                          <div style={{ 
+                            marginTop: "16px",
+                            background: "#F9FBF7",
+                            padding: "12px 16px",
+                            borderRadius: "8px",
+                            border: "1px solid #ECF2E3"
+                          }}>
+                            <p style={{ 
+                              margin: "0 0 8px 0", 
+                              fontSize: "14px", 
                               color: "#5A8F48",
-                              fontSize: "14px",
-                              fontWeight: "700",
-                              transition: "all 0.3s ease",
-                              whiteSpace: "nowrap"
-                            }}
-                            onMouseEnter={(e) => {
-                              e.target.style.background = "#ECF2E3";
-                              e.target.style.transform = "translateY(-2px)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.target.style.background = "white";
-                              e.target.style.transform = "translateY(0)";
-                            }}
-                          >
-                            Ver detalles
-                          </button>
-
-                          {/* ✅ LÓGICA SIMPLE QUE FUNCIONA */}
-                          {estadosConFactura.includes(p.estadoPedido) && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/factura/${p.idPedido}`);
-                              }}
-                              style={{
-                                padding: "12px 20px",
+                              fontWeight: "600"
+                            }}>
+                              📋 Pedidos incluidos:
+                            </p>
+                            <div style={{ 
+                              display: "flex", 
+                              flexWrap: "wrap", 
+                              gap: "8px"
+                            }}>
+                              {compra.pedidos?.map(p => (
+                                <span key={p.idPedido} style={{
+                                  background: "#E8F5E9",
+                                  padding: "4px 10px",
+                                  borderRadius: "12px",
+                                  fontSize: "12px",
+                                  fontWeight: "600",
+                                  color: "#2D3E2B",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px"
+                                }}>
+                                  #{p.idPedido} (${money(p.total || p.montoTotal || 0)})
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          <div style={{ marginTop: "16px", display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                            {/* Método de pago */}
+                            {compra.metodoPago && (
+                              <span style={{ 
+                                background: "#ECF2E3", 
+                                padding: "8px 16px", 
                                 borderRadius: "12px",
-                                border: "none",
-                                cursor: "pointer",
-                                background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
-                                color: "white",
                                 fontSize: "14px",
-                                fontWeight: "700",
-                                transition: "all 0.3s ease",
-                                boxShadow: "0 4px 12px rgba(90, 143, 72, 0.25)",
-                                whiteSpace: "nowrap"
-                              }}
-                              onMouseEnter={(e) => {
-                                e.target.style.transform = "translateY(-2px)";
-                                e.target.style.boxShadow = "0 6px 16px rgba(90, 143, 72, 0.35)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.target.style.transform = "translateY(0)";
-                                e.target.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.25)";
-                              }}
-                            >
-                              📄 Ver factura
-                            </button>
-                          )}
+                                fontWeight: "600",
+                                color: "#5A8F48",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px"
+                              }}>
+                                {compra.metodoPago === 'EFECTIVO' ? '💵' : 
+                                 compra.metodoPago === 'TRANSFERENCIA' ? '🏦' : 
+                                 compra.metodoPago === 'TARJETA' ? '💳' : ''}
+                                {compra.metodoPago === 'EFECTIVO' ? 'Efectivo' : 
+                                 compra.metodoPago === 'TRANSFERENCIA' ? 'Transferencia' : 
+                                 compra.metodoPago === 'TARJETA' ? 'Tarjeta' : compra.metodoPago}
+                              </span>
+                            )}
+                            
+                            {/* Fecha */}
+                            <span style={{ 
+                              background: "#FFF3CD", 
+                              padding: "8px 16px", 
+                              borderRadius: "12px",
+                              fontSize: "14px",
+                              fontWeight: "600",
+                              color: "#856404",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px"
+                            }}>
+                              📅 {compra.fechaCompra ? new Date(compra.fechaCompra).toLocaleDateString('es-ES') : "Fecha no disponible"}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div style={{ textAlign: "right", minWidth: "150px" }}>
+                          <div style={{ fontSize: "15px", color: "#6B7F69", marginBottom: "4px", fontWeight: "600" }}>
+                            Total de la compra
+                          </div>
+                          <div style={{ 
+                            fontSize: "36px", 
+                            fontWeight: "900", 
+                            color: "#5A8F48",
+                            fontFamily: "'Playfair Display', serif",
+                            marginBottom: "16px"
+                          }}>
+                            ${money(compra.totalGeneral || 0)}
+                          </div>
                         </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* DESPLEGABLE CON SEGUIMIENTO - SOLO EN MODO PERFIL */}
-                {modo === "perfil" && pedidoAbierto === p.idPedido && (
-                  <div style={{
-                    marginTop: 32,
-                    paddingTop: 32,
-                    borderTop: "2px solid #E8F5E9"
-                  }}>
-                    {/* Header decorativo del seguimiento */}
-                    <div style={{
-                      background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)",
-                      borderRadius: "16px",
-                      padding: "24px",
-                      marginBottom: "24px",
-                      position: "relative",
-                      overflow: "hidden",
-                      boxShadow: "0 2px 12px rgba(90, 143, 72, 0.08)"
-                    }}>
-                      {/* Decoración de fondo sutil */}
+                      
+                      {/* 🔥 BOTONES DE ACCIÓN PARA COMPRAS UNIFICADAS */}
                       <div style={{
-                        position: "absolute",
-                        top: "-30px",
-                        right: "-30px",
-                        width: "120px",
-                        height: "120px",
-                        background: "rgba(90, 143, 72, 0.08)",
-                        borderRadius: "50%",
-                        filter: "blur(30px)"
-                      }}></div>
-
-                      <div style={{ position: "relative", zIndex: 1 }}>
-                        {/* Título con icono */}
-                        <div style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 12,
-                          marginBottom: 12
-                        }}>
-                          <div style={{
-                            width: "48px",
-                            height: "48px",
-                            background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
+                        display: "flex",
+                        gap: "12px",
+                        paddingTop: "20px",
+                        borderTop: "2px solid #ECF2E3"
+                      }}>
+                        <button
+                          onClick={() => {
+                            console.log("Ver detalles de compra unificada:", compra.idCompraUnificada);
+                            navigate(`/mi-compra-unificada/${compra.idCompraUnificada}`, {
+                              state: {
+                                compraData: compra,
+                                pedidos: compra.pedidos || [],
+                                totalCompra: compra.totalGeneral || 0,
+                                metodoPago: compra.metodoPago || 'PENDIENTE'
+                              }
+                            });
+                          }}
+                          style={{
+                            padding: "12px 24px",
                             borderRadius: "12px",
+                            border: "2px solid #5A8F48",
+                            cursor: "pointer",
+                            background: "white",
+                            color: "#5A8F48",
+                            fontSize: "15px",
+                            fontWeight: "700",
+                            transition: "all 0.3s ease",
+                            flex: 1,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            fontSize: "24px",
-                            boxShadow: "0 4px 12px rgba(90, 143, 72, 0.25)"
-                          }}>
-                            📦
-                          </div>
-                          <div>
-                            <h4 style={{
-                              margin: 0,
-                              fontSize: "20px",
+                            gap: "8px"
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.background = "#ECF2E3";
+                            e.target.style.transform = "translateY(-2px)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.background = "white";
+                            e.target.style.transform = "translateY(0)";
+                          }}
+                        >
+                          <span>🔍</span>
+                          Ver detalles completos
+                        </button>
+                        
+                        {/* Botón para ver factura (si la compra está completada o en verificación) */}
+                        {(compra.estadoCompra === "COMPLETADA" || compra.estadoCompra === "PENDIENTE") && (
+                          <button
+                            onClick={() => {
+                              // Para compras unificadas, mostrar un mensaje especial
+                              alert("Esta compra unificada contiene múltiples pedidos. Cada pedido tiene su propia factura. Navega a los detalles para ver todas las facturas.");
+                            }}
+                            style={{
+                              padding: "12px 24px",
+                              borderRadius: "12px",
+                              border: "none",
+                              cursor: "pointer",
+                              background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
+                              color: "white",
+                              fontSize: "15px",
                               fontWeight: "700",
-                              color: "#2D3E2B",
-                              fontFamily: "'Playfair Display', 'Georgia', serif"
-                            }}>
-                              Estado del Pedido
-                            </h4>
-                            <p style={{
-                              margin: 0,
-                              fontSize: "13px",
-                              color: "#6B7F69",
-                              marginTop: "4px"
-                            }}>
-                              Pedido #{p.idPedido}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Estado actual destacado */}
-                        <div style={{
-                          marginTop: 16,
-                          padding: "16px",
-                          background: "white",
-                          borderRadius: "12px",
-                          border: "2px solid #E8F5E9",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 12
-                        }}>
-                          <span style={{ fontSize: "32px" }}>📍</span>
-                          <div style={{ flex: 1 }}>
-                            <p style={{
-                              margin: 0,
-                              fontWeight: 700,
-                              color: "#5A8F48",
-                              fontSize: "18px",
-                              fontFamily: "'Playfair Display', 'Georgia', serif"
-                            }}>
-                              {getSeguimientoTexto(p.estadoSeguimiento || "PEDIDO_REALIZADO")}
-                            </p>
-                            <p style={{
-                              margin: 0,
-                              fontSize: "13px",
-                              color: "#6B7F69",
-                              marginTop: "4px"
-                            }}>
-                              Actualizado {formatearFecha(p.fechaPedido).split(',')[1]?.trim() || "recientemente"}
-                            </p>
-                          </div>
-                        </div>
+                              transition: "all 0.3s ease",
+                              flex: 1,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: "8px",
+                              boxShadow: "0 4px 12px rgba(90, 143, 72, 0.25)"
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.transform = "translateY(-2px)";
+                              e.target.style.boxShadow = "0 6px 16px rgba(90, 143, 72, 0.35)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.transform = "translateY(0)";
+                              e.target.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.25)";
+                            }}
+                          >
+                            <span>📄</span>
+                            Ver facturas
+                          </button>
+                        )}
                       </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                    {/* Barra de progreso mejorada */}
-                    <div style={{
-                      background: "white",
-                      borderRadius: "16px",
-                      padding: "32px 24px",
-                      boxShadow: "0 2px 12px rgba(90, 143, 72, 0.08)",
-                      marginBottom: "24px"
-                    }}>
-                      <h5 style={{
-                        margin: "0 0 24px 0",
-                        fontSize: "16px",
-                        fontWeight: "600",
-                        color: "#2D3E2B",
-                        textAlign: "center"
-                      }}>
-                        Línea de tiempo del pedido
-                      </h5>
-
+            {/* 🔥 SECCIÓN DE PEDIDOS INDIVIDUALES */}
+            {pedidosIndividualesReales.length > 0 && (
+              <div>
+                <h2 style={{
+                  fontSize: "24px",
+                  fontWeight: "700",
+                  color: "#2D3E2B",
+                  marginBottom: "20px",
+                  fontFamily: "'Playfair Display', serif"
+                }}>
+                  📋 Pedidos Individuales ({pedidosIndividualesReales.length})
+                  <span style={{
+                    fontSize: "14px",
+                    color: "#6B7F69",
+                    marginLeft: "12px",
+                    fontWeight: "normal"
+                  }}>
+                    (Compra de un solo vendedor)
+                  </span>
+                </h2>
+                
+                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                  {pedidosIndividualesReales.map((p) => (
+                    <div
+                      key={p.idPedido}
+                      style={{
+                        background: "white",
+                        borderRadius: "16px",
+                        padding: "28px",
+                        boxShadow: "0 4px 20px rgba(90, 143, 72, 0.1)",
+                        transition: "all 0.3s ease"
+                      }}
+                    >
                       <div style={{
                         display: "flex",
                         justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        position: "relative",
-                        marginTop: 16,
-                        paddingTop: "8px"
-                      }}>
-                        {/* Línea de fondo */}
-                        <div style={{
-                          position: "absolute",
-                          top: "15px",
-                          left: "0",
-                          right: "0",
-                          height: "4px",
-                          background: "#E0E6D8",
-                          zIndex: 0,
-                          borderRadius: "2px"
-                        }}></div>
-
-                        {/* Línea de progreso animada */}
-                        <div style={{
-                          position: "absolute",
-                          top: "15px",
-                          left: "0",
-                          width: `${(getPasoActivo(p.estadoSeguimiento || "PEDIDO_REALIZADO") / (pasosSeguimiento.length - 1)) * 100}%`,
-                          height: "4px",
-                          background: "linear-gradient(90deg, #5A8F48 0%, #4A7A3A 100%)",
-                          zIndex: 1,
-                          transition: "width 0.8s cubic-bezier(0.4, 0, 0.2, 1)",
-                          borderRadius: "2px",
-                          boxShadow: "0 2px 8px rgba(90, 143, 72, 0.3)"
-                        }}></div>
-
-                        {/* Puntos del progreso mejorados */}
-                        {pasosSeguimiento.map((paso, index) => {
-                          const activo = index <= getPasoActivo(p.estadoSeguimiento || "PEDIDO_REALIZADO");
-                          const esActual = index === getPasoActivo(p.estadoSeguimiento || "PEDIDO_REALIZADO");
-
-                          return (
-                            <div key={paso} style={{ 
-                              flex: 1, 
-                              textAlign: "center",
-                              position: "relative",
-                              zIndex: 2
-                            }}>
-                              {/* Punto con animación */}
-                              <div style={{
-                                width: esActual ? 24 : (activo ? 20 : 16),
-                                height: esActual ? 24 : (activo ? 20 : 16),
-                                borderRadius: "50%",
-                                background: activo 
-                                  ? "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)" 
-                                  : "#C4CFC1",
-                                margin: "0 auto 12px",
-                                border: activo ? "4px solid white" : "3px solid white",
-                                boxShadow: activo 
-                                  ? "0 4px 16px rgba(90, 143, 72, 0.4)" 
-                                  : "0 2px 8px rgba(0, 0, 0, 0.1)",
-                                transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-                                position: "relative"
-                              }}>
-                                {/* Pulso animado para el paso actual */}
-                                {esActual && (
-                                  <div style={{
-                                    position: "absolute",
-                                    top: "50%",
-                                    left: "50%",
-                                    transform: "translate(-50%, -50%)",
-                                    width: "100%",
-                                    height: "100%",
-                                    borderRadius: "50%",
-                                    background: "rgba(90, 143, 72, 0.3)",
-                                    animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite"
-                                  }}></div>
-                                )}
-                              </div>
-
-                              {/* Label con estilo mejorado */}
-                              <div style={{
-                                padding: "8px 4px",
-                                borderRadius: "8px",
-                                background: activo ? "#F0F7EE" : "transparent",
-                                transition: "all 0.3s ease"
-                              }}>
-                                <small style={{
-                                  fontSize: 12,
-                                  color: activo ? "#5A8F48" : "#9AAA98",
-                                  fontWeight: activo ? 700 : 500,
-                                  display: "block",
-                                  lineHeight: 1.4,
-                                  letterSpacing: "0.3px"
-                                }}>
-                                  {getPasoLabel(paso)}
-                                </small>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Información adicional con mejor diseño */}
-                    <div style={{
-                      background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)",
-                      borderRadius: "16px",
-                      padding: "24px",
-                      border: "2px solid #E8F5E9"
-                    }}>
-                      <h5 style={{
-                        margin: "0 0 16px 0",
-                        fontSize: "15px",
-                        fontWeight: "600",
-                        color: "#2D3E2B",
-                        display: "flex",
                         alignItems: "center",
-                        gap: 8
+                        gap: 24,
+                        flexWrap: "wrap",
+                        marginBottom: "20px"
                       }}>
-                        <span style={{ fontSize: "18px" }}>📋</span>
-                        Detalles del pedido
-                      </h5>
-                      
-                      <div style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-                        gap: "16px"
-                      }}>
-                        <div style={{
-                          background: "white",
-                          padding: "16px",
-                          borderRadius: "12px",
-                          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)"
-                        }}>
-                          <span style={{ 
+                        {/* Sección izquierda - Info del pedido */}
+                        <div style={{ flex: 1, minWidth: "280px" }}>
+                          {/* Título con emoji */}
+                          <div style={{ 
+                            display: "flex", 
+                            alignItems: "center", 
+                            gap: 12, 
+                            marginBottom: 12 
+                          }}>
+                            <span style={{ fontSize: "32px" }}>
+                              {getEstadoEmoji(p.estadoPedido)}
+                            </span>
+                            <h3 style={{ 
+                              margin: 0, 
+                              fontSize: "22px", 
+                              color: "#2D3E2B",
+                              fontFamily: "'Playfair Display', 'Georgia', serif",
+                              fontWeight: "700"
+                            }}>
+                              Pedido #{p.idPedido}
+                            </h3>
+                          </div>
+                          
+                          {/* Mostrar si pertenece a una compra unificada (DEBUG) */}
+                          {p.idCompraUnificada && modo === "lista" && (
+                            <div style={{
+                              fontSize: "12px",
+                              color: "#FF6B6B",
+                              marginBottom: "4px",
+                              fontStyle: "italic",
+                              background: "#FFF5F5",
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              display: "inline-block"
+                            }}>
+                              ⚠️ Tiene idCompraUnificada: {p.idCompraUnificada}
+                            </div>
+                          )}
+                          
+                          {/* Fecha completa */}
+                          <p style={{ 
+                            margin: "8px 0 12px 0", 
                             color: "#6B7F69", 
-                            fontSize: "13px",
-                            display: "block",
-                            marginBottom: "6px",
-                            fontWeight: "500"
+                            fontSize: "15px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px"
                           }}>
-                            ID del Pedido
-                          </span>
-                          <span style={{ 
-                            color: "#2D3E2B", 
-                            fontWeight: 700, 
-                            fontSize: "16px",
-                            fontFamily: "'Courier New', monospace"
-                          }}>
-                            #{p.idPedido}
-                          </span>
-                        </div>
-
-                        <div style={{
-                          background: "white",
-                          padding: "16px",
-                          borderRadius: "12px",
-                          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)"
-                        }}>
-                          <span style={{ 
-                            color: "#6B7F69", 
-                            fontSize: "13px",
-                            display: "block",
-                            marginBottom: "6px",
-                            fontWeight: "500"
-                          }}>
-                            Total Pagado
-                          </span>
-                          <span style={{ 
-                            color: "#5A8F48", 
-                            fontWeight: 800, 
-                            fontSize: "20px",
-                            fontFamily: "'Playfair Display', 'Georgia', serif"
-                          }}>
-                            ${money(p.total)}
-                          </span>
-                        </div>
-
-                        <div style={{
-                          background: "white",
-                          padding: "16px",
-                          borderRadius: "12px",
-                          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)"
-                        }}>
-                          <span style={{ 
-                            color: "#6B7F69", 
-                            fontSize: "13px",
-                            display: "block",
-                            marginBottom: "6px",
-                            fontWeight: "500"
-                          }}>
-                            Estado
-                          </span>
-                          <span style={{
+                            <span style={{ fontSize: "18px" }}>📅</span>
+                            {formatearFecha(p.fechaPedido)}
+                          </p>
+                          
+                          {/* Método de pago */}
+                          {p.metodoPago && (
+                            <div style={{ 
+                              display: "inline-block",
+                              padding: "6px 12px",
+                              borderRadius: "12px",
+                              background: "#ECF2E3",
+                              fontSize: "13px",
+                              fontWeight: "600",
+                              color: "#5A8F48",
+                              marginRight: "8px",
+                              marginBottom: "8px"
+                            }}>
+                              {p.metodoPago === 'EFECTIVO' ? '💵 Efectivo' : 
+                               p.metodoPago === 'TRANSFERENCIA' ? '🏦 Transferencia' : 
+                               p.metodoPago === 'TARJETA' ? '💳 Tarjeta' : p.metodoPago}
+                            </div>
+                          )}
+                          
+                          {/* Badge de estado */}
+                          <div style={{
                             display: "inline-block",
-                            padding: "6px 12px",
-                            borderRadius: "16px",
+                            padding: "8px 16px",
+                            borderRadius: "20px",
                             background: p.estadoPedido === "COMPLETADO" 
                               ? "#E8F5E9" 
+                              : p.estadoPedido === "PENDIENTE"
+                              ? "#FFF3CD"
+                              : p.estadoPedido === "CANCELADO"
+                              ? "#FFEBEE"
                               : "#FFF8E1",
-                            fontSize: "12px",
-                            fontWeight: "700",
+                            fontSize: "14px",
+                            fontWeight: "600",
                             color: p.estadoPedido === "COMPLETADO" 
                               ? "#2E7D32" 
+                              : p.estadoPedido === "PENDIENTE"
+                              ? "#856404"
+                              : p.estadoPedido === "CANCELADO"
+                              ? "#C62828"
                               : "#F57C00"
                           }}>
                             {getEstadoLabel(p.estadoPedido)}
-                          </span>
+                          </div>
+                        </div>
+
+                        {/* Sección derecha - Precio y acciones */}
+                        <div style={{ 
+                          textAlign: "right",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-end",
+                          gap: 16
+                        }}>
+                          {/* Precio destacado */}
+                          <div style={{ 
+                            fontWeight: "800", 
+                            fontSize: "36px", 
+                            color: "#5A8F48",
+                            fontFamily: "'Playfair Display', 'Georgia', serif",
+                            lineHeight: 1
+                          }}>
+                            ${money(p.total || p.montoTotal || 0)}
+                          </div>
+
+                          {/* Botones de acción - SOLO EN MODO LISTA */}
+                          {modo === "lista" && (
+                            <div style={{ display: "flex", gap: 12 }}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/pedido/${p.idPedido}`);
+                                }}
+                                style={{
+                                  padding: "12px 24px",
+                                  borderRadius: "12px",
+                                  border: "2px solid #5A8F48",
+                                  cursor: "pointer",
+                                  background: "white",
+                                  color: "#5A8F48",
+                                  fontSize: "15px",
+                                  fontWeight: "700",
+                                  transition: "all 0.3s ease",
+                                  whiteSpace: "nowrap",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px"
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.target.style.background = "#ECF2E3";
+                                  e.target.style.transform = "translateY(-2px)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.target.style.background = "white";
+                                  e.target.style.transform = "translateY(0)";
+                                }}
+                              >
+                                <span>🔍</span>
+                                Ver detalles
+                              </button>
+
+                              {estadosConFactura.includes(p.estadoPedido) && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/factura/${p.idPedido}`);
+                                  }}
+                                  style={{
+                                    padding: "12px 24px",
+                                    borderRadius: "12px",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
+                                    color: "white",
+                                    fontSize: "15px",
+                                    fontWeight: "700",
+                                    transition: "all 0.3s ease",
+                                    boxShadow: "0 4px 12px rgba(90, 143, 72, 0.25)",
+                                    whiteSpace: "nowrap",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "6px"
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.target.style.transform = "translateY(-2px)";
+                                    e.target.style.boxShadow = "0 6px 16px rgba(90, 143, 72, 0.35)";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.target.style.transform = "translateY(0)";
+                                    e.target.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.25)";
+                                  }}
+                                >
+                                  <span>📄</span>
+                                  Ver factura
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>
@@ -964,42 +981,6 @@ export default function MisPedidos({ modo: modoProp }) {
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
-        }
-
-        @keyframes pulse {
-          0%, 100% {
-            transform: translate(-50%, -50%) scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: translate(-50%, -50%) scale(1.8);
-            opacity: 0;
-          }
-        }
-
-        @keyframes float1 {
-          0%, 100% { transform: translate(0, 0); }
-          25% { transform: translate(-15px, -20px); }
-          50% { transform: translate(10px, -15px); }
-          75% { transform: translate(-5px, 10px); }
-        }
-
-        @keyframes float2 {
-          0%, 100% { transform: translate(0, 0); }
-          33% { transform: translate(-20px, 15px); }
-          66% { transform: translate(15px, -10px); }
-        }
-
-        @keyframes float3 {
-          0%, 100% { transform: translate(0, 0); }
-          30% { transform: translate(20px, -15px); }
-          60% { transform: translate(-10px, 20px); }
-        }
-
-        @keyframes float4 {
-          0%, 100% { transform: translate(0, 0); }
-          40% { transform: translate(15px, 20px); }
-          80% { transform: translate(-20px, -10px); }
         }
       `}</style>
     </div>

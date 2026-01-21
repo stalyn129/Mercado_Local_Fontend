@@ -25,16 +25,35 @@ export default function CheckoutUnificado() {
   const iva = subtotal * 0.12;
   const total = subtotal + iva;
 
-  // Validar formulario
+  // 🆕 AGRUPAR PRODUCTOS POR VENDEDOR (para mostrar visualmente)
+  const productosPorVendedor = carrito.reduce((acc, item) => {
+    const vendedorId = item.producto.vendedor?.idVendedor || 'sin-vendedor';
+    const vendedorNombre = item.producto.vendedor?.nombre || 'Vendedor Desconocido';
+
+    if (!acc[vendedorId]) {
+      acc[vendedorId] = {
+        vendedorId,
+        vendedorNombre,
+        productos: [],
+        subtotal: 0
+      };
+    }
+
+    acc[vendedorId].productos.push(item);
+    acc[vendedorId].subtotal += item.producto.precio * item.cantidad;
+
+    return acc;
+  }, {});
+
+  const vendedores = Object.values(productosPorVendedor);
+
   // Validar formulario
   const validarFormulario = () => {
     if (metodoPago === "EFECTIVO") {
-      // Validar que se haya ingresado un monto
       if (!montoEfectivo || montoEfectivo.trim() === "") {
         alert("❌ Debes ingresar el monto con el que pagarás");
         return false;
       }
-      // Validar que el monto sea suficiente
       if (parseFloat(montoEfectivo) < total) {
         alert("❌ El monto debe ser mayor o igual al total");
         return false;
@@ -63,18 +82,17 @@ export default function CheckoutUnificado() {
         alert("❌ Fecha de expiración requerida");
         return false;
       }
-      
-      // Validar que la fecha no sea anterior al mes actual
+
       const [anio, mes] = fechaTarjeta.split("-");
       const fechaSeleccionada = new Date(parseInt(anio), parseInt(mes) - 1);
       const hoy = new Date();
       const mesActual = new Date(hoy.getFullYear(), hoy.getMonth());
-      
+
       if (fechaSeleccionada < mesActual) {
         alert("❌ La tarjeta está vencida");
         return false;
       }
-      
+
       if (!titular.trim()) {
         alert("❌ Nombre del titular requerido");
         return false;
@@ -85,7 +103,7 @@ export default function CheckoutUnificado() {
     return true;
   };
 
-  // FINALIZAR COMPRA UNIFICADA
+  // 🔥 FINALIZAR COMPRA CON MÚLTIPLES PEDIDOS (UNO POR VENDEDOR)
   const finalizarCompra = async () => {
     if (!validarFormulario()) return;
 
@@ -98,16 +116,20 @@ export default function CheckoutUnificado() {
       return;
     }
 
+    // 🔥 Generar ID de compra unificada ANTES de crear los pedidos
+    const idCompraUnificada = `COMPRA-${Date.now()}-${user.idConsumidor}`;
+
     const confirmar = window.confirm(
-      `¿Confirmar compra por $${total.toFixed(2)} con ${metodoPago}?`
+      `¿Confirmar compra por $${total.toFixed(2)} con ${metodoPago}?\n\n` +
+      `Se crearán ${vendedores.length} pedido(s) para ${vendedores.length} vendedor(es)`
     );
     if (!confirmar) return;
 
     setProcesando(true);
 
     try {
-      // 1. Crear el pedido único
-      console.log("🔵 Creando pedido único...");
+      // 1️⃣ MODIFICAR: Enviar el idCompraUnificada al backend
+      console.log("🔵 Creando pedidos con ID de compra:", idCompraUnificada);
       const resCheckout = await fetch(`${API_URL}/pedidos/checkout`, {
         method: "POST",
         headers: {
@@ -116,29 +138,25 @@ export default function CheckoutUnificado() {
         },
         body: JSON.stringify({
           idConsumidor: user.idConsumidor,
+          idCompraUnificada: idCompraUnificada, // 🔥 NUEVO
         }),
       });
 
       if (!resCheckout.ok) {
-        throw new Error("Error al crear pedido");
+        throw new Error("Error al crear pedidos");
       }
 
-      // 🔥 CAMBIO: Ahora recibe UN SOLO pedido (no un array)
-      const pedidoUnico = await resCheckout.json();
-      console.log("✅ Pedido único creado:", pedidoUnico);
+      // 2️⃣ APLICAR MÉTODO DE PAGO A CADA PEDIDO
+      const pedidos = await resCheckout.json();
+      console.log("✅ Pedidos creados:", pedidos);
 
-      if (!pedidoUnico || !pedidoUnico.idPedido) {
-        throw new Error("No se creó el pedido correctamente");
-      }
-
-      // 2. Aplicar el método de pago
-      console.log("🔵 Aplicando método de pago...");
-
+      // Preparar body según método de pago
       let body;
       let headers = {
         Authorization: `Bearer ${token}`,
       };
 
+      // (Mantén tu lógica existente de preparación de body según método de pago)
       if (metodoPago === "EFECTIVO") {
         headers["Content-Type"] = "application/json";
         const montoFinal = montoEfectivo && parseFloat(montoEfectivo) >= total
@@ -164,27 +182,46 @@ export default function CheckoutUnificado() {
         body.append("titular", titular);
       }
 
-      const resFinalizar = await fetch(
-        `${API_URL}/pedidos/finalizar/${pedidoUnico.idPedido}`,
-        {
-          method: "PUT",
-          headers: headers,
-          body: body,
+      // 🔥 FINALIZAR CADA PEDIDO
+      const promesasFinalizacion = pedidos.map(async (pedido) => {
+        const resFinalizar = await fetch(
+          `${API_URL}/pedidos/finalizar/${pedido.idPedido}`,
+          {
+            method: "PUT",
+            headers: headers,
+            body: body,
+          }
+        );
+
+        if (!resFinalizar.ok) {
+          throw new Error(`Error al procesar pago del pedido #${pedido.idPedido}`);
         }
-      );
 
-      if (!resFinalizar.ok) {
-        throw new Error("Error al procesar el pago");
-      }
+        return resFinalizar.json();
+      });
 
-      console.log("✅ Pedido finalizado");
+      await Promise.all(promesasFinalizacion);
+      console.log("✅ Todos los pedidos finalizados");
 
-      // 3. Limpiar carrito
+      // 3️⃣ LIMPIAR CARRITO
       await limpiarCarrito();
 
-      // 4. Mostrar éxito y redirigir
-      alert("🎉 ¡Compra realizada con éxito!");
-      navigate(`/pedido/${pedidoUnico.idPedido}`);
+      // 4️⃣ 🔥 MODIFICAR: Redirigir a la vista de compra unificada
+      alert(
+        `🎉 ¡Compra realizada con éxito!\n\n` +
+        `Total: $${total.toFixed(2)}\n` +
+        `Se crearon ${pedidos.length} pedidos.\n` +
+        `Redirigiendo a tu compra...`
+      );
+
+      // Redirigir a la nueva vista de compra unificada
+      navigate(`/mi-compra/${idCompraUnificada}`, {
+        state: {
+          pedidos: pedidos,
+          totalCompra: total,
+          metodoPago: metodoPago
+        }
+      });
 
     } catch (err) {
       console.error("❌ Error:", err);
@@ -240,7 +277,6 @@ export default function CheckoutUnificado() {
           maxWidth: "1200px",
           margin: "0 auto"
         }}>
-          {/* Header */}
           <button
             onClick={() => navigate("/carrito")}
             style={{
@@ -276,7 +312,10 @@ export default function CheckoutUnificado() {
               🛒 Finalizar Compra
             </h1>
             <p style={{ fontSize: "16px", color: "#6B7F69", margin: 0 }}>
-              Revisa tus productos y selecciona tu método de pago
+              {vendedores.length === 1
+                ? "Revisa tus productos y selecciona tu método de pago"
+                : `⚠️ Tu compra incluye productos de ${vendedores.length} vendedores diferentes. Se crearán ${vendedores.length} pedidos separados.`
+              }
             </p>
           </div>
 
@@ -285,7 +324,7 @@ export default function CheckoutUnificado() {
             gridTemplateColumns: "1fr 400px",
             gap: "30px"
           }}>
-            {/* PRODUCTOS */}
+            {/* PRODUCTOS AGRUPADOS POR VENDEDOR */}
             <div style={{
               background: "white",
               padding: "30px",
@@ -302,55 +341,85 @@ export default function CheckoutUnificado() {
                 📦 Productos ({carrito.length})
               </h2>
 
-              {carrito.map((item, i) => (
-                <div
-                  key={i}
-                  style={{
-                    background: "#F9FBF7",
-                    padding: "16px",
-                    borderRadius: "12px",
+              {/* 🆕 MOSTRAR PRODUCTOS AGRUPADOS POR VENDEDOR */}
+              {vendedores.map((vendedor, vIndex) => (
+                <div key={vIndex} style={{ marginBottom: "30px" }}>
+                  {/* Header del vendedor */}
+                  <div style={{
+                    background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
+                    color: "white",
+                    padding: "12px 16px",
+                    borderRadius: "10px",
                     marginBottom: "12px",
                     display: "flex",
-                    gap: "15px",
+                    justifyContent: "space-between",
                     alignItems: "center"
-                  }}
-                >
-                  {item.producto.imagen && (
-                    <img
-                      src={item.producto.imagen}
-                      alt={item.producto.nombre}
-                      style={{
-                        width: "70px",
-                        height: "70px",
-                        borderRadius: "10px",
-                        objectFit: "cover"
-                      }}
-                    />
-                  )}
-
-                  <div style={{ flex: 1 }}>
-                    <strong style={{ fontSize: "15px", color: "#2D3E2B", display: "block" }}>
-                      {item.producto.nombre}
-                    </strong>
-                    <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#6B7F69" }}>
-                      Cantidad: {item.cantidad} • ${item.producto.precio.toFixed(2)} c/u
-                    </p>
-                  </div>
-
-                  <div style={{
-                    fontSize: "17px",
-                    fontWeight: "700",
-                    color: "#5A8F48"
                   }}>
-                    ${(item.producto.precio * item.cantidad).toFixed(2)}
+                    <div>
+                      <strong style={{ fontSize: "16px", display: "block" }}>
+                        🏪 {vendedor.vendedorNombre}
+                      </strong>
+                      <span style={{ fontSize: "12px", opacity: 0.9 }}>
+                        {vendedor.productos.length} producto(s)
+                      </span>
+                    </div>
+                    <span style={{ fontSize: "18px", fontWeight: "700" }}>
+                      ${vendedor.subtotal.toFixed(2)}
+                    </span>
                   </div>
+
+                  {/* Productos del vendedor */}
+                  {vendedor.productos.map((item, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        background: "#F9FBF7",
+                        padding: "16px",
+                        borderRadius: "12px",
+                        marginBottom: "12px",
+                        display: "flex",
+                        gap: "15px",
+                        alignItems: "center",
+                        marginLeft: "20px"
+                      }}
+                    >
+                      {item.producto.imagen && (
+                        <img
+                          src={item.producto.imagen}
+                          alt={item.producto.nombre}
+                          style={{
+                            width: "70px",
+                            height: "70px",
+                            borderRadius: "10px",
+                            objectFit: "cover"
+                          }}
+                        />
+                      )}
+
+                      <div style={{ flex: 1 }}>
+                        <strong style={{ fontSize: "15px", color: "#2D3E2B", display: "block" }}>
+                          {item.producto.nombre}
+                        </strong>
+                        <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#6B7F69" }}>
+                          Cantidad: {item.cantidad} • ${item.producto.precio.toFixed(2)} c/u
+                        </p>
+                      </div>
+
+                      <div style={{
+                        fontSize: "17px",
+                        fontWeight: "700",
+                        color: "#5A8F48"
+                      }}>
+                        ${(item.producto.precio * item.cantidad).toFixed(2)}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
 
             {/* RESUMEN Y PAGO */}
             <div>
-              {/* Resumen */}
               <div style={{
                 background: "linear-gradient(135deg, #F9D94A 0%, #F5C542 100%)",
                 padding: "22px",
@@ -365,7 +434,7 @@ export default function CheckoutUnificado() {
                   marginBottom: "14px",
                   marginTop: 0
                 }}>
-                  💰 Resumen
+                  💰 Resumen Total
                 </h2>
 
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
