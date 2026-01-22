@@ -4,7 +4,6 @@ import { useCarrito } from "../../context/CarritoContext.jsx";
 import Footer from "../../components/Footer.jsx";
 import StarRating from "../../components/StarRating.jsx";
 
-
 export default function ExplorarProductos() {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
   const navigate = useNavigate();
@@ -15,10 +14,61 @@ export default function ExplorarProductos() {
   const [categorias, setCategorias] = useState([]);
   const [subcategorias, setSubcategorias] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isGuestMode, setIsGuestMode] = useState(false);
+  const [circlePositions, setCirclePositions] = useState([]);
 
   const [busqueda, setBusqueda] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("");
   const [filtroSubcategoria, setFiltroSubcategoria] = useState("");
+
+  // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
+  useEffect(() => {
+    // Generar círculos de colores vivos como en móvil
+    const generateCircles = () => {
+      const circles = [];
+      const colors = [
+        "rgba(255, 107, 53, 0.15)",    // Naranja claro
+        "rgba(52, 211, 153, 0.15)",    // Verde esmeralda
+        "rgba(59, 130, 246, 0.15)",    // Azul
+        "rgba(168, 85, 247, 0.15)",    // Morado
+        "rgba(239, 68, 68, 0.15)",     // Rojo
+        "rgba(245, 158, 11, 0.15)",    // Amarillo
+        "rgba(14, 165, 233, 0.15)",    // Azul claro
+        "rgba(236, 72, 153, 0.15)"     // Rosa
+      ];
+      
+      for (let i = 0; i < 12; i++) {
+        circles.push({
+          id: i,
+          size: Math.random() * 100 + 50, // Tamaño entre 50px y 150px
+          top: Math.random() * 100,
+          left: Math.random() * 100,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          animationDelay: Math.random() * 5 + "s",
+          animationDuration: Math.random() * 25 + 30 + "s", // Muy lento
+          blur: Math.random() * 4 + 2 + "px",
+          zIndex: 0
+        });
+      }
+      setCirclePositions(circles);
+    };
+
+    generateCircles();
+    
+    // Animar los círculos muy lentamente
+    const interval = setInterval(() => {
+      setCirclePositions(prev => 
+        prev.map(circle => ({
+          ...circle,
+          top: Math.random() * 100,
+          left: Math.random() * 100,
+          animationDelay: Math.random() * 4 + "s"
+        }))
+      );
+    }, 35000); // Cambia cada 35 segundos (super lento)
+
+    return () => clearInterval(interval);
+  }, []);
 
   // ==================== USE EFFECT ====================
   useEffect(() => {
@@ -34,6 +84,19 @@ export default function ExplorarProductos() {
       }
     };
     cargarDatos();
+
+    const checkGuestMode = () => {
+      const token = localStorage.getItem("authToken");
+      const user = localStorage.getItem("user");
+      
+      if (!token && !user) {
+        setIsGuestMode(true);
+      } else {
+        setIsGuestMode(false);
+      }
+    };
+
+    checkGuestMode();
   }, []);
 
   // ==================== FETCH ====================
@@ -70,313 +133,430 @@ export default function ExplorarProductos() {
 
   // ==================== FILTROS ====================
   const productosFiltrados = productos.filter((p) => {
-    const cumpleBusqueda = p.nombreProducto.toLowerCase().includes(busqueda.toLowerCase());
+    const cumpleBusqueda = 
+      p.nombreProducto.toLowerCase().includes(busqueda.toLowerCase()) ||
+      (p.nombreCategoria && p.nombreCategoria.toLowerCase().includes(busqueda.toLowerCase())) ||
+      (p.nombreSubcategoria && p.nombreSubcategoria.toLowerCase().includes(busqueda.toLowerCase()));
+    
     const cumpleCategoria = filtroCategoria ? p.idCategoria === parseInt(filtroCategoria) : true;
     const cumpleSubcategoria = filtroSubcategoria ? p.idSubcategoria === parseInt(filtroSubcategoria) : true;
     return cumpleBusqueda && cumpleCategoria && cumpleSubcategoria;
   });
 
- // 🔥 FUNCIÓN CORRECTA PARA AGREGAR AL CARRITO
-const handleAgregarCarrito = async (producto) => {
-  const usuario = JSON.parse(localStorage.getItem("user"));
-  const token = localStorage.getItem("authToken");
+  // 🔥 FUNCIÓN PARA AGREGAR AL CARRITO
+  const handleAgregarCarrito = async (producto) => {
+    if (producto.stockProducto <= 0) {
+      alert("Sin stock: Este producto no está disponible por el momento");
+      return;
+    }
 
-  if (!usuario || !token) {
-    alert("⚠️ Debes iniciar sesión para agregar productos al carrito");
-    navigate("/login");
-    return;
-  }
+    if (isGuestMode) {
+      let carritoLocal = JSON.parse(localStorage.getItem("guestCart") || "[]");
+      const existingIndex = carritoLocal.findIndex(
+        item => item.producto.idProducto === producto.idProducto
+      );
+      
+      let nuevoCarrito;
+      
+      if (existingIndex >= 0) {
+        nuevoCarrito = [...carritoLocal];
+        nuevoCarrito[existingIndex].cantidad += 1;
+      } else {
+        nuevoCarrito = [...carritoLocal, { producto, cantidad: 1 }];
+      }
+      
+      localStorage.setItem("guestCart", JSON.stringify(nuevoCarrito));
+      alert(`✅ ¡Agregado! ${producto.nombreProducto} agregado al carrito`);
+      
+    } else {
+      const usuario = JSON.parse(localStorage.getItem("user"));
+      const token = localStorage.getItem("authToken");
 
-  try {
-    // ⚠️ SOLO ENVÍA LO QUE EL BACKEND ESPERA
-    await agregarCarrito(
-      producto.idProducto,
-      1 // cantidad
-    );
+      if (!usuario || !token) {
+        alert("⚠️ Debes iniciar sesión para agregar productos al carrito");
+        navigate("/login");
+        return;
+      }
 
-    alert("✅ Producto añadido al carrito");
-  } catch (error) {
-    console.error(error);
-    alert("❌ No se pudo agregar el producto al carrito");
-  }
-};
-
+      try {
+        await agregarCarrito(producto.idProducto, 1);
+        alert("✅ Producto añadido al carrito");
+      } catch (error) {
+        console.error(error);
+        alert("❌ No se pudo agregar el producto al carrito");
+      }
+    }
+  };
 
   return (
     <div style={{
       minHeight: "100vh",
-      background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)",
-      fontFamily: "inherit"
+      backgroundColor: "#f8f9fa",
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      overflowX: "hidden"
     }}>
       
-      {/* HEADER SECTION */}
+      {/* HEADER BLANCO CON CÍRCULOS DE COLORES - COMO EN MÓVIL */}
       <div style={{
-        background: "white",
-        borderRadius: "0 0 20px 20px",
-        padding: "48px 32px",
-        marginBottom: "40px",
-        boxShadow: "0 4px 20px rgba(90, 143, 72, 0.12)",
+        background: "white", // FONDO BLANCO
+        padding: "90px 20px 70px 20px",
         textAlign: "center",
         position: "relative",
-        overflow: "hidden"
+        overflow: "hidden",
+        marginBottom: "40px",
+        borderBottom: "1px solid #f1f5f9"
       }}>
-        {/* Decoración de fondo */}
-        <div style={{
-          position: "absolute",
-          top: "-50px",
-          right: "-50px",
-          width: "200px",
-          height: "200px",
-          background: "linear-gradient(135deg, #ECF2E3 0%, #DDE8D0 100%)",
-          borderRadius: "50%",
-          opacity: "0.5",
-          zIndex: "0"
-        }}></div>
-        <div style={{
-          position: "absolute",
-          bottom: "-30px",
-          left: "-30px",
-          width: "150px",
-          height: "150px",
-          background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
-          borderRadius: "50%",
-          opacity: "0.1",
-          zIndex: "0"
-        }}></div>
+        
+        {/* CÍRCULOS DE COLORES ANIMADOS - DETRÁS DEL CONTENIDO */}
+        {circlePositions.map(circle => (
+          <div 
+            key={circle.id}
+            style={{
+              position: "absolute",
+              top: `${circle.top}%`,
+              left: `${circle.left}%`,
+              width: `${circle.size}px`,
+              height: `${circle.size}px`,
+              background: circle.color,
+              borderRadius: "50%",
+              animation: `floatCircle ${circle.animationDuration} ease-in-out infinite`,
+              animationDelay: circle.animationDelay,
+              filter: `blur(${circle.blur})`,
+              opacity: 0.8,
+              zIndex: circle.zIndex
+            }}
+          />
+        ))}
 
-        <div style={{ position: "relative", zIndex: "1" }}>
-          {/* Icono decorativo */}
-          <div style={{
-            fontSize: "56px",
-            marginBottom: "16px",
-            filter: "drop-shadow(0 4px 8px rgba(90, 143, 72, 0.2))"
-          }}>
-            🛒
-          </div>
-
-          {/* Título principal */}
+        <div style={{ 
+          position: "relative", 
+          zIndex: "10",
+          padding: "0 15px"
+        }}>
+          {/* Título principal - EN COLOR */}
           <h1 style={{
-            fontSize: "42px",
+            fontSize: "48px",
             fontWeight: "800",
-            color: "#2D3E2B",
-            marginBottom: "12px",
+            color: "#2C3E50", // COLOR OSCURO, NO BLANCO
+            marginBottom: "15px",
             letterSpacing: "-0.5px",
-            lineHeight: "1.2"
+            lineHeight: "1.1",
+            background: "linear-gradient(135deg, #FF6B35 0%, #2C3E50 100%)",
+            backgroundClip: "text",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent"
           }}>
             Explorar Productos
           </h1>
-
-          {/* Subtítulo */}
+          
+          {/* Subtítulo - EN COLOR */}
           <p style={{
-            color: "#6B7F69",
-            fontSize: "16px",
-            margin: "0",
+            color: "#64748b",
+            fontSize: "19px",
+            margin: "0 auto",
             maxWidth: "600px",
-            marginLeft: "auto",
-            marginRight: "auto",
-            lineHeight: "1.6"
+            lineHeight: "1.5",
+            fontWeight: "400"
           }}>
-            Descubre nuestros mejores productos orgánicos y sustentables
+            Encuentra lo que necesitas
           </p>
         </div>
       </div>
 
-      {/* FILTROS SECTION */}
+      {/* BÚSQUEDA Y FILTROS - MANTENER NARANJA EN BOTONES */}
       <div style={{
-        maxWidth: "1400px",
-        margin: "0 auto",
-        padding: "0 20px",
-        marginBottom: "40px"
+        maxWidth: "1200px",
+        margin: "0 auto 40px auto",
+        padding: "0 20px"
       }}>
         <div style={{
           background: "white",
-          borderRadius: "20px",
-          padding: "28px 32px",
-          boxShadow: "0 4px 20px rgba(90, 143, 72, 0.1)",
+          borderRadius: "16px",
+          padding: "30px",
+          boxShadow: "0 8px 30px rgba(0, 0, 0, 0.08)",
           display: "flex",
-          gap: "16px",
-          flexWrap: "wrap",
-          alignItems: "center"
+          flexDirection: "column",
+          gap: "25px"
         }}>
           
-          {/* Icono de filtro */}
-          <span style={{ fontSize: "20px", color: "#5A8F48", fontWeight: "700" }}>🔍</span>
-
-          {/* Buscador */}
-          <input
-            type="text"
-            placeholder="Buscar productos frescos..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            style={{
-              flex: "1",
-              minWidth: "200px",
-              padding: "14px 18px",
-              borderRadius: "12px",
-              border: "2px solid #ECF2E3",
-              fontSize: "15px",
-              color: "#2D3E2B",
-              transition: "all 0.3s ease",
-              outline: "none"
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = "#5A8F48";
-              e.target.style.boxShadow = "0 0 0 3px rgba(90, 143, 72, 0.1)";
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = "#ECF2E3";
-              e.target.style.boxShadow = "none";
-            }}
-          />
-
-          {/* Categorías */}
-          <select
-            onChange={(e) => {
-              setFiltroCategoria(e.target.value);
-              setFiltroSubcategoria("");
-            }}
-            value={filtroCategoria}
-            style={{
-              padding: "14px 18px",
-              borderRadius: "12px",
-              border: "2px solid #ECF2E3",
-              fontSize: "15px",
-              color: "#2D3E2B",
-              fontWeight: "600",
-              cursor: "pointer",
-              minWidth: "200px",
-              transition: "all 0.3s ease",
-              background: "white",
-              outline: "none"
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = "#5A8F48";
-              e.target.style.boxShadow = "0 0 0 3px rgba(90, 143, 72, 0.1)";
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = "#ECF2E3";
-              e.target.style.boxShadow = "none";
-            }}
-          >
-            <option value="">🌿 Todas las categorías</option>
-            {categorias.map(c => (
-              <option key={c.idCategoria} value={c.idCategoria}>
-                {c.nombreCategoria}
-              </option>
-            ))}
-          </select>
-
-          {/* Subcategorías */}
-          <select
-            onChange={(e) => setFiltroSubcategoria(e.target.value)}
-            value={filtroSubcategoria}
-            style={{
-              padding: "14px 18px",
-              borderRadius: "12px",
-              border: "2px solid #ECF2E3",
-              fontSize: "15px",
-              color: "#2D3E2B",
-              fontWeight: "600",
-              cursor: "pointer",
-              minWidth: "200px",
-              transition: "all 0.3s ease",
-              background: "white",
-              outline: "none"
-            }}
-            onFocus={(e) => {
-              e.target.style.borderColor = "#5A8F48";
-              e.target.style.boxShadow = "0 0 0 3px rgba(90, 143, 72, 0.1)";
-            }}
-            onBlur={(e) => {
-              e.target.style.borderColor = "#ECF2E3";
-              e.target.style.boxShadow = "none";
-            }}
-          >
-            <option value="">🍃 Todas las subcategorías</option>
-            {subcategorias
-              .filter(s => !filtroCategoria || s.idCategoria === parseInt(filtroCategoria))
-              .map(s => (
-                <option key={s.idSubcategoria} value={s.idSubcategoria}>
-                  {s.nombreSubcategoria}
-                </option>
-              ))}
-          </select>
-
-          {/* Botón limpiar filtros */}
-          {(busqueda || filtroCategoria || filtroSubcategoria) && (
-            <button
-              onClick={() => {
-                setBusqueda("");
-                setFiltroCategoria("");
-                setFiltroSubcategoria("");
-              }}
+          {/* BARRA DE BÚSQUEDA */}
+          <div style={{
+            position: "relative",
+            width: "100%"
+          }}>
+            <input
+              type="text"
+              placeholder="Escribe el nombre del producto, categoría o subcategoría..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
               style={{
-                padding: "12px 20px",
-                background: "#FFF0F2",
-                color: "#DA3E52",
-                border: "2px solid #DA3E52",
-                borderRadius: "12px",
-                fontWeight: "700",
-                cursor: "pointer",
-                fontSize: "14px",
+                width: "100%",
+                padding: "18px 25px 18px 55px",
+                borderRadius: "14px",
+                border: "2px solid #e5e7eb",
+                fontSize: "16px",
+                color: "#2C3E50",
+                backgroundColor: "white",
                 transition: "all 0.3s ease",
-                whiteSpace: "nowrap"
+                outline: "none",
+                fontFamily: "'Inter', sans-serif",
+                boxSizing: "border-box"
               }}
-              onMouseEnter={(e) => {
-                e.target.style.background = "#DA3E52";
-                e.target.style.color = "white";
-                e.target.style.transform = "translateY(-2px)";
-                e.target.style.boxShadow = "0 4px 12px rgba(218, 62, 82, 0.3)";
+              onFocus={(e) => {
+                e.target.style.borderColor = "#FF6B35";
+                e.target.style.boxShadow = "0 0 0 3px rgba(255, 107, 53, 0.1)";
               }}
-              onMouseLeave={(e) => {
-                e.target.style.background = "#FFF0F2";
-                e.target.style.color = "#DA3E52";
-                e.target.style.transform = "translateY(0)";
+              onBlur={(e) => {
+                e.target.style.borderColor = "#e5e7eb";
                 e.target.style.boxShadow = "none";
               }}
-            >
-              ✕ Limpiar
-            </button>
-          )}
+            />
+            <div style={{
+              position: "absolute",
+              left: "22px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              fontSize: "20px",
+              color: "#94a3b8"
+            }}>
+              🔍
+            </div>
+            
+            {busqueda && (
+              <button
+                onClick={() => setBusqueda("")}
+                style={{
+                  position: "absolute",
+                  right: "20px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  fontSize: "20px",
+                  color: "#94a3b8",
+                  cursor: "pointer",
+                  padding: "5px",
+                  borderRadius: "50%",
+                  width: "32px",
+                  height: "32px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s ease"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "#f1f5f9";
+                  e.currentTarget.style.color = "#64748b";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "#94a3b8";
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* FILTROS */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "20px"
+          }}>
+            {/* FILTRO POR CATEGORÍA */}
+            <div>
+              <div style={{ position: "relative" }}>
+                <select
+                  value={filtroCategoria}
+                  onChange={(e) => {
+                    setFiltroCategoria(e.target.value);
+                    setFiltroSubcategoria("");
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "16px 25px 16px 55px",
+                    borderRadius: "12px",
+                    border: "2px solid #e5e7eb",
+                    fontSize: "16px",
+                    color: filtroCategoria ? "#2C3E50" : "#94a3b8",
+                    backgroundColor: "white",
+                    cursor: "pointer",
+                    appearance: "none",
+                    transition: "all 0.3s ease",
+                    outline: "none",
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: "500"
+                  }}
+                >
+                  <option value="">📂 Selecciona una categoría</option>
+                  {categorias.map(c => (
+                    <option key={c.idCategoria} value={c.idCategoria}>
+                      {c.nombreCategoria}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* FILTRO POR SUBCATEGORÍA */}
+            <div>
+              <div style={{ position: "relative" }}>
+                <select
+                  value={filtroSubcategoria}
+                  onChange={(e) => setFiltroSubcategoria(e.target.value)}
+                  disabled={!filtroCategoria}
+                  style={{
+                    width: "100%",
+                    padding: "16px 25px 16px 55px",
+                    borderRadius: "12px",
+                    border: "2px solid #e5e7eb",
+                    fontSize: "16px",
+                    color: filtroSubcategoria ? "#2C3E50" : "#94a3b8",
+                    backgroundColor: !filtroCategoria ? "#f8f9fa" : "white",
+                    cursor: filtroCategoria ? "pointer" : "not-allowed",
+                    appearance: "none",
+                    transition: "all 0.3s ease",
+                    outline: "none",
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: "500",
+                    opacity: filtroCategoria ? 1 : 0.7
+                  }}
+                >
+                  <option value="">
+                    {filtroCategoria ? "📍 Selecciona una subcategoría" : "📂 Selecciona categoría primero"}
+                  </option>
+                  {subcategorias
+                    .filter(s => !filtroCategoria || s.idCategoria === parseInt(filtroCategoria))
+                    .map(s => (
+                      <option key={s.idSubcategoria} value={s.idSubcategoria}>
+                        {s.nombreSubcategoria}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* CONTADOR Y ACCIONES */}
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingTop: "20px",
+            borderTop: "1px solid #f1f5f9"
+          }}>
+            {/* CONTADOR */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div style={{
+                fontSize: "28px",
+                color: "#FF6B35",
+                display: "flex",
+                alignItems: "center"
+              }}>
+                📊
+              </div>
+              <div>
+                <p style={{
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  color: "#64748b",
+                  margin: "0"
+                }}>
+                  Resultados encontrados
+                </p>
+                <p style={{
+                  fontSize: "28px",
+                  fontWeight: "800",
+                  color: "#2C3E50",
+                  margin: "5px 0 0 0"
+                }}>
+                  {productosFiltrados.length} <span style={{ fontSize: "16px", fontWeight: "600", color: "#94a3b8" }}>productos</span>
+                </p>
+              </div>
+            </div>
+
+            {/* BOTONES DE ACCIÓN - CON NARANJA */}
+            <div style={{ display: "flex", gap: "15px" }}>
+              {(busqueda || filtroCategoria || filtroSubcategoria) && (
+                <button
+                  onClick={() => {
+                    setBusqueda("");
+                    setFiltroCategoria("");
+                    setFiltroSubcategoria("");
+                  }}
+                  style={{
+                    padding: "14px 28px",
+                    background: "#f1f5f9",
+                    color: "#64748b",
+                    border: "none",
+                    borderRadius: "12px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    fontSize: "15px",
+                    transition: "all 0.3s ease",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                    e.currentTarget.style.background = "#e5e7eb";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.background = "#f1f5f9";
+                  }}
+                >
+                  <span>🔄</span>
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* GRID DE PRODUCTOS */}
+      {/* GRID DE PRODUCTOS - MANTENER NARANJA */}
       <div style={{
-        maxWidth: "1400px",
-        margin: "0 auto",
+        maxWidth: "1200px",
+        margin: "0 auto 60px auto",
         padding: "0 20px"
       }}>
         {loading ? (
           <div style={{
             textAlign: "center",
-            padding: "80px 20px"
+            padding: "80px 20px",
+            background: "white",
+            borderRadius: "16px",
+            boxShadow: "0 8px 30px rgba(0, 0, 0, 0.08)"
           }}>
             <div style={{
               display: "inline-block",
-              width: "50px",
-              height: "50px",
-              border: "5px solid #ECF2E3",
-              borderTop: "5px solid #5A8F48",
+              width: "60px",
+              height: "60px",
+              border: "5px solid #f1f5f9",
+              borderTop: "5px solid #FF6B35", // NARANJA
               borderRadius: "50%",
               animation: "spin 1s linear infinite"
             }}></div>
             <p style={{
-              marginTop: "20px",
-              fontSize: "16px",
-              color: "#6B7F69",
-              fontWeight: "600"
+              marginTop: "25px",
+              fontSize: "18px",
+              color: "#2C3E50",
+              fontWeight: "600",
+              fontFamily: "'Inter', sans-serif"
             }}>
-              Cargando productos...
+              Cargando catálogo de productos...
             </p>
           </div>
         ) : productosFiltrados.length > 0 ? (
           <>
-            <div style={{
+            <div className="grid-container" style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
               gap: "25px",
-              marginBottom: "40px"
+              marginBottom: "50px"
             }}>
               {productosFiltrados.map(p => (
                 <div
@@ -385,31 +565,29 @@ const handleAgregarCarrito = async (producto) => {
                     background: "white",
                     borderRadius: "16px",
                     overflow: "hidden",
-                    boxShadow: "0 4px 20px rgba(90, 143, 72, 0.1)",
-                    transition: "all 0.3s ease",
-                    display: "flex",
-                    flexDirection: "column"
+                    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
+                    transition: "all 0.4s ease",
+                    cursor: "pointer",
+                    position: "relative",
+                    border: "1px solid #f1f5f9"
                   }}
+                  onClick={() => navigate(`/producto/${p.idProducto}`)}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = "translateY(-8px)";
-                    e.currentTarget.style.boxShadow = "0 12px 28px rgba(90, 143, 72, 0.18)";
+                    e.currentTarget.style.boxShadow = "0 15px 35px rgba(0, 0, 0, 0.15)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow = "0 4px 20px rgba(90, 143, 72, 0.1)";
+                    e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.08)";
                   }}
                 >
-                  {/* 🔥 IMAGEN CLICKEABLE - VA AL DETALLE */}
-                  <div
-                    onClick={() => navigate(`/producto/${p.idProducto}`)}
-                    style={{
-                      position: "relative",
-                      overflow: "hidden",
-                      height: "200px",
-                      background: "#F9FBF7",
-                      cursor: "pointer"
-                    }}
-                  >
+                  {/* Imagen del producto */}
+                  <div style={{
+                    position: "relative",
+                    overflow: "hidden",
+                    height: "200px",
+                    background: "#f8f9fa"
+                  }}>
                     <img
                       src={p.imagenProducto}
                       alt={p.nombreProducto}
@@ -417,105 +595,144 @@ const handleAgregarCarrito = async (producto) => {
                         width: "100%",
                         height: "100%",
                         objectFit: "cover",
-                        transition: "transform 0.3s ease"
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.transform = "scale(1.08)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.transform = "scale(1)";
+                        transition: "transform 0.5s ease"
                       }}
                     />
+                    
+                    {/* Badge de stock - CON NARANJA */}
+                    <div style={{
+                      position: "absolute",
+                      top: "15px",
+                      right: "15px",
+                      background: p.stockProducto <= 0 ? "#EF4444" : (p.stockProducto <= 10 ? "#F59E0B" : "#10B981"),
+                      color: "white",
+                      padding: "6px 14px",
+                      borderRadius: "20px",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+                      zIndex: "2"
+                    }}>
+                      {p.stockProducto <= 0 ? (
+                        <>✗ Agotado</>
+                      ) : p.stockProducto <= 10 ? (
+                        <>⚡ {p.stockProducto} disponibles</>
+                      ) : (
+                        <>✓ Disponible</>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Info del producto */}
-                  <div style={{
-                    padding: "18px",
-                    display: "flex",
-                    flexDirection: "column",
-                    flex: "1"
-                  }}>
-                    {/* 🔥 TÍTULO TAMBIÉN CLICKEABLE */}
-                    <h3
-                      onClick={() => navigate(`/producto/${p.idProducto}`)}
-                      style={{
-                        fontSize: "16px",
-                        fontWeight: "700",
-                        color: "#2D3E2B",
-                        marginBottom: "6px",
-                        lineHeight: "1.3",
-                        cursor: "pointer",
-                        transition: "color 0.3s ease"
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.color = "#5A8F48";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.color = "#2D3E2B";
-                      }}
-                    >
+                  {/* Información del producto */}
+                  <div style={{ padding: "22px" }}>
+                    {/* Nombre del producto */}
+                    <h3 style={{
+                      fontSize: "18px",
+                      fontWeight: "700",
+                      color: "#2C3E50",
+                      margin: "0 0 8px 0",
+                      lineHeight: "1.3",
+                      minHeight: "46px"
+                    }}>
                       {p.nombreProducto}
                     </h3>
 
-                    <p style={{
-                      color: "#6B7F69",
-                      fontSize: "13px",
-                      marginBottom: "12px",
-                      fontWeight: "500"
+                    {/* Categoría */}
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginBottom: "12px"
                     }}>
-                      {p.nombreSubcategoria || "Sin categoría"}
-                    </p>
-
-                    {/* ⭐ Valoración */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px" }}>
-                      <StarRating rating={p.promedioValoracion || 0} />
-
-                      <span style={{ fontSize: "12px", color: "#6B7F69" }}>
-                        ({p.totalValoraciones || 0} reseñas)
+                      <span style={{
+                        fontSize: "12px",
+                        color: "#64748b",
+                        background: "#f1f5f9",
+                        padding: "4px 10px",
+                        borderRadius: "12px",
+                        fontWeight: "600"
+                      }}>
+                        {p.nombreSubcategoria || p.nombreCategoria || "General"}
                       </span>
                     </div>
 
-                    {/* Precio y botón */}
-                    <div style={{
-                      marginTop: "auto",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "12px"
-                    }}>
+                    {/* Valoración */}
+                    {p.promedioValoracion !== undefined && p.promedioValoracion > 0 && (
                       <div style={{
-                        fontSize: "24px",
-                        fontWeight: "800",
-                        color: "#5A8F48"
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        marginBottom: "15px"
                       }}>
-                        ${p.precioProducto}
+                        <StarRating rating={p.promedioValoracion || 0} />
+                        <span style={{
+                          fontSize: "13px",
+                          color: "#64748b",
+                          fontWeight: "600"
+                        }}>
+                          {p.promedioValoracion.toFixed(1)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Pie del producto */}
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginTop: "15px"
+                    }}>
+                      {/* Precio - NARANJA */}
+                      <div>
+                        <div style={{
+                          fontSize: "28px",
+                          fontWeight: "800",
+                          color: "#FF6B35", // NARANJA
+                          lineHeight: "1"
+                        }}>
+                          ${p.precioProducto.toFixed(2)}
+                        </div>
                       </div>
 
-                      {/* 🔥 BOTÓN QUE SOLO AGREGA AL CARRITO */}
+                      {/* Botón de agregar - NARANJA */}
                       <button
-                        onClick={() => handleAgregarCarrito(p)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAgregarCarrito(p);
+                        }}
+                        disabled={p.stockProducto <= 0}
                         style={{
-                          width: "100%",
-                          padding: "14px",
-                          background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
+                          background: p.stockProducto <= 0 ? "#94a3b8" : "#FF6B35", // NARANJA
+                          width: "50px",
+                          height: "50px",
+                          borderRadius: "14px",
                           border: "none",
-                          color: "white",
-                          borderRadius: "12px",
-                          fontWeight: "700",
-                          cursor: "pointer",
-                          fontSize: "14px",
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          cursor: p.stockProducto > 0 ? "pointer" : "not-allowed",
                           transition: "all 0.3s ease",
-                          boxShadow: "0 4px 12px rgba(90, 143, 72, 0.25)"
+                          fontSize: "22px"
                         }}
                         onMouseEnter={(e) => {
-                          e.target.style.transform = "translateY(-2px)";
-                          e.target.style.boxShadow = "0 6px 16px rgba(90, 143, 72, 0.35)";
+                          if (p.stockProducto > 0) {
+                            e.currentTarget.style.transform = "scale(1.1)";
+                            e.currentTarget.style.background = "#FF8E53";
+                          }
                         }}
                         onMouseLeave={(e) => {
-                          e.target.style.transform = "translateY(0)";
-                          e.target.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.25)";
+                          if (p.stockProducto > 0) {
+                            e.currentTarget.style.transform = "scale(1)";
+                            e.currentTarget.style.background = "#FF6B35";
+                          }
                         }}
                       >
-                        🛒 Agregar al carrito
+                        <span style={{ color: "white" }}>
+                          {p.stockProducto > 0 ? "🛒" : "✗"}
+                        </span>
                       </button>
                     </div>
                   </div>
@@ -523,25 +740,28 @@ const handleAgregarCarrito = async (producto) => {
               ))}
             </div>
 
-            {/* Info de resultados */}
+            {/* FINAL */}
             <div style={{
               textAlign: "center",
-              padding: "24px",
+              padding: "30px",
               background: "white",
               borderRadius: "16px",
-              boxShadow: "0 4px 12px rgba(90, 143, 72, 0.08)"
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)"
             }}>
               <p style={{
-                color: "#6B7F69",
-                fontSize: "15px",
+                color: "#64748b",
+                fontSize: "16px",
                 fontWeight: "600",
+                margin: "0 0 10px 0"
+              }}>
+                Has visto todos los productos disponibles
+              </p>
+              <p style={{
+                color: "#94a3b8",
+                fontSize: "14px",
                 margin: "0"
               }}>
-                Mostrando <strong style={{ color: "#5A8F48", fontSize: "16px" }}>
-                  {productosFiltrados.length}
-                </strong> productos de <strong style={{ color: "#5A8F48", fontSize: "16px" }}>
-                  {productos.length}
-                </strong> disponibles
+                Mostrando <strong style={{ color: "#FF6B35" }}>{productosFiltrados.length}</strong> productos
               </p>
             </div>
           </>
@@ -550,36 +770,145 @@ const handleAgregarCarrito = async (producto) => {
             textAlign: "center",
             padding: "80px 20px",
             background: "white",
-            borderRadius: "20px",
-            boxShadow: "0 4px 20px rgba(90, 143, 72, 0.1)"
+            borderRadius: "16px",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)"
           }}>
-            <div style={{ fontSize: "64px", marginBottom: "20px" }}>🌱</div>
+            <div style={{ fontSize: "80px", marginBottom: "25px", opacity: 0.7 }}>🔍</div>
             <p style={{
-              color: "#2D3E2B",
-              fontSize: "18px",
-              fontWeight: "600",
-              margin: "0 0 8px 0"
+              color: "#2C3E50",
+              fontSize: "24px",
+              fontWeight: "700",
+              margin: "0 0 15px 0"
             }}>
-              No hay productos disponibles
+              No encontramos productos
             </p>
             <p style={{
-              color: "#9AAA98",
-              fontSize: "15px",
-              margin: "0"
+              color: "#64748b",
+              fontSize: "16px",
+              margin: "0 0 30px 0",
+              maxWidth: "500px",
+              marginLeft: "auto",
+              marginRight: "auto",
+              lineHeight: "1.6"
             }}>
-              Intenta ajustar tus filtros de búsqueda
+              {busqueda 
+                ? `No hay resultados para "${busqueda}". Intenta con otras palabras.`
+                : "Ajusta los filtros de búsqueda para encontrar lo que necesitas."}
             </p>
+            <button
+              onClick={() => {
+                setBusqueda("");
+                setFiltroCategoria("");
+                setFiltroSubcategoria("");
+              }}
+              style={{
+                padding: "16px 36px",
+                background: "#FF6B35", // NARANJA
+                color: "white",
+                border: "none",
+                borderRadius: "12px",
+                fontWeight: "700",
+                cursor: "pointer",
+                fontSize: "16px",
+                transition: "all 0.3s ease"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-3px)";
+                e.currentTarget.style.background = "#FF8E53";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.background = "#FF6B35";
+              }}
+            >
+              Mostrar todos los productos
+            </button>
           </div>
         )}
       </div>
-     <Footer />
+      
+      <Footer />
+      
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
-      `}
-      </style>
+        
+        @keyframes floatCircle {
+          0%, 100% { 
+            transform: translate(0, 0) scale(1); 
+          }
+          20% { 
+            transform: translate(20px, -25px) scale(1.08); 
+          }
+          40% { 
+            transform: translate(-15px, 20px) scale(0.92); 
+          }
+          60% { 
+            transform: translate(10px, 15px) scale(1.05); 
+          }
+          80% { 
+            transform: translate(-20px, -15px) scale(0.98); 
+          }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+          .grid-container {
+            grid-templateColumns: repeat(auto-fill, minmax(250px, 1fr)) !important;
+          }
+          
+          h1 {
+            font-size: 36px !important;
+          }
+          
+          .filtros-container {
+            grid-template-columns: 1fr !important;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .grid-container {
+            grid-template-columns: 1fr !important;
+          }
+          
+          h1 {
+            font-size: 32px !important;
+          }
+        }
+        
+        * {
+          box-sizing: border-box;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        body {
+          margin: 0;
+          background-color: #f8f9fa;
+        }
+        
+        input:focus, select:focus, button:focus {
+          outline: none;
+        }
+        
+        button {
+          cursor: pointer;
+        }
+        
+        img {
+          max-width: 100%;
+          height: auto;
+        }
+        
+        select {
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          appearance: none;
+        }
+      `}</style>
     </div>
   );
 }
