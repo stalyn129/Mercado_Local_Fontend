@@ -233,30 +233,41 @@ export default function ExplorarProductos() {
           zIndex: "10",
           padding: "0 15px"
         }}>
-          {/* Título principal - EN COLOR */}
+          {/* Título principal - NARANJA */}
+          <div style={{
+            fontFamily: "'Playfair Display', 'Georgia', serif",
+            fontSize: "14px",
+            letterSpacing: "3px",
+            textTransform: "uppercase",
+            color: "#FF6B35", // NARANJA
+            marginBottom: "8px",
+            fontWeight: "500"
+          }}>
+            Catálogo de Productos
+          </div>
+          
           <h1 style={{
+            fontFamily: "'Playfair Display', 'Georgia', serif",
             fontSize: "48px",
-            fontWeight: "800",
-            color: "#2C3E50", // COLOR OSCURO, NO BLANCO
-            marginBottom: "15px",
-            letterSpacing: "-0.5px",
-            lineHeight: "1.1",
-            background: "linear-gradient(135deg, #FF6B35 0%, #2C3E50 100%)",
-            backgroundClip: "text",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent"
+            fontWeight: "700",
+            color: "#FF6B35", // NARANJA
+            margin: "0 0 16px 0",
+            letterSpacing: "1px",
+            lineHeight: "1.2"
           }}>
             Explorar Productos
           </h1>
           
-          {/* Subtítulo - EN COLOR */}
+          {/* Subtítulo - MORADO CLARO */}
           <p style={{
-            color: "#64748b",
-            fontSize: "19px",
+            color: "#8B5CF6", // MORADO CLARO
+            fontSize: "16px",
             margin: "0 auto",
             maxWidth: "600px",
-            lineHeight: "1.5",
-            fontWeight: "400"
+            lineHeight: "1.6",
+            fontWeight: "400",
+            fontFamily: "'Inter', sans-serif",
+            opacity: 0.8
           }}>
             Encuentra lo que necesitas
           </p>
@@ -461,7 +472,8 @@ export default function ExplorarProductos() {
                   fontSize: "16px",
                   fontWeight: "600",
                   color: "#64748b",
-                  margin: "0"
+                  margin: "0",
+                  fontFamily: "'Inter', sans-serif"
                 }}>
                   Resultados encontrados
                 </p>
@@ -469,7 +481,8 @@ export default function ExplorarProductos() {
                   fontSize: "28px",
                   fontWeight: "800",
                   color: "#2C3E50",
-                  margin: "5px 0 0 0"
+                  margin: "5px 0 0 0",
+                  fontFamily: "'Inter', sans-serif"
                 }}>
                   {productosFiltrados.length} <span style={{ fontSize: "16px", fontWeight: "600", color: "#94a3b8" }}>productos</span>
                 </p>
@@ -497,7 +510,8 @@ export default function ExplorarProductos() {
                     transition: "all 0.3s ease",
                     display: "flex",
                     alignItems: "center",
-                    gap: "10px"
+                    gap: "10px",
+                    fontFamily: "'Inter', sans-serif"
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = "translateY(-2px)";
@@ -614,7 +628,8 @@ export default function ExplorarProductos() {
                       alignItems: "center",
                       gap: "5px",
                       boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
-                      zIndex: "2"
+                      zIndex: "2",
+                      fontFamily: "'Inter', sans-serif"
                     }}>
                       {p.stockProducto <= 0 ? (
                         <>✗ Agotado</>
@@ -635,7 +650,8 @@ export default function ExplorarProductos() {
                       color: "#2C3E50",
                       margin: "0 0 8px 0",
                       lineHeight: "1.3",
-                      minHeight: "46px"
+                      minHeight: "46px",
+                      fontFamily: "'Inter', sans-serif"
                     }}>
                       {p.nombreProducto}
                     </h3>
@@ -653,7 +669,8 @@ export default function ExplorarProductos() {
                         background: "#f1f5f9",
                         padding: "4px 10px",
                         borderRadius: "12px",
-                        fontWeight: "600"
+                        fontWeight: "600",
+                        fontFamily: "'Inter', sans-serif"
                       }}>
                         {p.nombreSubcategoria || p.nombreCategoria || "General"}
                       </span>
@@ -671,7 +688,8 @@ export default function ExplorarProductos() {
                         <span style={{
                           fontSize: "13px",
                           color: "#64748b",
-                          fontWeight: "600"
+                          fontWeight: "600",
+                          fontFamily: "'Inter', sans-serif"
                         }}>
                           {p.promedioValoracion.toFixed(1)}
                         </span>
@@ -691,7 +709,8 @@ export default function ExplorarProductos() {
                           fontSize: "28px",
                           fontWeight: "800",
                           color: "#FF6B35", // NARANJA
-                          lineHeight: "1"
+                          lineHeight: "1",
+                          fontFamily: "'Inter', sans-serif"
                         }}>
                           ${p.precioProducto.toFixed(2)}
                         </div>
@@ -752,14 +771,16 @@ export default function ExplorarProductos() {
                 color: "#64748b",
                 fontSize: "16px",
                 fontWeight: "600",
-                margin: "0 0 10px 0"
+                margin: "0 0 10px 0",
+                fontFamily: "'Inter', sans-serif"
               }}>
                 Has visto todos los productos disponibles
               </p>
               <p style={{
                 color: "#94a3b8",
                 fontSize: "14px",
-                margin: "0"
+                margin: "0",
+                fontFamily: "'Inter', sans-serif"
               }}>
                 Mostrando <strong style={{ color: "#FF6B35" }}>{productosFiltrados.length}</strong> productos
               </p>
@@ -778,7 +799,8 @@ export default function ExplorarProductos() {
               color: "#2C3E50",
               fontSize: "24px",
               fontWeight: "700",
-              margin: "0 0 15px 0"
+              margin: "0 0 15px 0",
+              fontFamily: "'Inter', sans-serif"
             }}>
               No encontramos productos
             </p>
@@ -789,7 +811,8 @@ export default function ExplorarProductos() {
               maxWidth: "500px",
               marginLeft: "auto",
               marginRight: "auto",
-              lineHeight: "1.6"
+              lineHeight: "1.6",
+              fontFamily: "'Inter', sans-serif"
             }}>
               {busqueda 
                 ? `No hay resultados para "${busqueda}". Intenta con otras palabras.`
@@ -810,7 +833,8 @@ export default function ExplorarProductos() {
                 fontWeight: "700",
                 cursor: "pointer",
                 fontSize: "16px",
-                transition: "all 0.3s ease"
+                transition: "all 0.3s ease",
+                fontFamily: "'Inter', sans-serif"
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = "translateY(-3px)";
@@ -830,7 +854,7 @@ export default function ExplorarProductos() {
       <Footer />
       
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
         
         @keyframes spin {
           0% { transform: rotate(0deg); }
@@ -882,7 +906,6 @@ export default function ExplorarProductos() {
         
         * {
           box-sizing: border-box;
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
         
         body {

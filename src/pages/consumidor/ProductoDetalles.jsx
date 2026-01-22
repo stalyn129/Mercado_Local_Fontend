@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useCarrito } from "../../context/CarritoContext.jsx";
 import { useFavoritos } from "../../context/FavoritosContext.jsx";
 import Footer from "../../components/Footer.jsx";
-import ChatVendedor from "../vendedor/ChatVendedor.jsx"; // ✅ CAMBIO 1
+import ChatVendedor from "../vendedor/ChatVendedor.jsx";
 
 export default function ProductoDetalle() {
   const { id } = useParams();
@@ -20,9 +20,8 @@ export default function ProductoDetalle() {
   const [showEnvio, setShowEnvio] = useState(false);
   const [showReembolso, setShowReembolso] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [mostrarChat, setMostrarChat] = useState(false); // ✅ CAMBIO 2
+  const [mostrarChat, setMostrarChat] = useState(false);
 
-  // 🔐 CONTROL DE ROL
   const usuario = JSON.parse(localStorage.getItem("user"));
   const rol = usuario?.rol;
   const esConsumidor = rol === "CONSUMIDOR";
@@ -45,7 +44,7 @@ export default function ProductoDetalle() {
 
   if (!producto) {
     return (
-      <div style={{ padding: "50px", fontSize: "24px", textAlign: "center", color: "#6B7F69" }}>
+      <div style={{ padding: "50px", fontSize: "24px", textAlign: "center", color: "#FF6B35" }}>
         Cargando...
       </div>
     );
@@ -97,24 +96,23 @@ export default function ProductoDetalle() {
   };
 
   const handleAddCarrito = async () => {
-  if (bloquearSiNoConsumidor()) return;
+    if (bloquearSiNoConsumidor()) return;
 
-  const usuario = JSON.parse(localStorage.getItem("user"));
-  const token = localStorage.getItem("authToken");
+    const usuario = JSON.parse(localStorage.getItem("user"));
+    const token = localStorage.getItem("authToken");
 
-  if (!usuario || !token) {
-    return navigate("/login");
-  }
+    if (!usuario || !token) {
+      return navigate("/login");
+    }
 
-  try {
-    await agregarCarrito(producto.idProducto, cantidad);
-    alert("Producto añadido al carrito 🛒");
-  } catch (error) {
-    console.error(error);
-    alert("❌ Error al agregar al carrito");
-  }
-};
-
+    try {
+      await agregarCarrito(producto.idProducto, cantidad);
+      alert("Producto añadido al carrito 🛒");
+    } catch (error) {
+      console.error(error);
+      alert("❌ Error al agregar al carrito");
+    }
+  };
 
   const comprarAhora = async () => {
     if (bloquearSiNoConsumidor()) return;
@@ -203,9 +201,9 @@ export default function ProductoDetalle() {
   };
 
   return (
-    <div style={{ background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div style={{ background: "#f8f9fa", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 0.5s ease-out; }
       `}</style>
@@ -222,15 +220,16 @@ export default function ProductoDetalle() {
             cursor: "pointer",
             fontSize: "14px",
             fontWeight: "600",
-            color: "#5A8F48",
+            color: "#FF6B35",
             marginBottom: "20px",
-            boxShadow: "0 2px 8px rgba(90, 143, 72, 0.1)"
+            boxShadow: "0 2px 8px rgba(255, 107, 53, 0.1)",
+            fontFamily: "'Inter', sans-serif"
           }}
         >
           ← Volver
         </button>
 
-        <div style={{ display: "grid", gridTemplateColumns: "45% 55%", gap: "30px", background: "white", borderRadius: "20px", padding: "30px", boxShadow: "0 8px 32px rgba(90, 143, 72, 0.12)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "45% 55%", gap: "30px", background: "white", borderRadius: "20px", padding: "30px", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.08)" }}>
 
           {/* Columna Izquierda - Imágenes */}
           <div>
@@ -249,7 +248,7 @@ export default function ProductoDetalle() {
                   height: "70px",
                   borderRadius: "10px",
                   objectFit: "cover",
-                  border: imgSeleccionada === producto.imagenProducto ? "3px solid #5A8F48" : "2px solid #ECF2E3",
+                  border: imgSeleccionada === producto.imagenProducto ? "3px solid #FF6B35" : "2px solid #f1f5f9",
                   cursor: "pointer",
                   transition: "all 0.3s ease"
                 }}
@@ -258,21 +257,21 @@ export default function ProductoDetalle() {
             </div>
 
             {/* Vendedor Info */}
-            <div style={{ background: "#F9FBF7", padding: "16px", borderRadius: "14px" }}>
-              <p style={{ fontSize: "12px", color: "#6B7F69", margin: "0 0 6px 0" }}>Vendedor</p>
+            <div style={{ background: "#f8f9fa", padding: "16px", borderRadius: "14px" }}>
+              <p style={{ fontSize: "12px", color: "#8B5CF6", margin: "0 0 6px 0", fontFamily: "'Inter', sans-serif" }}>Vendedor</p>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div>
-                  <p style={{ fontSize: "16px", fontWeight: "700", color: "#2D3E2B", margin: "0" }}>
+                  <p style={{ fontSize: "16px", fontWeight: "700", color: "#2C3E50", margin: "0", fontFamily: "'Inter', sans-serif" }}>
                     👨‍🌾 {producto.nombreVendedor}
                   </p>
-                  <p style={{ fontSize: "12px", color: "#6B7F69", margin: "4px 0 0 0" }}>
+                  <p style={{ fontSize: "12px", color: "#64748b", margin: "4px 0 0 0", fontFamily: "'Inter', sans-serif" }}>
                     {producto.nombreEmpresa}
                   </p>
                 </div>
                 <div style={{ position: "relative" }}>
                   <button
                     onClick={() => setMenuOpen(!menuOpen)}
-                    style={{ border: "none", fontSize: "24px", background: "none", cursor: "pointer" }}
+                    style={{ border: "none", fontSize: "24px", background: "none", cursor: "pointer", color: "#64748b" }}
                   >
                     ⋯
                   </button>
@@ -288,7 +287,6 @@ export default function ProductoDetalle() {
                       minWidth: "200px",
                       zIndex: 10
                     }}>
-                      {/* ✅ CAMBIO 3: Menú actualizado con rutas correctas */}
                       {[
                         {
                           text: "👤 Ver Perfil",
@@ -319,10 +317,12 @@ export default function ProductoDetalle() {
                             padding: "12px 16px",
                             margin: "0",
                             cursor: "pointer",
-                            borderBottom: i < 2 ? "1px solid #ECF2E3" : "none",
-                            transition: "background 0.2s"
+                            borderBottom: i < 2 ? "1px solid #f1f5f9" : "none",
+                            transition: "background 0.2s",
+                            fontFamily: "'Inter', sans-serif",
+                            color: "#2C3E50"
                           }}
-                          onMouseEnter={(e) => e.target.style.background = "#F9FBF7"}
+                          onMouseEnter={(e) => e.target.style.background = "#f8f9fa"}
                           onMouseLeave={(e) => e.target.style.background = "white"}
                         >
                           {item.text}
@@ -338,13 +338,13 @@ export default function ProductoDetalle() {
           {/* Columna Derecha - Info Producto */}
           <div>
             <div style={{ marginBottom: "12px" }}>
-              <p style={{ fontSize: "12px", fontWeight: "600", color: "#5A8F48", margin: "0 0 6px 0" }}>
+              <p style={{ fontSize: "12px", fontWeight: "600", color: "#FF6B35", margin: "0 0 6px 0", fontFamily: "'Inter', sans-serif" }}>
                 PRODUCTO DISPONIBLE
               </p>
               <h1 style={{
                 fontSize: "32px",
                 fontWeight: "900",
-                color: "#2D3E2B",
+                color: "#2C3E50",
                 margin: "0",
                 fontFamily: "'Playfair Display', serif"
               }}>
@@ -353,40 +353,40 @@ export default function ProductoDetalle() {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-              <div style={{ fontSize: "20px" }}>⭐</div>
-              <span style={{ fontSize: "16px", fontWeight: "700", color: "#F4B419" }}>
+              <div style={{ fontSize: "20px", color: "#F59E0B" }}>⭐</div>
+              <span style={{ fontSize: "16px", fontWeight: "700", color: "#F59E0B", fontFamily: "'Inter', sans-serif" }}>
                 {producto.promedioValoracion?.toFixed(1) || 0}
               </span>
-              <span style={{ fontSize: "13px", color: "#6B7F69" }}>
+              <span style={{ fontSize: "13px", color: "#64748b", fontFamily: "'Inter', sans-serif" }}>
                 ({producto.totalValoraciones} reseñas)
               </span>
             </div>
 
             <div style={{
-              background: "linear-gradient(135deg, #F9D94A 0%, #F5C542 100%)",
+              background: "linear-gradient(135deg, rgba(255, 107, 53, 0.1) 0%, rgba(255, 142, 83, 0.1) 100%)",
               padding: "18px",
               borderRadius: "14px",
               marginBottom: "18px"
             }}>
-              <p style={{ fontSize: "11px", color: "#2D3E2B", margin: "0", fontWeight: "600" }}>
+              <p style={{ fontSize: "11px", color: "#FF6B35", margin: "0", fontWeight: "600", fontFamily: "'Inter', sans-serif" }}>
                 PRECIO
               </p>
-              <h2 style={{ fontSize: "36px", fontWeight: "900", color: "#2D3E2B", margin: "6px 0 0 0" }}>
+              <h2 style={{ fontSize: "36px", fontWeight: "900", color: "#FF6B35", margin: "6px 0 0 0", fontFamily: "'Inter', sans-serif" }}>
                 ${parseFloat(producto.precioProducto).toFixed(2)}
               </h2>
-              <p style={{ fontSize: "11px", color: "#6B7F69", margin: "6px 0 0 0" }}>
+              <p style={{ fontSize: "11px", color: "#64748b", margin: "6px 0 0 0", fontFamily: "'Inter', sans-serif" }}>
                 Por unidad: {producto.unidad}
               </p>
             </div>
 
             <div style={{ marginBottom: "18px" }}>
-              <p style={{ fontSize: "13px", fontWeight: "600", color: "#2D3E2B", margin: "0 0 10px 0" }}>
+              <p style={{ fontSize: "13px", fontWeight: "600", color: "#2C3E50", margin: "0 0 10px 0", fontFamily: "'Inter', sans-serif" }}>
                 Cantidad
               </p>
               <div style={{
                 display: "flex",
                 gap: "10px",
-                background: "#F9FBF7",
+                background: "#f8f9fa",
                 padding: "10px",
                 borderRadius: "10px",
                 width: "fit-content"
@@ -395,14 +395,15 @@ export default function ProductoDetalle() {
                   onClick={() => setCantidad(Math.max(1, cantidad - 1))}
                   style={{
                     background: "white",
-                    border: "1px solid #ECF2E3",
+                    border: "1px solid #e5e7eb",
                     width: "36px",
                     height: "36px",
                     borderRadius: "8px",
                     cursor: "pointer",
                     fontSize: "16px",
                     fontWeight: "700",
-                    color: "#5A8F48"
+                    color: "#FF6B35",
+                    fontFamily: "'Inter', sans-serif"
                   }}
                 >
                   −
@@ -413,7 +414,9 @@ export default function ProductoDetalle() {
                   alignItems: "center",
                   justifyContent: "center",
                   fontWeight: "700",
-                  fontSize: "15px"
+                  fontSize: "15px",
+                  color: "#2C3E50",
+                  fontFamily: "'Inter', sans-serif"
                 }}>
                   {cantidad}
                 </div>
@@ -421,14 +424,15 @@ export default function ProductoDetalle() {
                   onClick={() => setCantidad(cantidad + 1)}
                   style={{
                     background: "white",
-                    border: "1px solid #ECF2E3",
+                    border: "1px solid #e5e7eb",
                     width: "36px",
                     height: "36px",
                     borderRadius: "8px",
                     cursor: "pointer",
                     fontSize: "16px",
                     fontWeight: "700",
-                    color: "#5A8F48"
+                    color: "#FF6B35",
+                    fontFamily: "'Inter', sans-serif"
                   }}
                 >
                   +
@@ -441,7 +445,7 @@ export default function ProductoDetalle() {
                 onClick={handleAddCarrito}
                 disabled={esVendedor}
                 style={{
-                  background: esVendedor ? "#A5B7A1" : "#5A8F48",
+                  background: esVendedor ? "#94a3b8" : "#FF6B35",
                   color: "white",
                   border: "none",
                   padding: "14px 20px",
@@ -450,12 +454,13 @@ export default function ProductoDetalle() {
                   fontWeight: "700",
                   cursor: esVendedor ? "not-allowed" : "pointer",
                   opacity: esVendedor ? 0.6 : 1,
-                  transition: "all 0.3s ease"
+                  transition: "all 0.3s ease",
+                  fontFamily: "'Inter', sans-serif"
                 }}
                 onMouseEnter={(e) => {
                   if (!esVendedor) {
                     e.target.style.transform = "translateY(-2px)";
-                    e.target.style.boxShadow = "0 8px 20px rgba(90, 143, 72, 0.3)";
+                    e.target.style.boxShadow = "0 8px 20px rgba(255, 107, 53, 0.3)";
                   }
                 }}
                 onMouseLeave={(e) => {
@@ -469,7 +474,7 @@ export default function ProductoDetalle() {
                 onClick={comprarAhora}
                 disabled={esVendedor}
                 style={{
-                  background: esVendedor ? "#9E9E9E" : "#2D3E2B",
+                  background: esVendedor ? "#94a3b8" : "#2C3E50",
                   color: "white",
                   border: "none",
                   padding: "14px 20px",
@@ -478,12 +483,13 @@ export default function ProductoDetalle() {
                   fontWeight: "700",
                   cursor: esVendedor ? "not-allowed" : "pointer",
                   transition: "all 0.3s ease",
-                  opacity: esVendedor ? 0.6 : 1
+                  opacity: esVendedor ? 0.6 : 1,
+                  fontFamily: "'Inter', sans-serif"
                 }}
                 onMouseEnter={(e) => {
                   if (!esVendedor) {
                     e.target.style.transform = "translateY(-2px)";
-                    e.target.style.boxShadow = "0 8px 20px rgba(0,0,0,0.2)";
+                    e.target.style.boxShadow = "0 8px 20px rgba(44, 62, 80, 0.3)";
                   }
                 }}
                 onMouseLeave={(e) => {
@@ -500,16 +506,17 @@ export default function ProductoDetalle() {
                 onClick={toggleFavorito}
                 disabled={esVendedor}
                 style={{
-                  background: guardado ? "#FF7B9C" : "#FFE5E9",
-                  color: guardado ? "white" : "#2D3E2B",
-                  border: "none",
+                  background: guardado ? "#FF6B35" : "#f8f9fa",
+                  color: guardado ? "white" : "#2C3E50",
+                  border: guardado ? "none" : "2px solid #e5e7eb",
                   padding: "10px",
                   borderRadius: "10px",
                   fontWeight: "700",
                   cursor: esVendedor ? "not-allowed" : "pointer",
                   fontSize: "13px",
                   opacity: esVendedor ? 0.5 : 1,
-                  transition: "all 0.3s ease"
+                  transition: "all 0.3s ease",
+                  fontFamily: "'Inter', sans-serif"
                 }}
               >
                 {guardado ? "❤️ Guardado" : "🤍 Guardar"}
@@ -517,14 +524,15 @@ export default function ProductoDetalle() {
               <button
                 onClick={() => setShowEnvio(true)}
                 style={{
-                  background: "#FFF3E0",
-                  color: "#2D3E2B",
-                  border: "none",
+                  background: "#f8f9fa",
+                  color: "#2C3E50",
+                  border: "2px solid #e5e7eb",
                   padding: "10px",
                   borderRadius: "10px",
                   fontWeight: "700",
                   cursor: "pointer",
-                  fontSize: "13px"
+                  fontSize: "13px",
+                  fontFamily: "'Inter', sans-serif"
                 }}
               >
                 🚚 Envío
@@ -532,14 +540,15 @@ export default function ProductoDetalle() {
               <button
                 onClick={() => setShowReembolso(true)}
                 style={{
-                  background: "#E8F5EA",
-                  color: "#2D3E2B",
-                  border: "none",
+                  background: "#f8f9fa",
+                  color: "#2C3E50",
+                  border: "2px solid #e5e7eb",
                   padding: "10px",
                   borderRadius: "10px",
                   fontWeight: "700",
                   cursor: "pointer",
-                  fontSize: "13px"
+                  fontSize: "13px",
+                  fontFamily: "'Inter', sans-serif"
                 }}
               >
                 💵 Reembolso
@@ -555,25 +564,27 @@ export default function ProductoDetalle() {
             background: "white",
             borderRadius: "16px",
             padding: "24px",
-            boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)"
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)"
           }}>
             <h2 style={{
               fontSize: "22px",
               fontWeight: "700",
-              color: "#2D3E2B",
+              color: "#FF6B35",
               margin: "0 0 16px 0",
               fontFamily: "'Playfair Display', serif"
             }}>
               📋 Descripción
             </h2>
             <p style={{
-              background: "#E4F3DC",
+              background: "#f8f9fa",
               padding: "18px",
               borderRadius: "12px",
-              color: "#2D3E2B",
+              color: "#2C3E50",
               lineHeight: "1.6",
               fontSize: "14px",
-              margin: 0
+              margin: 0,
+              fontFamily: "'Inter', sans-serif",
+              borderLeft: "4px solid #FF6B35"
             }}>
               {producto.descripcionProducto}
             </p>
@@ -583,12 +594,12 @@ export default function ProductoDetalle() {
             background: "white",
             borderRadius: "16px",
             padding: "24px",
-            boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)"
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)"
           }}>
             <h2 style={{
               fontSize: "22px",
               fontWeight: "700",
-              color: "#2D3E2B",
+              color: "#FF6B35",
               margin: "0 0 16px 0",
               fontFamily: "'Playfair Display', serif"
             }}>
@@ -599,25 +610,26 @@ export default function ProductoDetalle() {
               <div style={{ maxHeight: "300px", overflowY: "auto" }}>
                 {producto.valoraciones.map((v, i) => (
                   <div key={i} style={{
-                    background: "#F9FBF7",
+                    background: "#f8f9fa",
                     padding: "14px",
                     borderRadius: "10px",
-                    marginBottom: "10px"
+                    marginBottom: "10px",
+                    border: "1px solid #f1f5f9"
                   }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <strong style={{ color: "#2D3E2B", fontSize: "14px" }}>{v.nombreConsumidor}</strong>
-                      <span style={{ fontSize: "13px", fontWeight: "700", color: "#F4B419" }}>
+                      <strong style={{ color: "#2C3E50", fontSize: "14px", fontFamily: "'Inter', sans-serif" }}>{v.nombreConsumidor}</strong>
+                      <span style={{ fontSize: "13px", fontWeight: "700", color: "#F59E0B", fontFamily: "'Inter', sans-serif" }}>
                         ⭐ {v.calificacion}
                       </span>
                     </div>
-                    <p style={{ color: "#6B7F69", fontSize: "13px", margin: "8px 0 0 0" }}>
+                    <p style={{ color: "#64748b", fontSize: "13px", margin: "8px 0 0 0", fontFamily: "'Inter', sans-serif" }}>
                       {v.comentario}
                     </p>
                   </div>
                 ))}
               </div>
             ) : (
-              <p style={{ textAlign: "center", color: "#6B7F69", fontSize: "14px" }}>Aún no hay reseñas</p>
+              <p style={{ textAlign: "center", color: "#64748b", fontSize: "14px", fontFamily: "'Inter', sans-serif" }}>Aún no hay reseñas</p>
             )}
           </div>
         </div>
@@ -628,12 +640,12 @@ export default function ProductoDetalle() {
             borderRadius: "16px",
             padding: "24px",
             marginTop: "30px",
-            boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)"
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)"
           }}>
             <h2 style={{
               fontSize: "22px",
               fontWeight: "700",
-              color: "#2D3E2B",
+              color: "#FF6B35",
               margin: "0 0 18px 0",
               fontFamily: "'Playfair Display', serif"
             }}>
@@ -642,7 +654,7 @@ export default function ProductoDetalle() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
               <div>
-                <label style={{ display: "block", fontWeight: "600", color: "#2D3E2B", marginBottom: "8px", fontSize: "13px" }}>
+                <label style={{ display: "block", fontWeight: "600", color: "#2C3E50", marginBottom: "8px", fontSize: "13px", fontFamily: "'Inter', sans-serif" }}>
                   Calificación
                 </label>
                 <select
@@ -652,9 +664,11 @@ export default function ProductoDetalle() {
                     width: "100%",
                     padding: "10px",
                     borderRadius: "10px",
-                    border: "2px solid #ECF2E3",
+                    border: "2px solid #e5e7eb",
                     fontSize: "14px",
-                    fontWeight: "600"
+                    fontWeight: "600",
+                    fontFamily: "'Inter', sans-serif",
+                    color: "#2C3E50"
                   }}
                 >
                   <option value="5">⭐⭐⭐⭐⭐ Excelente</option>
@@ -666,7 +680,7 @@ export default function ProductoDetalle() {
               </div>
             </div>
 
-            <label style={{ display: "block", fontWeight: "600", color: "#2D3E2B", marginBottom: "8px", fontSize: "13px" }}>
+            <label style={{ display: "block", fontWeight: "600", color: "#2C3E50", marginBottom: "8px", fontSize: "13px", fontFamily: "'Inter', sans-serif" }}>
               Tu comentario
             </label>
             <textarea
@@ -678,10 +692,11 @@ export default function ProductoDetalle() {
                 height: "100px",
                 padding: "14px",
                 borderRadius: "10px",
-                border: "2px solid #ECF2E3",
+                border: "2px solid #e5e7eb",
                 fontSize: "13px",
-                fontFamily: "inherit",
-                resize: "none"
+                fontFamily: "'Inter', sans-serif",
+                resize: "none",
+                color: "#2C3E50"
               }}
             />
 
@@ -690,14 +705,25 @@ export default function ProductoDetalle() {
               style={{
                 marginTop: "14px",
                 padding: "12px 28px",
-                background: "#5A8F48",
+                background: "#FF6B35",
                 color: "white",
                 border: "none",
                 borderRadius: "10px",
                 fontWeight: "700",
                 cursor: "pointer",
                 fontSize: "14px",
-                transition: "all 0.3s ease"
+                transition: "all 0.3s ease",
+                fontFamily: "'Inter', sans-serif"
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = "translateY(-2px)";
+                e.target.style.boxShadow = "0 8px 20px rgba(255, 107, 53, 0.3)";
+                e.target.style.background = "#FF8E53";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = "translateY(0)";
+                e.target.style.boxShadow = "none";
+                e.target.style.background = "#FF6B35";
               }}
             >
               Enviar Reseña
@@ -709,21 +735,21 @@ export default function ProductoDetalle() {
       {/* Modales */}
       {showEnvio && (
         <Modal close={() => setShowEnvio(false)} title="📦 Política de Envío">
-          <p>✓ Envío dentro de 24-48 horas</p>
-          <p>✓ Entregas dentro de la ciudad</p>
-          <p>✓ Producto fresco garantizado</p>
+          <p style={{ color: "#10B981", fontFamily: "'Inter', sans-serif" }}>✓ Envío dentro de 24-48 horas</p>
+          <p style={{ color: "#10B981", fontFamily: "'Inter', sans-serif" }}>✓ Entregas dentro de la ciudad</p>
+          <p style={{ color: "#10B981", fontFamily: "'Inter', sans-serif" }}>✓ Producto fresco garantizado</p>
         </Modal>
       )}
 
       {showReembolso && (
         <Modal close={() => setShowReembolso(false)} title="💵 Política de Reembolso">
-          <p>✓ Reembolso hasta 48h tras entrega</p>
-          <p>✓ Requiere evidencia</p>
-          <p>✗ No cubre daño por mal uso</p>
+          <p style={{ color: "#10B981", fontFamily: "'Inter', sans-serif" }}>✓ Reembolso hasta 48h tras entrega</p>
+          <p style={{ color: "#10B981", fontFamily: "'Inter', sans-serif" }}>✓ Requiere evidencia</p>
+          <p style={{ color: "#EF4444", fontFamily: "'Inter', sans-serif" }}>✗ No cubre daño por mal uso</p>
         </Modal>
       )}
 
-      {/* ✅ CAMBIO 4: Chat flotante tipo Facebook Messenger */}
+      {/* Chat flotante tipo Facebook Messenger */}
       {mostrarChat && (
         <ChatVendedor
           vendedor={{
@@ -765,13 +791,13 @@ function Modal({ title, children, close }) {
         <h2 style={{
           fontSize: "20px",
           fontWeight: "700",
-          color: "#2D3E2B",
+          color: "#FF6B35",
           margin: "0 0 16px 0",
           fontFamily: "'Playfair Display', serif"
         }}>
           {title}
         </h2>
-        <div style={{ color: "#6B7F69", lineHeight: "1.8", marginBottom: "20px", fontSize: "14px" }}>
+        <div style={{ color: "#64748b", lineHeight: "1.8", marginBottom: "20px", fontSize: "14px", fontFamily: "'Inter', sans-serif" }}>
           {children}
         </div>
         <button
@@ -779,13 +805,23 @@ function Modal({ title, children, close }) {
           style={{
             width: "100%",
             padding: "10px",
-            background: "#5A8F48",
+            background: "#FF6B35",
             color: "white",
             border: "none",
             borderRadius: "10px",
             fontWeight: "700",
             cursor: "pointer",
-            fontSize: "14px"
+            fontSize: "14px",
+            fontFamily: "'Inter', sans-serif",
+            transition: "all 0.3s ease"
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.background = "#FF8E53";
+            e.target.style.transform = "translateY(-2px)";
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.background = "#FF6B35";
+            e.target.style.transform = "translateY(0)";
           }}
         >
           Cerrar ✖
