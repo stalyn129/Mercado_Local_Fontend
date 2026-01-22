@@ -70,9 +70,9 @@ export default function Home() {
 
   // HERO SECTION MÁS COMPACTO
   const heroStyle = {
-    padding: "40px 20px 50px", // REDUCIDO: antes era 60px 20px 80px
+    padding: "40px 20px 50px",
     position: "relative",
-    minHeight: "50vh", // REDUCIDO: antes era 65vh
+    minHeight: "50vh",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -89,10 +89,10 @@ export default function Home() {
     bottom: "0",
     display: "grid",
     gridTemplateColumns: "repeat(6, 1fr)",
-    gap: "0.6rem", // REDUCIDO
-    padding: "1rem", // REDUCIDO
-    opacity: "0.15", // REDUCIDO
-    transform: `translateY(${scrollY * 0.15}px) scale(1.03)`, // REDUCIDO
+    gap: "0.6rem",
+    padding: "1rem",
+    opacity: "0.15",
+    transform: `translateY(${scrollY * 0.15}px) scale(1.03)`,
     transition: "transform 0.1s ease-out",
     zIndex: "1",
   };
@@ -104,8 +104,8 @@ export default function Home() {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: "1rem", // REDUCIDO: antes era 1.5rem
-    maxWidth: "750px", // REDUCIDO: antes era 800px
+    gap: "1rem",
+    maxWidth: "750px",
     width: "100%",
     animation: "fadeInUp 0.8s ease-out 0.2s both",
   };
@@ -115,13 +115,13 @@ export default function Home() {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: "0.4rem", // REDUCIDO
-    marginBottom: "0.3rem", // REDUCIDO
+    gap: "0.4rem",
+    marginBottom: "0.3rem",
   };
 
   const mainTitleStyle = {
     fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-    fontSize: "2.8rem", // REDUCIDO: antes era 3.2rem
+    fontSize: "2.8rem",
     fontWeight: "900",
     background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 25%, #2ECC71 50%, #3498DB 75%, #9B59B6 100%)",
     backgroundSize: "300% 300%",
@@ -129,49 +129,49 @@ export default function Home() {
     WebkitTextFillColor: "transparent",
     backgroundClip: "text",
     margin: "0",
-    letterSpacing: "-0.8px", // REDUCIDO
+    letterSpacing: "-0.8px",
     lineHeight: "1",
     animation: "gradientShift 8s ease infinite",
   };
 
   const subtitleStyle = {
     fontFamily: "'Inter', sans-serif",
-    fontSize: "1.2rem", // REDUCIDO: antes era 1.4rem
+    fontSize: "1.2rem",
     color: "#64748B",
     fontWeight: "400",
-    marginBottom: "0.3rem", // REDUCIDO
-    maxWidth: "550px", // REDUCIDO
-    lineHeight: "1.4", // REDUCIDO
+    marginBottom: "0.3rem",
+    maxWidth: "550px",
+    lineHeight: "1.4",
   };
 
   const marketLocalStyle = {
     fontFamily: "'Inter', sans-serif",
-    fontSize: "1rem", // REDUCIDO
+    fontSize: "1rem",
     color: "#FF6B35",
     fontWeight: "700",
     backgroundColor: "rgba(255, 107, 53, 0.1)",
-    padding: "5px 14px", // REDUCIDO
-    borderRadius: "18px", // REDUCIDO
+    padding: "5px 14px",
+    borderRadius: "18px",
     display: "inline-block",
-    marginBottom: "0.3rem", // REDUCIDO
-    letterSpacing: "0.4px", // REDUCIDO
+    marginBottom: "0.3rem",
+    letterSpacing: "0.4px",
   };
 
   // Contenedor de texto balanceado - REDUCIDO
   const textContainerStyle = {
     display: "flex",
     flexDirection: "column",
-    gap: "0.5rem", // REDUCIDO
-    maxWidth: "600px", // REDUCIDO
-    marginBottom: "1rem", // REDUCIDO
+    gap: "0.5rem",
+    maxWidth: "600px",
+    marginBottom: "1rem",
   };
 
   // Badges en una línea con mejor diseño - REDUCIDOS
   const badgesStyle = {
     display: "flex",
     justifyContent: "center",
-    gap: "1rem", // REDUCIDO: antes era 1.5rem
-    marginBottom: "1.5rem", // REDUCIDO
+    gap: "1rem",
+    marginBottom: "1.5rem",
     flexWrap: "wrap",
   };
 
@@ -180,13 +180,13 @@ export default function Home() {
       ? "linear-gradient(135deg, #FF6B35, #FF8E53)" 
       : "rgba(255, 255, 255, 0.95)",
     color: index === activeBadge ? "white" : "#1E293B",
-    padding: "8px 16px", // REDUCIDO
-    borderRadius: "10px", // REDUCIDO
-    fontSize: "0.85rem", // REDUCIDO
+    padding: "8px 16px",
+    borderRadius: "10px",
+    fontSize: "0.85rem",
     fontWeight: "600",
     display: "flex",
     alignItems: "center",
-    gap: "6px", // REDUCIDO
+    gap: "6px",
     boxShadow: index === activeBadge 
       ? "0 4px 15px rgba(255, 107, 53, 0.3)" 
       : "0 3px 10px rgba(0, 0, 0, 0.1)",
@@ -201,22 +201,22 @@ export default function Home() {
     background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
     color: "white",
     border: "none",
-    padding: "14px 32px", // REDUCIDO
-    borderRadius: "14px", // REDUCIDO
+    padding: "14px 32px",
+    borderRadius: "14px",
     fontWeight: "700",
-    fontSize: "1.1rem", // REDUCIDO
+    fontSize: "1.1rem",
     cursor: "pointer",
     display: "flex",
     alignItems: "center",
-    gap: "10px", // REDUCIDO
+    gap: "10px",
     transition: "all 0.3s ease",
-    boxShadow: "0 6px 20px rgba(255, 107, 53, 0.4)", // REDUCIDO
+    boxShadow: "0 6px 20px rgba(255, 107, 53, 0.4)",
     animation: "pulse 2s infinite",
-    marginTop: "0.8rem", // REDUCIDO
+    marginTop: "0.8rem",
   };
 
   const gridContainerStyle = {
-    padding: "3rem 2rem 2.5rem", // REDUCIDO: antes era 4rem 2rem 3rem
+    padding: "3rem 2rem 2.5rem",
     maxWidth: "1400px",
     margin: "0 auto",
     flex: "1",
@@ -226,11 +226,11 @@ export default function Home() {
 
   const gridTitleStyle = {
     fontFamily: "'Inter', sans-serif",
-    fontSize: "2rem", // REDUCIDO: antes era 2.2rem
+    fontSize: "2rem",
     fontWeight: "800",
     color: "#1E293B",
     textAlign: "center",
-    margin: "0 0 0.4rem 0", // REDUCIDO
+    margin: "0 0 0.4rem 0",
     background: "linear-gradient(90deg, #FF6B35, #2ECC71)",
     WebkitBackgroundClip: "text",
     WebkitTextFillColor: "transparent",
@@ -238,12 +238,12 @@ export default function Home() {
 
   const gridSubtitleStyle = {
     fontFamily: "'Inter', sans-serif",
-    fontSize: "0.95rem", // REDUCIDO
+    fontSize: "0.95rem",
     color: "#64748B",
     textAlign: "center",
-    marginBottom: "2.5rem", // REDUCIDO: antes era 3rem
+    marginBottom: "2.5rem",
     fontWeight: "400",
-    maxWidth: "550px", // REDUCIDO
+    maxWidth: "550px",
     marginLeft: "auto",
     marginRight: "auto",
   };
@@ -252,7 +252,7 @@ export default function Home() {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
     gridAutoRows: "auto",
-    gap: "1.8rem", // REDUCIDO: antes era 2rem
+    gap: "1.8rem",
     position: "relative",
   };
 
@@ -314,7 +314,7 @@ export default function Home() {
       display: "grid",
       gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
       gap: "1.8rem",
-      padding: "1.5rem 0", // REDUCIDO
+      padding: "1.5rem 0",
     }}>
       {[...Array(8)].map((_, i) => (
         <div key={i} style={{
@@ -407,7 +407,7 @@ export default function Home() {
             transform: translateY(0px);
           }
           50% {
-            transform: translateY(-6px); // REDUCIDO
+            transform: translateY(-6px);
           }
         }
 
@@ -426,7 +426,7 @@ export default function Home() {
             opacity: 1;
           }
           50% {
-            transform: scale(1.03); // REDUCIDO
+            transform: scale(1.03);
             opacity: 0.95;
           }
         }
@@ -436,7 +436,7 @@ export default function Home() {
             transform: translateY(0);
           }
           50% {
-            transform: translateY(-4px); // REDUCIDO
+            transform: translateY(-4px);
           }
         }
 
@@ -449,10 +449,39 @@ export default function Home() {
           }
         }
 
+        /* Animaciones para el modal */
+        @keyframes pulsePrice {
+          0%, 100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.02);
+          }
+        }
+
+        @keyframes modalShimmer {
+          0% {
+            left: -100%;
+          }
+          100% {
+            left: 100%;
+          }
+        }
+
+        /* Animaciones para los círculos decorativos */
+        @keyframes floatCircle {
+          0%, 100% {
+            transform: translateY(0) scale(1);
+          }
+          50% {
+            transform: translateY(-8px) scale(1.03);
+          }
+        }
+
         /* Efectos interactivos */
         .main-button:hover {
-          transform: translateY(-2px) scale(1.03); // REDUCIDO
-          box-shadow: 0 10px 25px rgba(255, 107, 53, 0.5) !important; // REDUCIDO
+          transform: translateY(-2px) scale(1.03);
+          box-shadow: 0 10px 25px rgba(255, 107, 53, 0.5) !important;
         }
 
         .grid-item:hover .grid-image {
@@ -470,7 +499,7 @@ export default function Home() {
 
         .badge:hover {
           transform: translateY(-2px) scale(1.05);
-          box-shadow: 0 6px 15px rgba(255, 107, 53, 0.4) !important; // REDUCIDO
+          boxShadow: 0 6px 15px rgba(255, 107, 53, 0.4) !important;
         }
 
         /* Scrollbar personalizada */
@@ -491,104 +520,104 @@ export default function Home() {
         /* Responsive Styles - ACTUALIZADO */
         @media (max-width: 1200px) {
           .hero-section {
-            padding: 35px 20px 45px !important; // REDUCIDO
-            min-height: 45vh !important; // REDUCIDO
+            padding: 35px 20px 45px !important;
+            min-height: 45vh !important;
           }
 
           .main-title {
-            font-size: 2.4rem !important; // REDUCIDO
+            font-size: 2.4rem !important;
           }
 
           .subtitle {
-            font-size: 1.1rem !important; // REDUCIDO
+            font-size: 1.1rem !important;
           }
 
           .grid-container {
-            padding: 2.5rem 2rem 2rem !important; // REDUCIDO
+            padding: 2.5rem 2rem 2rem !important;
           }
         }
 
         @media (max-width: 768px) {
           .hero-section {
-            padding: 30px 16px 40px !important; // REDUCIDO
-            min-height: 40vh !important; // REDUCIDO
+            padding: 30px 16px 40px !important;
+            min-height: 40vh !important;
           }
 
           .main-title {
-            font-size: 2rem !important; // REDUCIDO
+            font-size: 2rem !important;
           }
 
           .subtitle {
-            font-size: 1rem !important; // REDUCIDO
+            font-size: 1rem !important;
           }
 
           .market-local {
-            font-size: 0.9rem !important; // REDUCIDO
+            font-size: 0.9rem !important;
           }
 
           .hero-background {
             grid-template-columns: repeat(4, 1fr) !important;
-            gap: 0.5rem !important; // REDUCIDO
-            padding: 0.8rem !important; // REDUCIDO
-            opacity: 0.12 !important; // REDUCIDO
+            gap: 0.5rem !important;
+            padding: 0.8rem !important;
+            opacity: 0.12 !important;
           }
 
           .badges-container {
-            gap: 0.8rem !important; // REDUCIDO
+            gap: 0.8rem !important;
           }
 
           .badge {
-            padding: 6px 12px !important; // REDUCIDO
-            font-size: 0.8rem !important; // REDUCIDO
+            padding: 6px 12px !important;
+            font-size: 0.8rem !important;
           }
 
           .main-button {
-            padding: 12px 24px !important; // REDUCIDO
-            font-size: 1rem !important; // REDUCIDO
+            padding: 12px 24px !important;
+            font-size: 1rem !important;
           }
 
           .grid-container {
-            padding: 2rem 1.5rem 1.5rem !important; // REDUCIDO
+            padding: 2rem 1.5rem 1.5rem !important;
           }
 
           .grid-title {
-            font-size: 1.6rem !important; // REDUCIDO
+            font-size: 1.6rem !important;
           }
 
           .grid-subtitle {
-            font-size: 0.85rem !important; // REDUCIDO
-            margin-bottom: 2rem !important; // REDUCIDO
+            font-size: 0.85rem !important;
+            margin-bottom: 2rem !important;
           }
         }
 
         @media (max-width: 480px) {
           .hero-section {
-            padding: 25px 12px 35px !important; // REDUCIDO
-            min-height: 35vh !important; // REDUCIDO
+            padding: 25px 12px 35px !important;
+            min-height: 35vh !important;
           }
 
           .main-title {
-            font-size: 1.7rem !important; // REDUCIDO
+            font-size: 1.7rem !important;
           }
 
           .subtitle {
-            font-size: 0.9rem !important; // REDUCIDO
+            fontSize: 0.9rem !important;
           }
 
           .market-local {
-            font-size: 0.8rem !important; // REDUCIDO
+            font-size: 0.8rem !important;
           }
 
           .hero-background {
-            grid-template-columns: repeat(3, 1fr) !important;
-            gap: 0.3rem !important; // REDUCIDO
-            opacity: 0.1 !important; // REDUCIDO
+            grid-templateColumns: repeat(3, 1fr) !important;
+            gap: 0.3rem !important;
+            opacity: 0.1 !important;
           }
 
           .badges-container {
             flex-direction: column;
             align-items: center;
-            gap: 0.6rem !important; // REDUCIDO
+            gap: 0.6rem !important;
           }
 
           .badge {
@@ -599,21 +628,21 @@ export default function Home() {
           }
 
           .main-button {
-            padding: 10px 20px !important; // REDUCIDO
-            font-size: 0.95rem !important; // REDUCIDO
+            padding: 10px 20px !important;
+            fontSize: 0.95rem !important;
           }
 
           .grid-container {
-            padding: 1.5rem 1rem 1.5rem !important; // REDUCIDO
+            padding: 1.5rem 1rem 1.5rem !important;
           }
 
           .grid-title {
-            font-size: 1.4rem !important; // REDUCIDO
+            font-size: 1.4rem !important;
           }
 
           .grid-subtitle {
-            font-size: 0.8rem !important; // REDUCIDO
-            margin-bottom: 1.5rem !important; // REDUCIDO
+            fontSize: 0.8rem !important;
+            margin-bottom: 1.5rem !important;
           }
         }
       `}</style>
@@ -629,13 +658,13 @@ export default function Home() {
                 <div
                   key={`bg-${i}`}
                   style={{
-                    borderRadius: "8px", // REDUCIDO
+                    borderRadius: "8px",
                     overflow: "hidden",
-                    height: "90px", // REDUCIDO: antes era 120px
-                    boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)", // REDUCIDO
+                    height: "90px",
+                    boxShadow: "0 3px 8px rgba(0, 0, 0, 0.08)",
                     position: "relative",
-                    animation: `float ${3 + (i % 3)}s ease-in-out infinite`, // REDUCIDO
-                    animationDelay: `${i * 0.12}s`, // REDUCIDO
+                    animation: `float ${3 + (i % 3)}s ease-in-out infinite`,
+                    animationDelay: `${i * 0.12}s`,
                   }}
                 >
                   <img
@@ -645,7 +674,7 @@ export default function Home() {
                       width: "100%",
                       height: "100%",
                       objectFit: "cover",
-                      filter: "saturate(0.7) brightness(0.9)", // REDUCIDO
+                      filter: "saturate(0.7) brightness(0.9)",
                     }}
                   />
                 </div>
@@ -671,11 +700,11 @@ export default function Home() {
             {/* TEXTO DESCRIPTIVO - REDUCIDO */}
             <div style={textContainerStyle}>
               <p style={{
-                fontSize: "0.95rem", // REDUCIDO
+                fontSize: "0.95rem",
                 color: "#64748B",
-                lineHeight: "1.5", // REDUCIDO
-                marginBottom: "0.3rem", // REDUCIDO
-                maxWidth: "550px", // REDUCIDO
+                lineHeight: "1.5",
+                marginBottom: "0.3rem",
+                maxWidth: "550px",
               }}>
                 Descubre productos cultivados con pasión por agricultores locales. 
                 Frescura garantizada, calidad excepcional.
@@ -738,47 +767,15 @@ export default function Home() {
               Productos Destacados
             </h2>
             <div style={{
-              width: "50px", // REDUCIDO
-              height: "2.5px", // REDUCIDO
+              width: "50px",
+              height: "2.5px",
               background: "linear-gradient(90deg, #FF6B35, #2ECC71)",
-              margin: "0.6rem auto 0.8rem", // REDUCIDO
-              borderRadius: "1.5px", // REDUCIDO
+              margin: "0.6rem auto 0.8rem",
+              borderRadius: "1.5px",
             }}></div>
             <p style={gridSubtitleStyle} className="grid-subtitle">
               Selección premium de productos frescos directamente de nuestros agricultores locales
             </p>
-            
-            {/* BOTÓN PARA VER TODOS LOS PRODUCTOS */}
-            <button
-              onClick={irAExplorar}
-              style={{
-                background: "linear-gradient(135deg, #2ECC71 0%, #3498DB 100%)",
-                color: "white",
-                border: "none",
-                padding: "10px 28px", // REDUCIDO
-                borderRadius: "12px",
-                fontWeight: "700",
-                fontSize: "0.95rem", // REDUCIDO
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px", // REDUCIDO
-                transition: "all 0.3s ease",
-                boxShadow: "0 5px 15px rgba(46, 204, 113, 0.3)", // REDUCIDO
-                marginTop: "12px", // REDUCIDO
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = "translateY(-2px)";
-                e.target.style.boxShadow = "0 8px 20px rgba(46, 204, 113, 0.4)";
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = "translateY(0)";
-                e.target.style.boxShadow = "0 5px 15px rgba(46, 204, 113, 0.3)";
-              }}
-            >
-              <span>Ver todos los productos</span>
-              <span style={{ fontSize: "1.1rem" }}>📋</span>
-            </button>
           </div>
 
           {loading ? (
@@ -956,7 +953,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* MODAL DE PRODUCTO (igual que antes) */}
+      {/* MODAL DE PRODUCTO - MÁS COMPACTO Y ELEGANTE */}
       {selectedProduct && (
         <div style={{
           position: "fixed",
@@ -964,60 +961,102 @@ export default function Home() {
           left: 0,
           right: 0,
           bottom: 0,
-          background: "rgba(0, 0, 0, 0.85)",
+          background: "rgba(0, 0, 0, 0.92)",
           zIndex: 2000,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           padding: "20px",
           animation: "fadeIn 0.3s ease",
+          overflow: "hidden",
         }} onClick={() => setSelectedProduct(null)}>
-          {/* Modal content remains the same */}
+          
+          {/* Efectos de fondo sutiles */}
+          <div style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: `
+              radial-gradient(circle at 20% 30%, rgba(255, 107, 53, 0.12) 0%, transparent 40%),
+              radial-gradient(circle at 80% 70%, rgba(46, 204, 113, 0.12) 0%, transparent 40%)
+            `,
+            zIndex: -1,
+          }}></div>
+          
+          {/* Círculos decorativos sutiles */}
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={i}
+              style={{
+                position: "absolute",
+                width: `${Math.random() * 30 + 15}px`,
+                height: `${Math.random() * 30 + 15}px`,
+                background: `radial-gradient(circle, 
+                  rgba(${Math.random() > 0.5 ? '255, 107, 53' : '46, 204, 113'}, ${Math.random() * 0.08 + 0.05}), 
+                  transparent 70%)`,
+                borderRadius: "50%",
+                top: `${Math.random() * 100}%`,
+                left: `${Math.random() * 100}%`,
+                filter: "blur(4px)",
+                animation: `floatCircle ${Math.random() * 8 + 8}s ease-in-out infinite`,
+                animationDelay: `${Math.random() * 2}s`,
+                zIndex: -1,
+              }}
+            />
+          ))}
+
           <div
             style={{
               position: "relative",
-              maxWidth: "900px",
+              maxWidth: "850px", // Reducido de 1000px
               width: "100%",
-              maxHeight: "85vh",
-              borderRadius: "20px",
+              maxHeight: "85vh", // Reducido de 90vh
+              borderRadius: "24px",
               overflow: "hidden",
-              boxShadow: "0 25px 50px rgba(0, 0, 0, 0.5)",
+              boxShadow: `
+                0 20px 40px -12px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.05),
+                0 0 40px rgba(255, 107, 53, 0.2)
+              `,
               animation: "modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-              background: "white",
+              background: "linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)",
+              backdropFilter: "blur(8px)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
+
             {/* Botón cerrar */}
             <button
               style={{
                 position: "absolute",
                 top: "20px",
                 right: "20px",
-                background: "rgba(255, 255, 255, 0.95)",
+                background: "linear-gradient(135deg, rgba(255, 107, 53, 0.95), rgba(255, 142, 83, 0.95))",
                 border: "none",
                 width: "40px",
                 height: "40px",
                 borderRadius: "50%",
-                fontSize: "1.5rem",
+                fontSize: "1.4rem",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 transition: "all 0.3s ease",
-                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+                boxShadow: "0 6px 16px rgba(255, 107, 53, 0.4)",
                 zIndex: 2001,
                 fontWeight: "bold",
-                color: "#1E293B",
+                color: "white",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#FF6B35";
-                e.currentTarget.style.color = "white";
-                e.currentTarget.style.transform = "scale(1.1)";
+                e.currentTarget.style.transform = "scale(1.12) rotate(90deg)";
+                e.currentTarget.style.boxShadow = "0 8px 22px rgba(255, 107, 53, 0.6)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.95)";
-                e.currentTarget.style.color = "#1E293B";
-                e.currentTarget.style.transform = "scale(1)";
+                e.currentTarget.style.transform = "scale(1) rotate(0deg)";
+                e.currentTarget.style.boxShadow = "0 6px 16px rgba(255, 107, 53, 0.4)";
               }}
               onClick={() => setSelectedProduct(null)}
             >
@@ -1031,141 +1070,299 @@ export default function Home() {
               height: "100%",
               flexDirection: window.innerWidth <= 768 ? "column" : "row",
             }}>
-              {/* Sección de imagen */}
+              
+              {/* Sección de imagen - más compacta pero elegante */}
               <div style={{
-                flex: "1",
-                background: "#F8FAFC",
+                flex: "1", // Proporción balanceada
+                background: "linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "30px",
-                minHeight: "300px",
+                padding: "35px 30px", // Reducido
+                position: "relative",
+                overflow: "hidden",
+                minHeight: "350px", // Reducido
               }}>
-                <img
-                  src={selectedProduct.imagenProducto}
-                  alt={selectedProduct.nombreProducto}
-                  style={{
-                    maxWidth: "100%",
-                    maxHeight: "100%",
-                    objectFit: "contain",
-                    borderRadius: "12px",
-                    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.1)",
-                  }}
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = "https://via.placeholder.com/500x400/F8FAFC/64748B?text=Imagen+No+Disponible";
-                  }}
-                />
+                {/* Fondo sutil */}
+                <div style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: `
+                    radial-gradient(circle at 10% 20%, rgba(255, 107, 53, 0.05) 0%, transparent 40%),
+                    radial-gradient(circle at 90% 80%, rgba(46, 204, 113, 0.05) 0%, transparent 40%)
+                  `,
+                  zIndex: 0,
+                }}></div>
+                
+                {/* Contenedor de imagen */}
+                <div style={{
+                  position: "relative",
+                  zIndex: 2,
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: "16px",
+                  overflow: "hidden",
+                  background: "rgba(255, 255, 255, 0.9)",
+                  boxShadow: `
+                    inset 0 0 20px rgba(255, 255, 255, 0.8),
+                    0 6px 24px rgba(0, 0, 0, 0.1)
+                  `,
+                  padding: "15px",
+                }}>
+                  {/* Imagen principal */}
+                  <img
+                    src={selectedProduct.imagenProducto}
+                    alt={selectedProduct.nombreProducto}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      borderRadius: "10px",
+                      boxShadow: `
+                        0 10px 30px rgba(0, 0, 0, 0.15),
+                        0 4px 16px rgba(255, 107, 53, 0.12),
+                        inset 0 0 0 1px rgba(255, 255, 255, 0.5)
+                      `,
+                      transition: "transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                      transform: "scale(0.96)",
+                    }}
+                    onLoad={(e) => {
+                      e.target.style.transform = "scale(1)";
+                    }}
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "https://via.placeholder.com/500x400/F8FAFC/64748B?text=Producto+Fresco";
+                      e.target.style.transform = "scale(1)";
+                    }}
+                  />
+                </div>
+                
+                {/* Badge de stock - más compacto */}
+                <div style={{
+                  position: "absolute",
+                  top: "20px",
+                  left: "20px",
+                  background: "linear-gradient(135deg, #FF4444, #FF6B35)",
+                  color: "white",
+                  padding: "8px 14px",
+                  borderRadius: "8px",
+                  fontSize: "0.9rem",
+                  fontWeight: "700",
+                  boxShadow: "0 4px 16px rgba(255, 68, 68, 0.25)",
+                  zIndex: 3,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: "85px",
+                  height: "36px",
+                  animation: "pulse 2s infinite",
+                  border: "1px solid rgba(255, 255, 255, 0.3)",
+                  textShadow: "0 1px 2px rgba(0, 0, 0, 0.2)",
+                }}>
+                  {selectedProduct.stockProducto > 0 ? (
+                    `${selectedProduct.stockProducto} disponibles`
+                  ) : (
+                    "Agotado"
+                  )}
+                </div>
               </div>
               
-              {/* Sección de información */}
+              {/* Sección de información - más compacta */}
               <div style={{
                 flex: "1",
-                padding: "30px",
+                padding: "35px 30px",
                 display: "flex",
                 flexDirection: "column",
                 overflowY: "auto",
                 maxHeight: "85vh",
+                background: "rgba(255, 255, 255, 0.97)",
+                borderLeft: window.innerWidth > 768 ? "1px solid rgba(226, 232, 240, 0.3)" : "none",
+                borderTop: window.innerWidth <= 768 ? "1px solid rgba(226, 232, 240, 0.3)" : "none",
               }}>
                 <div>
+                  {/* Nombre del producto */}
                   <h2 style={{
-                    fontSize: "1.8rem",
-                    fontWeight: "800",
+                    fontSize: "1.8rem", // Reducido
+                    fontWeight: "900",
                     color: "#1E293B",
-                    marginBottom: "10px",
+                    marginBottom: "6px",
                     lineHeight: "1.2",
+                    letterSpacing: "-0.3px",
+                    background: "linear-gradient(90deg, #FF6B35, #2ECC71)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
                   }}>
                     {selectedProduct.nombreProducto}
                   </h2>
                   
+                  {/* Precio */}
                   <div style={{
+                    fontSize: "2.2rem", // Reducido
+                    fontWeight: "900",
+                    color: "#FF6B35",
+                    textShadow: "0 2px 8px rgba(255, 107, 53, 0.2)",
+                    animation: "pulsePrice 3s infinite",
+                    marginBottom: "12px",
                     display: "flex",
                     alignItems: "center",
-                    gap: "10px",
-                    marginBottom: "15px",
-                    flexWrap: "wrap",
+                    gap: "6px",
                   }}>
-                    <div style={{
-                      fontSize: "2rem",
-                      fontWeight: "900",
-                      color: "#FF6B35",
-                    }}>
-                      ${parseFloat(selectedProduct.precioProducto).toFixed(2)}
-                    </div>
-                    <div style={{
-                      padding: "4px 10px",
-                      backgroundColor: selectedProduct.stockProducto > 0 ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
-                      borderRadius: "8px",
-                      color: selectedProduct.stockProducto > 0 ? "#10B981" : "#EF4444",
-                      fontWeight: "600",
-                      fontSize: "0.9rem",
-                    }}>
-                      {selectedProduct.stockProducto > 0 ? `${selectedProduct.stockProducto} disponibles` : "Agotado"}
-                    </div>
+                    <span style={{ fontSize: "1.6rem", opacity: 0.8 }}>$</span>
+                    {parseFloat(selectedProduct.precioProducto).toFixed(2)}
                   </div>
                   
+                  {/* Unidades disponibles */}
                   <div style={{
-                    marginBottom: "20px",
-                    paddingBottom: "15px",
-                    borderBottom: "1px solid #E2E8F0",
+                    fontSize: "0.95rem",
+                    color: selectedProduct.stockProducto > 0 ? "#10B981" : "#EF4444",
+                    fontWeight: "600",
+                    marginBottom: "22px",
+                    backgroundColor: selectedProduct.stockProducto > 0 
+                      ? "rgba(16, 185, 129, 0.1)" 
+                      : "rgba(239, 68, 68, 0.1)",
+                    padding: "8px 16px",
+                    borderRadius: "10px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    border: selectedProduct.stockProducto > 0 
+                      ? "1px solid rgba(16, 185, 129, 0.2)" 
+                      : "1px solid rgba(239, 68, 68, 0.2)",
+                  }}>
+                    <span style={{ fontSize: "1.1rem" }}>
+                      {selectedProduct.stockProducto > 0 ? "📦" : "❌"}
+                    </span>
+                    <span>
+                      {selectedProduct.stockProducto > 0 
+                        ? `${selectedProduct.stockProducto} unidades disponibles`
+                        : "Producto agotado"}
+                    </span>
+                  </div>
+                  
+                  {/* Descripción del producto */}
+                  <div style={{
+                    marginBottom: "25px",
+                    paddingBottom: "20px",
+                    borderBottom: "1px solid rgba(226, 232, 240, 0.4)",
                   }}>
                     <h3 style={{
-                      fontSize: "1rem",
+                      fontSize: "1.1rem", // Reducido
                       fontWeight: "700",
                       color: "#1E293B",
-                      marginBottom: "8px",
+                      marginBottom: "12px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
                     }}>
-                      Descripción
+                      <span style={{
+                        background: "linear-gradient(135deg, #3498DB, #9B59B6)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        fontSize: "1.2rem",
+                      }}>📋</span>
+                      Descripción del Producto
                     </h3>
                     <p style={{
-                      fontSize: "0.95rem",
+                      fontSize: "0.95rem", // Reducido
                       color: "#64748B",
                       lineHeight: "1.6",
+                      paddingLeft: "30px",
                     }}>
-                      {selectedProduct.descripcionProducto || "Producto fresco de calidad local."}
+                      {selectedProduct.descripcionProducto || "Producto fresco de calidad local, cultivado con técnicas sostenibles y respetuosas con el medio ambiente."}
                     </p>
                   </div>
                   
+                  {/* Información adicional */}
                   <div style={{
                     display: "grid",
                     gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-                    gap: "12px",
+                    gap: "15px",
                     marginBottom: "25px",
                   }}>
                     {selectedProduct.nombreVendedor && (
                       <div style={{
-                        background: "rgba(241, 245, 249, 0.5)",
-                        padding: "12px",
-                        borderRadius: "10px",
+                        background: "rgba(248, 250, 252, 0.8)",
+                        padding: "16px",
+                        borderRadius: "14px",
+                        border: "1px solid rgba(226, 232, 240, 0.4)",
+                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+                        transition: "all 0.3s ease",
+                      }} onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateY(-3px)";
+                        e.currentTarget.style.boxShadow = "0 8px 20px rgba(0, 0, 0, 0.08)";
+                      }} onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.05)";
                       }}>
-                        <div style={{ color: "#64748B", fontSize: "0.85rem", marginBottom: "4px" }}>Vendedor</div>
-                        <div style={{ fontWeight: "600", color: "#1E293B" }}>{selectedProduct.nombreVendedor}</div>
+                        <div style={{ 
+                          color: "#64748B", 
+                          fontSize: "0.85rem", 
+                          marginBottom: "6px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}>
+                          <span style={{ fontSize: "1rem" }}>👨‍🌾</span>
+                          Agricultor
+                        </div>
+                        <div style={{ fontWeight: "700", color: "#1E293B", fontSize: "1rem" }}>
+                          {selectedProduct.nombreVendedor}
+                        </div>
                       </div>
                     )}
+                    
                     {selectedProduct.nombreCategoria && (
                       <div style={{
-                        background: "rgba(241, 245, 249, 0.5)",
-                        padding: "12px",
-                        borderRadius: "10px",
+                        background: "rgba(248, 250, 252, 0.8)",
+                        padding: "16px",
+                        borderRadius: "14px",
+                        border: "1px solid rgba(226, 232, 240, 0.4)",
+                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+                        transition: "all 0.3s ease",
+                      }} onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateY(-3px)";
+                        e.currentTarget.style.boxShadow = "0 8px 20px rgba(0, 0, 0, 0.08)";
+                      }} onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.05)";
                       }}>
-                        <div style={{ color: "#64748B", fontSize: "0.85rem", marginBottom: "4px" }}>Categoría</div>
-                        <div style={{ fontWeight: "600", color: "#1E293B" }}>{selectedProduct.nombreCategoria}</div>
+                        <div style={{ 
+                          color: "#64748B", 
+                          fontSize: "0.85rem", 
+                          marginBottom: "6px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}>
+                          <span style={{ fontSize: "1rem" }}>🏷️</span>
+                          Categoría
+                        </div>
+                        <div style={{ fontWeight: "700", color: "#1E293B", fontSize: "1rem" }}>
+                          {selectedProduct.nombreCategoria}
+                        </div>
                       </div>
                     )}
                   </div>
                 </div>
                 
-                {/* BOTÓN NARANJA "VER DETALLES COMPLETOS" */}
+                {/* BOTÓN "VER DETALLES COMPLETOS" - más compacto */}
                 <button
                   style={{
                     width: "100%",
                     background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
                     color: "white",
-                    padding: "14px 24px",
+                    padding: "16px 28px",
                     fontWeight: "700",
-                    borderRadius: "12px",
+                    borderRadius: "14px",
                     border: "none",
-                    cursor: "pointer",
+                    cursor: selectedProduct.stockProducto > 0 ? "pointer" : "not-allowed",
                     fontSize: "1rem",
                     display: "flex",
                     alignItems: "center",
@@ -1174,22 +1371,79 @@ export default function Home() {
                     boxShadow: "0 8px 20px rgba(255, 107, 53, 0.3)",
                     transition: "all 0.3s ease",
                     marginTop: "auto",
+                    opacity: selectedProduct.stockProducto > 0 ? 1 : 0.6,
+                    position: "relative",
+                    overflow: "hidden",
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.transform = "translateY(-2px)";
-                    e.target.style.boxShadow = "0 12px 24px rgba(255, 107, 53, 0.4)";
+                    if (selectedProduct.stockProducto > 0) {
+                      e.target.style.transform = "translateY(-3px)";
+                      e.target.style.boxShadow = "0 12px 28px rgba(255, 107, 53, 0.4)";
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    e.target.style.transform = "translateY(0)";
-                    e.target.style.boxShadow = "0 8px 20px rgba(255, 107, 53, 0.3)";
+                    if (selectedProduct.stockProducto > 0) {
+                      e.target.style.transform = "translateY(0)";
+                      e.target.style.boxShadow = "0 8px 20px rgba(255, 107, 53, 0.3)";
+                    }
                   }}
                   onClick={() => {
-                    window.location.href = `/producto/${selectedProduct.idProducto}`;
+                    if (selectedProduct.stockProducto > 0) {
+                      window.location.href = `/producto/${selectedProduct.idProducto}`;
+                    }
                   }}
                 >
-                  <span style={{ fontSize: "1.2rem" }}>📋</span>
-                  <span>Ver Detalles Completos</span>
+                  {/* Efecto de brillo sutil */}
+                  <div style={{
+                    position: "absolute",
+                    top: 0,
+                    left: "-100%",
+                    width: "100%",
+                    height: "100%",
+                    background: "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent)",
+                    animation: "modalShimmer 3s infinite",
+                  }}></div>
+                  
+                  <span style={{ zIndex: 1 }}>
+                    {selectedProduct.stockProducto > 0 ? "Ver Detalles Completos" : "Producto Agotado"}
+                  </span>
+                  <span style={{ fontSize: "1.2rem", zIndex: 1, opacity: 0.9 }}>→</span>
                 </button>
+                
+                {/* Nota adicional - más compacta */}
+                <p style={{
+                  fontSize: "0.75rem",
+                  color: "#94A3B8",
+                  textAlign: "center",
+                  marginTop: "15px",
+                  fontStyle: "italic",
+                  lineHeight: "1.4",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                }}>
+                  <span style={{ 
+                    color: "#10B981", 
+                    fontWeight: "600",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}>
+                    <span>🚚</span> Envío en 24-48h
+                  </span>
+                  <span style={{ color: "#64748B" }}>•</span>
+                  <span style={{ 
+                    color: "#3B82F6", 
+                    fontWeight: "600",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}>
+                    <span>💯</span> Calidad garantizada
+                  </span>
+                </p>
               </div>
             </div>
           </div>

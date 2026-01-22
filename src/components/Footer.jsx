@@ -1,66 +1,173 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 const Footer = () => {
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-
-  useEffect(() => {
-    setCurrentYear(new Date().getFullYear());
-  }, []);
+  const [currentYear] = useState(new Date().getFullYear());
 
   const styles = {
-    footerContainer: {
-      background: 'linear-gradient(135deg, #3a5a40 0%, #2d4730 100%)',
-      padding: '2.5rem 2rem',
-      fontFamily: "'Comfortaa', sans-serif",
-      color: '#fff',
-      marginTop: '4rem',
-    },
     footerWrapper: {
-      maxWidth: '1400px',
+      position: 'relative',
+      backgroundColor: '#FFFAF6',
+      borderTop: '1px solid rgba(255, 107, 53, 0.12)',
+      overflow: 'hidden',
+    },
+    decorativeLeft: {
+      position: 'absolute',
+      left: '-80px',
+      bottom: '-80px',
+      width: '200px',
+      height: '200px',
+      borderRadius: '50%',
+      border: '2px solid rgba(255, 107, 53, 0.08)',
+      backgroundColor: 'rgba(255, 245, 237, 0.3)',
+    },
+    decorativeRight: {
+      position: 'absolute',
+      right: '-100px',
+      top: '-100px',
+      width: '250px',
+      height: '250px',
+      borderRadius: '50%',
+      border: '2px solid rgba(255, 107, 53, 0.08)',
+      backgroundColor: 'rgba(255, 245, 237, 0.3)',
+    },
+    iconDecor1: {
+      position: 'absolute',
+      left: '5%',
+      top: '20%',
+      fontSize: '2rem',
+      opacity: '0.06',
+      transform: 'rotate(-15deg)',
+    },
+    iconDecor2: {
+      position: 'absolute',
+      right: '8%',
+      top: '40%',
+      fontSize: '2.5rem',
+      opacity: '0.06',
+      transform: 'rotate(20deg)',
+    },
+    iconDecor3: {
+      position: 'absolute',
+      left: '10%',
+      bottom: '15%',
+      fontSize: '1.8rem',
+      opacity: '0.06',
+      transform: 'rotate(10deg)',
+    },
+    iconDecor4: {
+      position: 'absolute',
+      right: '12%',
+      bottom: '25%',
+      fontSize: '2.2rem',
+      opacity: '0.06',
+      transform: 'rotate(-25deg)',
+    },
+    footerContainer: {
+      position: 'relative',
+      zIndex: 1,
+      padding: '1.2rem 1rem 0.7rem',
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      width: '100%',
+      boxSizing: 'border-box',
+    },
+    footerContent: {
+      maxWidth: '1140px',
       margin: '0 auto',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.8rem',
+    },
+    topSection: {
       display: 'grid',
-      gridTemplateColumns: '2fr 3fr 1.5fr',
-      gap: '3rem',
+      gridTemplateColumns: '1.5fr 0.8fr 0.7fr 0.8fr',
+      gap: '1.5rem',
       alignItems: 'start',
     },
     brandSection: {
       display: 'flex',
       flexDirection: 'column',
-      gap: '0.8rem',
+      gap: '0.5rem',
+    },
+    brandHeader: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.35rem',
+    },
+    brandLogo: {
+      fontSize: '0.95rem',
     },
     brandName: {
-      fontFamily: "'Playfair Display', serif",
-      fontSize: '1.3rem',
+      fontSize: '0.9rem',
       fontWeight: '700',
-      color: '#f4e8c1',
+      color: '#FF6B35',
       margin: '0',
-      letterSpacing: '-0.5px',
     },
     brandDesc: {
-      fontSize: '0.85rem',
-      color: 'rgba(255, 255, 255, 0.8)',
-      margin: '0',
-      lineHeight: '1.5',
-      maxWidth: '280px',
+      fontSize: '0.75rem',
+      color: '#666',
+      lineHeight: '1.35',
+      margin: '0 0 0.4rem 0',
+      maxWidth: '240px',
     },
-    linksGrid: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: '2.5rem',
+    socialContainer: {
+      marginBottom: '0.4rem',
+    },
+    socialLabel: {
+      fontSize: '0.65rem',
+      fontWeight: '600',
+      color: '#555',
+      margin: '0 0 0.3rem 0',
+      textTransform: 'uppercase',
+      letterSpacing: '0.4px',
+    },
+    socialIcons: {
+      display: 'flex',
+      gap: '0.3rem',
+    },
+    socialIcon: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '28px',
+      height: '28px',
+      borderRadius: '6px',
+      backgroundColor: '#FFF',
+      textDecoration: 'none',
+      fontSize: '0.85rem',
+      transition: 'all 0.2s ease',
+      border: '1px solid #FFE0D1',
+    },
+    downloadButton: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '0.35rem',
+      padding: '0.45rem 0.85rem',
+      backgroundColor: '#FF6B35',
+      border: 'none',
+      borderRadius: '6px',
+      textDecoration: 'none',
+      fontSize: '0.72rem',
+      color: '#FFF',
+      fontWeight: '600',
+      transition: 'all 0.2s ease',
+      alignSelf: 'flex-start',
+      boxShadow: '0 2px 6px rgba(255, 107, 53, 0.2)',
+    },
+    downloadIcon: {
+      fontSize: '0.85rem',
     },
     linkColumn: {
       display: 'flex',
       flexDirection: 'column',
-      gap: '0.9rem',
+      gap: '0.3rem',
     },
     columnTitle: {
-      fontFamily: "'Poppins', sans-serif",
-      fontSize: '0.9rem',
+      fontSize: '0.67rem',
       fontWeight: '700',
-      color: '#f4e8c1',
-      margin: '0',
+      color: '#444',
+      margin: '0 0 0.4rem 0',
       textTransform: 'uppercase',
-      letterSpacing: '1px',
+      letterSpacing: '0.4px',
     },
     linksList: {
       listStyle: 'none',
@@ -68,379 +175,182 @@ const Footer = () => {
       margin: '0',
       display: 'flex',
       flexDirection: 'column',
-      gap: '0.6rem',
+      gap: '0.25rem',
+    },
+    linkItem: {
+      margin: '0',
     },
     link: {
+      color: '#666',
       textDecoration: 'none',
-      color: 'rgba(255, 255, 255, 0.85)',
-      fontSize: '0.85rem',
-      transition: 'all 0.3s ease',
-      display: 'inline-block',
-      fontWeight: '500',
+      fontSize: '0.73rem',
+      fontWeight: '400',
+      transition: 'color 0.2s ease',
+      lineHeight: '1.3',
     },
-    socialSection: {
+    bottomSection: {
       display: 'flex',
-      flexDirection: 'column',
-      gap: '1.2rem',
-      alignItems: 'flex-end',
-    },
-    socialTitle: {
-      fontFamily: "'Poppins', sans-serif",
-      fontSize: '0.9rem',
-      fontWeight: '700',
-      color: '#f4e8c1',
-      margin: '0',
-      textTransform: 'uppercase',
-      letterSpacing: '1px',
-    },
-    socialLinks: {
-      display: 'flex',
-      gap: '0.7rem',
-      justifyContent: 'flex-end',
-    },
-    socialIcon: {
-      display: 'flex',
-      alignItems: 'center',
       justifyContent: 'center',
-      width: '36px',
-      height: '36px',
-      background: 'rgba(244, 232, 193, 0.15)',
-      border: '1px solid rgba(244, 232, 193, 0.3)',
-      borderRadius: '8px',
-      textDecoration: 'none',
-      color: '#f4e8c1',
-      fontSize: '0.95rem',
-      fontWeight: '700',
-      transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-      cursor: 'pointer',
-    },
-    divider: {
-      height: '1px',
-      background: 'rgba(244, 232, 193, 0.2)',
-      margin: '1.5rem 0',
-    },
-    footerBottom: {
-      display: 'flex',
-      justifyContent: 'space-between',
       alignItems: 'center',
-      flexWrap: 'wrap',
-      gap: '1.5rem',
+      paddingTop: '0.7rem',
+      marginTop: '0.6rem',
+      borderTop: '1px solid rgba(0, 0, 0, 0.06)',
+      fontSize: '0.7rem',
+      color: '#777',
     },
     copyright: {
-      fontSize: '0.8rem',
-      color: 'rgba(255, 255, 255, 0.7)',
       margin: '0',
-      fontWeight: '500',
-    },
-    bottomLinks: {
-      listStyle: 'none',
-      padding: '0',
-      margin: '0',
-      display: 'flex',
-      gap: '1.8rem',
-      flexWrap: 'wrap',
-      justifyContent: 'flex-end',
-    },
-    bottomLink: {
-      textDecoration: 'none',
-      color: 'rgba(255, 255, 255, 0.8)',
-      fontSize: '0.8rem',
-      transition: 'all 0.3s ease',
-      fontWeight: '500',
+      fontWeight: '400',
     },
   };
 
-  const keyframes = `
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
-    @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600&display=swap');
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap');
+  const socialLinks = [
+    { icon: '📷', label: 'Instagram' },
+    { icon: '💼', label: 'LinkedIn' },
+    { icon: '👍', label: 'Facebook' },
+  ];
 
-    @media (max-width: 1024px) {
-      .footer-wrapper {
-        grid-template-columns: 1fr 1fr !important;
-        gap: 2rem !important;
-      }
-
-      .social-section {
-        grid-column: 1 / -1 !important;
-        align-items: flex-start !important;
-      }
-    }
-
-    @media (max-width: 768px) {
-      .footer-container {
-        padding: 2rem 1.5rem !important;
-        margin-top: 2rem !important;
-      }
-
-      .footer-wrapper {
-        grid-template-columns: 1fr !important;
-        gap: 1.5rem !important;
-      }
-
-      .links-grid {
-        grid-template-columns: 1fr !important;
-      }
-
-      .social-section {
-        align-items: flex-start !important;
-      }
-
-      .social-links {
-        justify-content: flex-start !important;
-      }
-
-      .footer-bottom {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-      }
-
-      .bottom-links {
-        justify-content: flex-start !important;
-        gap: 1.2rem !important;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .footer-container {
-        padding: 1.5rem 1rem !important;
-        margin-top: 2rem !important;
-      }
-
-      .footer-wrapper {
-        gap: 1rem !important;
-      }
-
-      .column-title,
-      .social-title {
-        font-size: 0.8rem !important;
-      }
-
-      .links-grid {
-        gap: 1.5rem !important;
-      }
-    }
-  `;
+  const linkSections = [
+    {
+      title: 'ENLACES RÁPIDOS',
+      links: ['Explorar Productos'],
+    },
+    {
+      title: 'LEGAL',
+      links: ['Privacidad', 'Términos'],
+    },
+    {
+      title: 'SOPORTE',
+      links: ['Centro de Ayuda'],
+    },
+  ];
 
   return (
     <>
-      <style>{keyframes}</style>
-      <footer style={styles.footerContainer} className="footer-container">
-        <div style={styles.footerWrapper} className="footer-wrapper">
-          {/* Brand Section */}
-          <div style={styles.brandSection} className="brand-section">
-            <h3 style={styles.brandName} className="brand-name">
-              Mercado Local IA
-            </h3>
-            <p style={styles.brandDesc} className="brand-desc">
-              Conectando tu comunidad con productos de calidad, potenciados por inteligencia artificial.
-            </p>
-          </div>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        .social-link:hover {
+          background-color: #FF6B35;
+          border-color: #FF6B35;
+          transform: translateY(-1px);
+        }
+        
+        .link:hover {
+          color: #FF6B35;
+        }
+        
+        .download-button:hover {
+          background-color: #E85A29;
+          box-shadow: 0 3px 8px rgba(255, 107, 53, 0.3);
+        }
+        
+        @media (max-width: 768px) {
+          .top-section {
+            grid-template-columns: 1fr 1fr !important;
+            gap: 1.2rem !important;
+          }
+          
+          .brand-section {
+            grid-column: span 2 !important;
+          }
+          
+          .footer-container {
+            padding: 1rem 0.8rem 0.6rem !important;
+          }
+          
+          .icon-decor {
+            display: none !important;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .top-section {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
+          }
+          
+          .brand-section {
+            grid-column: span 1 !important;
+          }
+        }
+      `}</style>
+      
+      <footer style={styles.footerWrapper}>
+        {/* Elementos decorativos */}
+        <div style={styles.decorativeLeft}></div>
+        <div style={styles.decorativeRight}></div>
+        <div style={styles.iconDecor1} className="icon-decor">🥕</div>
+        <div style={styles.iconDecor2} className="icon-decor">🌽</div>
+        <div style={styles.iconDecor3} className="icon-decor">🥬</div>
+        <div style={styles.iconDecor4} className="icon-decor">🍅</div>
+        
+        <div style={styles.footerContainer} className="footer-container">
+          <div style={styles.footerContent}>
+            <div style={styles.topSection} className="top-section">
+              <div style={styles.brandSection} className="brand-section">
+                <div style={styles.brandHeader}>
+                  <span style={styles.brandLogo}>🌱</span>
+                  <h3 style={styles.brandName}>My Harvest</h3>
+                </div>
+                <p style={styles.brandDesc}>
+                  Conectando comunidades con productos frescos locales mediante IA
+                </p>
+                
+                <div style={styles.socialContainer}>
+                  <p style={styles.socialLabel}>Síguenos</p>
+                  <div style={styles.socialIcons}>
+                    {socialLinks.map((social) => (
+                      <a
+                        key={social.label}
+                        href={`#${social.label.toLowerCase()}`}
+                        style={styles.socialIcon}
+                        className="social-link"
+                        aria-label={social.label}
+                        title={social.label}
+                      >
+                        {social.icon}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+                
+                <a
+                  href="#download-app"
+                  style={styles.downloadButton}
+                  className="download-button"
+                >
+                  <span style={styles.downloadIcon}>📲</span>
+                  Descarga nuestra app
+                </a>
+              </div>
 
-          {/* Links Grid */}
-          <div style={styles.linksGrid} className="links-grid">
-            <div style={styles.linkColumn} className="link-column">
-              <p style={styles.columnTitle} className="column-title">Empresa</p>
-              <ul style={styles.linksList} className="links-list">
-                <li>
-                  <a 
-                    href="#about" 
-                    style={styles.link}
-                    className="link"
-                    onMouseEnter={(e) => e.target.style.color = '#f4e8c1'}
-                    onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.85)'}
-                  >
-                    Acerca de
-                  </a>
-                </li>
-                <li>
-                  <a 
-                    href="#blog" 
-                    style={styles.link}
-                    className="link"
-                    onMouseEnter={(e) => e.target.style.color = '#f4e8c1'}
-                    onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.85)'}
-                  >
-                    Blog
-                  </a>
-                </li>
-                <li>
-                  <a 
-                    href="#careers" 
-                    style={styles.link}
-                    className="link"
-                    onMouseEnter={(e) => e.target.style.color = '#f4e8c1'}
-                    onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.85)'}
-                  >
-                    Carreras
-                  </a>
-                </li>
-              </ul>
+              {linkSections.map((section, index) => (
+                <div key={index} style={styles.linkColumn}>
+                  <p style={styles.columnTitle}>{section.title}</p>
+                  <ul style={styles.linksList}>
+                    {section.links.map((link, linkIndex) => (
+                      <li key={linkIndex} style={styles.linkItem}>
+                        <a
+                          href={`#${link.toLowerCase().replace(' ', '-')}`}
+                          style={styles.link}
+                          className="link"
+                        >
+                          {link}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
 
-            <div style={styles.linkColumn} className="link-column">
-              <p style={styles.columnTitle} className="column-title">Legal</p>
-              <ul style={styles.linksList} className="links-list">
-                <li>
-                  <a 
-                    href="#privacy" 
-                    style={styles.link}
-                    className="link"
-                    onMouseEnter={(e) => e.target.style.color = '#f4e8c1'}
-                    onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.85)'}
-                  >
-                    Privacidad
-                  </a>
-                </li>
-                <li>
-                  <a 
-                    href="#terms" 
-                    style={styles.link}
-                    className="link"
-                    onMouseEnter={(e) => e.target.style.color = '#f4e8c1'}
-                    onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.85)'}
-                  >
-                    Términos
-                  </a>
-                </li>
-                <li>
-                  <a 
-                    href="#contact" 
-                    style={styles.link}
-                    className="link"
-                    onMouseEnter={(e) => e.target.style.color = '#f4e8c1'}
-                    onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.85)'}
-                  >
-                    Contacto
-                  </a>
-                </li>
-              </ul>
+            <div style={styles.bottomSection} className="bottom-section">
+              <p style={styles.copyright}>
+                © {currentYear} My Harvest. Todos los derechos reservados.
+              </p>
             </div>
           </div>
-
-          {/* Social Section */}
-          <div style={styles.socialSection} className="social-section">
-            <p style={styles.socialTitle} className="social-title">Síguenos</p>
-            <div style={styles.socialLinks} className="social-links">
-              <a
-                href="#facebook"
-                style={styles.socialIcon}
-                className="social-icon"
-                aria-label="Facebook"
-                title="Facebook"
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#f4e8c1';
-                  e.currentTarget.style.color = '#3a5a40';
-                  e.currentTarget.style.transform = 'translateY(-3px)';
-                  e.currentTarget.style.borderColor = '#f4e8c1';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(244, 232, 193, 0.15)';
-                  e.currentTarget.style.color = '#f4e8c1';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.borderColor = 'rgba(244, 232, 193, 0.3)';
-                }}
-              >
-                f
-              </a>
-              <a
-                href="#instagram"
-                style={styles.socialIcon}
-                className="social-icon"
-                aria-label="Instagram"
-                title="Instagram"
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#f4e8c1';
-                  e.currentTarget.style.color = '#3a5a40';
-                  e.currentTarget.style.transform = 'translateY(-3px)';
-                  e.currentTarget.style.borderColor = '#f4e8c1';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(244, 232, 193, 0.15)';
-                  e.currentTarget.style.color = '#f4e8c1';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.borderColor = 'rgba(244, 232, 193, 0.3)';
-                }}
-              >
-                ◉
-              </a>
-              <a
-                href="#twitter"
-                style={styles.socialIcon}
-                className="social-icon"
-                aria-label="Twitter"
-                title="Twitter"
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#f4e8c1';
-                  e.currentTarget.style.color = '#3a5a40';
-                  e.currentTarget.style.transform = 'translateY(-3px)';
-                  e.currentTarget.style.borderColor = '#f4e8c1';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(244, 232, 193, 0.15)';
-                  e.currentTarget.style.color = '#f4e8c1';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.borderColor = 'rgba(244, 232, 193, 0.3)';
-                }}
-              >
-                𝕏
-              </a>
-              <a
-                href="#linkedin"
-                style={styles.socialIcon}
-                className="social-icon"
-                aria-label="LinkedIn"
-                title="LinkedIn"
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#f4e8c1';
-                  e.currentTarget.style.color = '#3a5a40';
-                  e.currentTarget.style.transform = 'translateY(-3px)';
-                  e.currentTarget.style.borderColor = '#f4e8c1';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(244, 232, 193, 0.15)';
-                  e.currentTarget.style.color = '#f4e8c1';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.borderColor = 'rgba(244, 232, 193, 0.3)';
-                }}
-              >
-                in
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <div style={styles.divider} />
-
-        {/* Footer Bottom */}
-        <div style={styles.footerBottom} className="footer-bottom">
-          <p style={styles.copyright} className="copyright">
-            © {currentYear} Mercado Local IA. Todos los derechos reservados.
-          </p>
-          <ul style={styles.bottomLinks} className="bottom-links">
-            <li>
-              <a
-                href="#sitemap"
-                style={styles.bottomLink}
-                className="bottom-link"
-                onMouseEnter={(e) => e.target.style.color = '#f4e8c1'}
-                onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.8)'}
-              >
-                Mapa del Sitio
-              </a>
-            </li>
-            <li>
-              <a
-                href="#accessibility"
-                style={styles.bottomLink}
-                className="bottom-link"
-                onMouseEnter={(e) => e.target.style.color = '#f4e8c1'}
-                onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.8)'}
-              >
-                Accesibilidad
-              </a>
-            </li>
-          </ul>
         </div>
       </footer>
     </>

@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCarrito } from "../context/CarritoContext";
+import { useFavoritos } from "../context/FavoritosContext";
 import {
   obtenerNotificaciones,
   contarNotificaciones,
 } from "../services/notificacionService";
+
+// IMPORTAR EL LOGO CORRECTO
+import logoActual from "../assets/Logo.png";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -15,13 +19,65 @@ export default function Navbar() {
   const [notificaciones, setNotificaciones] = useState([]);
   const [totalNotificaciones, setTotalNotificaciones] = useState(0);
   const [showNotificaciones, setShowNotificaciones] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [isAtTop, setIsAtTop] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   const { carrito } = useCarrito();
+  const { favoritos, cargarFavoritos } = useFavoritos();
+  const navbarRef = useRef(null);
 
   // Calcular total del carrito
   const totalCarrito = carrito.reduce((acc, item) => acc + item.cantidad, 0);
 
+  // Efecto para controlar el comportamiento de scroll
+  useEffect(() => {
+    let scrollTimeout;
+    
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      const isTop = currentScrollY < 10;
+      const isScrollingDown = currentScrollY > lastScrollY;
+      const isScrollingUp = currentScrollY < lastScrollY;
+      
+      setIsAtTop(isTop);
+      
+      // Si está en el top, siempre mostrar
+      if (isTop) {
+        setIsVisible(true);
+      } 
+      // Si está haciendo scroll hacia abajo y NO está en el top, ocultar
+      else if (isScrollingDown && currentScrollY > 100) {
+        setIsVisible(false);
+      }
+      // Si está haciendo scroll hacia arriba, mostrar
+      else if (isScrollingUp) {
+        setIsVisible(true);
+      }
+      
+      setLastScrollY(currentScrollY);
+      
+      // Limpiar timeout anterior
+      clearTimeout(scrollTimeout);
+      
+      // Si dejó de hacer scroll, mostrar navbar después de 300ms
+      scrollTimeout = setTimeout(() => {
+        if (!isTop) {
+          setIsVisible(true);
+        }
+      }, 300);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, [lastScrollY]);
+
+  // Efecto para cargar usuario
   useEffect(() => {
     const loadUser = () => {
       try {
@@ -30,7 +86,6 @@ export default function Navbar() {
 
         if (userData && token) {
           const parsedUser = JSON.parse(userData);
-          console.log("📊 Usuario cargado:", parsedUser);
           setUser(parsedUser);
         } else {
           setUser(null);
@@ -46,13 +101,23 @@ export default function Navbar() {
     loadUser();
   }, [location]);
 
-  // Actualizar favoritos desde localStorage
+  // Efecto para cargar favoritos cuando cambia el usuario o la ubicación
   useEffect(() => {
-    const favs = JSON.parse(localStorage.getItem("favoritos")) || [];
-    setTotalFavoritos(favs.length);
-  }, [location]);
+    if (user?.rol === "CONSUMIDOR") {
+      cargarFavoritos();
+    }
+  }, [user, location, cargarFavoritos]);
 
-  // Cargar notificaciones (versión mejorada con validación)
+  // Efecto para actualizar el contador de favoritos
+  useEffect(() => {
+    if (user?.rol === "CONSUMIDOR" && favoritos) {
+      setTotalFavoritos(favoritos.length);
+    } else {
+      setTotalFavoritos(0);
+    }
+  }, [favoritos, user]);
+
+  // Cargar notificaciones
   useEffect(() => {
     if (!user?.idUsuario) return;
 
@@ -76,11 +141,14 @@ export default function Navbar() {
     cargarNotificaciones();
   }, [user?.idUsuario, location]);
 
+  // Efecto para cerrar dropdowns al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event) => {
       const userTagElement = document.querySelector(".user-tag-btn");
       const dropdownElement = document.querySelector(".dropdown-menu");
       const notifElement = document.querySelector(".notif-dropdown");
+      const mobileMenuElement = document.querySelector(".mobile-menu");
+      const hamburgerElement = document.querySelector(".hamburger");
 
       if (
         userTagElement &&
@@ -98,13 +166,21 @@ export default function Navbar() {
       ) {
         setShowNotificaciones(false);
       }
+
+      // Cerrar menú móvil al hacer clic fuera
+      if (
+        mobileMenuElement &&
+        !mobileMenuElement.contains(event.target) &&
+        hamburgerElement &&
+        !hamburgerElement.contains(event.target)
+      ) {
+        setIsMenuOpen(false);
+      }
     };
 
-    if (showUserMenu || showNotificaciones) {
-      document.addEventListener("click", handleClickOutside);
-      return () => document.removeEventListener("click", handleClickOutside);
-    }
-  }, [showUserMenu, showNotificaciones]);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
 
   const handleCerrarSesion = () => {
     localStorage.removeItem("user");
@@ -163,23 +239,33 @@ export default function Navbar() {
 
   const styles = {
     navbar: {
-      background: "linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(244, 232, 193, 0.3) 100%)",
-      backdropFilter: "blur(20px)",
-      borderBottom: "2px solid rgba(58, 90, 64, 0.1)",
-      padding: "0.8rem 4rem",
+      background: isAtTop 
+        ? "rgba(255, 255, 255, 0.4)"
+        : "rgba(255, 255, 255, 0.9)",
+      backdropFilter: isAtTop ? "blur(8px)" : "blur(12px)",
+      borderBottom: isAtTop 
+        ? "1px solid rgba(255, 107, 53, 0.1)" 
+        : "1px solid rgba(255, 107, 53, 0.2)",
+      padding: isAtTop ? "1.2rem 4rem" : "0.8rem 4rem",
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
-      position: "sticky",
+      position: "fixed",
       top: "0",
+      left: "0",
+      right: "0",
       zIndex: "1000",
-      fontFamily: "'Comfortaa', sans-serif",
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
       gap: "2rem",
-      boxShadow: "0 8px 32px rgba(58, 90, 64, 0.08)",
-      maxWidth: "100%",
+      boxShadow: isAtTop 
+        ? "0 2px 10px rgba(255, 107, 53, 0.05)" 
+        : "0 4px 20px rgba(255, 107, 53, 0.1)",
       width: "100%",
       boxSizing: "border-box",
-      height: "70px",
+      height: isAtTop ? "75px" : "65px",
+      transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+      transform: isVisible ? "translateY(0)" : "translateY(-100%)",
+      opacity: isVisible ? 1 : 0,
     },
     leftSection: {
       display: "flex",
@@ -191,19 +277,18 @@ export default function Navbar() {
       alignItems: "center",
       textDecoration: "none",
       cursor: "pointer",
-      transition: "all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+      transition: "all 0.3s ease",
       padding: "0",
     },
     logoImage: {
-      height: "50px",
+      height: isAtTop ? "50px" : "42px",
       width: "auto",
       objectFit: "contain",
-      transition: "all 0.4s ease",
-      filter: "drop-shadow(0 2px 4px rgba(58, 90, 64, 0.1))",
+      transition: "all 0.3s ease",
     },
     navLinks: {
       display: "flex",
-      gap: "0.5rem",
+      gap: "1rem",
       listStyle: "none",
       margin: "0",
       padding: "0",
@@ -211,28 +296,18 @@ export default function Navbar() {
     },
     navLink: {
       textDecoration: "none",
-      color: "#3a5a40",
+      color: isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B",
       fontSize: "0.95rem",
       fontWeight: "600",
-      transition: "all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+      transition: "all 0.3s ease",
       display: "inline-block",
-      padding: "0.6rem 1.2rem",
+      padding: "0.6rem 1rem",
       cursor: "pointer",
       background: "none",
       border: "none",
       position: "relative",
-      overflow: "hidden",
-    },
-    navLinkUnderline: {
-      position: "absolute",
-      bottom: "0",
-      left: "0",
-      width: "100%",
-      height: "2px",
-      background: "linear-gradient(90deg, #6b8e4e 0%, #3a5a40 100%)",
-      transform: "scaleX(0)",
-      transformOrigin: "right",
-      transition: "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+      borderRadius: "8px",
+      fontFamily: "'Inter', sans-serif",
     },
     rightSection: {
       display: "flex",
@@ -241,347 +316,291 @@ export default function Navbar() {
       position: "relative",
     },
     userTag: {
-      color: "#3a5a40",
+      color: isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B",
       fontSize: "0.9rem",
       fontWeight: "600",
-      padding: "0.6rem 1.2rem",
-      background: "linear-gradient(135deg, rgba(244, 232, 193, 0.5) 0%, rgba(244, 232, 193, 0.3) 100%)",
-      borderRadius: "12px",
+      padding: "0.6rem 1rem",
+      background: "none", // Cambiado: sin fondo
+      borderRadius: "10px",
       display: "flex",
       alignItems: "center",
-      gap: "0.6rem",
+      gap: "0.5rem",
       whiteSpace: "nowrap",
-      border: "1px solid rgba(58, 90, 64, 0.1)",
-      backdropFilter: "blur(10px)",
-      boxShadow: "0 4px 12px rgba(58, 90, 64, 0.08)",
+      border: "none", // Cambiado: sin borde
       cursor: "pointer",
-      transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+      transition: "all 0.3s ease",
+      fontFamily: "'Inter', sans-serif",
     },
     roleTag: {
       color: "white",
       fontSize: "0.7rem",
       fontWeight: "800",
-      padding: "0.35rem 0.9rem",
-      background: "linear-gradient(135deg, #6b8e4e 0%, #5a7a3d 100%)",
-      borderRadius: "16px",
+      padding: "0.3rem 0.7rem",
+      background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
+      borderRadius: "12px",
       display: "inline-block",
       textTransform: "uppercase",
-      marginLeft: "0.5rem",
-      boxShadow: "0 2px 8px rgba(58, 90, 64, 0.3)",
+      marginLeft: "0.3rem",
+      boxShadow: "0 2px 6px rgba(255, 107, 53, 0.3)",
       letterSpacing: "0.5px",
+      fontFamily: "'Inter', sans-serif",
     },
     dropdownMenu: {
       position: "absolute",
-      top: "70px",
+      top: "calc(100% + 10px)",
       right: "0",
-      background: "linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%)",
-      backdropFilter: "blur(20px)",
-      borderRadius: "16px",
-      boxShadow: "0 12px 48px rgba(58, 90, 64, 0.2)",
-      border: "1px solid rgba(58, 90, 64, 0.08)",
-      zIndex: "1001",
-      minWidth: "200px",
+      background: "rgba(255, 255, 255, 0.98)",
+      backdropFilter: "blur(15px)",
+      borderRadius: "12px",
+      boxShadow: "0 10px 30px rgba(255, 107, 53, 0.15)",
+      border: "1px solid rgba(255, 107, 53, 0.1)",
+      zIndex: "1002",
+      minWidth: "180px",
       overflow: "hidden",
     },
     notificacionesDropdown: {
       position: "absolute",
-      top: "60px",
+      top: "calc(100% + 10px)",
       right: "0",
       background: "rgba(255, 255, 255, 0.98)",
-      backdropFilter: "blur(20px)",
-      borderRadius: "16px",
-      boxShadow: "0 12px 48px rgba(0, 0, 0, 0.15)",
-      border: "1px solid rgba(0, 0, 0, 0.08)",
-      zIndex: "1001",
-      width: "340px",
-      maxHeight: "450px",
+      backdropFilter: "blur(15px)",
+      borderRadius: "12px",
+      boxShadow: "0 10px 30px rgba(255, 107, 53, 0.15)",
+      border: "1px solid rgba(255, 107, 53, 0.1)",
+      zIndex: "1002",
+      width: "320px",
+      maxHeight: "400px",
       overflow: "hidden",
       display: "flex",
       flexDirection: "column",
     },
     notificacionesHeader: {
-      padding: "1rem 1.2rem",
-      borderBottom: "1px solid rgba(0, 0, 0, 0.08)",
+      padding: "1rem",
+      borderBottom: "1px solid rgba(255, 107, 53, 0.1)",
       background: "rgba(255, 255, 255, 0.95)",
       position: "sticky",
       top: "0",
       zIndex: "10",
     },
     notificacionesTitle: {
-      fontSize: "1.15rem",
+      fontSize: "1rem",
       fontWeight: "700",
-      color: "#1c1e21",
+      color: "#1E293B",
       margin: "0",
+      fontFamily: "'Inter', sans-serif",
     },
     notificacionesList: {
-      maxHeight: "380px",
+      maxHeight: "340px",
       overflowY: "auto",
       overflowX: "hidden",
     },
     notificacionItem: (leido) => ({
-      padding: "0.9rem 1.2rem",
-      background: leido ? "#ffffff" : "#e7f3ff",
-      borderBottom: "1px solid rgba(0, 0, 0, 0.05)",
+      padding: "0.8rem 1rem",
+      background: leido ? "rgba(248, 250, 252, 0.5)" : "rgba(255, 107, 53, 0.05)",
+      borderBottom: "1px solid rgba(255, 107, 53, 0.05)",
       cursor: "pointer",
       transition: "all 0.2s ease",
       display: "flex",
-      gap: "0.85rem",
+      gap: "0.8rem",
       alignItems: "flex-start",
       position: "relative",
     }),
     notificacionIcono: {
-      width: "40px",
-      height: "40px",
+      width: "36px",
+      height: "36px",
       borderRadius: "50%",
-      background: "linear-gradient(135deg, #6b8e4e 0%, #5a7a3d 100%)",
+      background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      fontSize: "1.2rem",
+      fontSize: "1rem",
       flexShrink: "0",
-      boxShadow: "0 2px 8px rgba(58, 90, 64, 0.2)",
+      boxShadow: "0 2px 6px rgba(255, 107, 53, 0.2)",
     },
     notificacionContenido: {
       flex: "1",
       minWidth: "0",
     },
     notificacionMensaje: {
-      fontSize: "0.9rem",
+      fontSize: "0.85rem",
       fontWeight: "500",
-      color: "#1c1e21",
-      lineHeight: "1.35",
-      marginBottom: "0.25rem",
+      color: "#1E293B",
+      lineHeight: "1.3",
+      marginBottom: "0.2rem",
       wordWrap: "break-word",
+      fontFamily: "'Inter', sans-serif",
     },
     notificacionTiempo: {
-      fontSize: "0.75rem",
-      color: "#65676b",
+      fontSize: "0.7rem",
+      color: "#64748B",
       fontWeight: "400",
+      fontFamily: "'Inter', sans-serif",
     },
     notificacionDot: {
       position: "absolute",
-      top: "1rem",
-      right: "1rem",
-      width: "9px",
-      height: "9px",
+      top: "0.8rem",
+      right: "0.8rem",
+      width: "8px",
+      height: "8px",
       borderRadius: "50%",
-      background: "#1877f2",
+      background: "#FF6B35",
     },
     emptyNotificaciones: {
-      padding: "2.5rem 2rem",
+      padding: "2rem 1.5rem",
       textAlign: "center",
-      color: "#65676b",
+      color: "#64748B",
     },
     emptyNotificacionesIcono: {
-      fontSize: "3rem",
+      fontSize: "2.5rem",
       marginBottom: "0.8rem",
-      opacity: "0.5",
+      opacity: "0.3",
     },
     emptyNotificacionesMensaje: {
-      fontSize: "0.95rem",
+      fontSize: "0.9rem",
       fontWeight: "600",
-      color: "#1c1e21",
-      marginBottom: "0.25rem",
+      color: "#1E293B",
+      marginBottom: "0.2rem",
+      fontFamily: "'Inter', sans-serif",
     },
     emptyNotificacionesTexto: {
-      fontSize: "0.85rem",
-      color: "#65676b",
+      fontSize: "0.8rem",
+      color: "#64748B",
+      fontFamily: "'Inter', sans-serif",
     },
     dropdownItem: {
-      padding: "0.8rem 1.5rem",
-      color: "#3a5a40",
-      fontSize: "0.9rem",
-      fontWeight: "600",
+      padding: "0.7rem 1rem",
+      color: "#1E293B",
+      fontSize: "0.85rem",
+      fontWeight: "500",
       cursor: "pointer",
       border: "none",
       background: "none",
       width: "100%",
       textAlign: "left",
-      transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
-      borderBottom: "1px solid rgba(58, 90, 64, 0.05)",
+      transition: "all 0.2s ease",
+      borderBottom: "1px solid rgba(255, 107, 53, 0.05)",
+      fontFamily: "'Inter', sans-serif",
     },
     dropdownItemLogout: {
-      padding: "0.8rem 1.5rem",
-      color: "#d32f2f",
-      fontSize: "0.9rem",
-      fontWeight: "600",
+      padding: "0.7rem 1rem",
+      color: "#EF4444",
+      fontSize: "0.85rem",
+      fontWeight: "500",
       cursor: "pointer",
       border: "none",
       background: "none",
       width: "100%",
       textAlign: "left",
-      transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+      transition: "all 0.2s ease",
+      fontFamily: "'Inter', sans-serif",
     },
     loginBtn: {
       textDecoration: "none",
       color: "#fff",
       fontSize: "0.9rem",
-      fontWeight: "700",
-      padding: "0.7rem 2rem",
+      fontWeight: "600",
+      padding: "0.6rem 1.5rem",
       border: "none",
       borderRadius: "8px",
-      transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+      transition: "all 0.3s ease",
       display: "inline-block",
       cursor: "pointer",
-      background: "linear-gradient(135deg, #6b8e4e 0%, #5a7a3d 100%)",
-      boxShadow: "0 4px 15px rgba(58, 90, 64, 0.2)",
-      position: "relative",
-      overflow: "hidden",
+      background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
+      boxShadow: "0 4px 12px rgba(255, 107, 53, 0.2)",
+      fontFamily: "'Inter', sans-serif",
     },
+    // ICONOS SIN BORDES
     iconButton: {
-      background: "rgba(244, 232, 193, 0.3)",
-      border: "none",
-      fontSize: "1.4rem",
+      background: "none", // Cambiado: sin fondo
+      border: "none", // Cambiado: sin borde
+      fontSize: "1.1rem",
       cursor: "pointer",
-      padding: "0.5rem 0.6rem",
-      transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+      padding: "0.5rem",
+      transition: "all 0.3s ease",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: "10px",
-      width: "44px",
-      height: "44px",
+      borderRadius: "8px",
+      width: "42px",
+      height: "42px",
+      color: isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B", // Cambiado color para coincidir
+      position: "relative",
     },
     badge: (bgColor) => ({
       position: "absolute",
       top: "-6px",
       right: "-6px",
-      background: bgColor,
+      background: bgColor || "#FF6B35",
       color: "white",
       borderRadius: "50%",
-      fontSize: "11px",
+      fontSize: "10px",
       fontWeight: "700",
-      padding: "2px 6px",
-      minWidth: "18px",
+      padding: "2px 5px",
+      minWidth: "16px",
       textAlign: "center",
       lineHeight: "1",
       boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+      fontFamily: "'Inter', sans-serif",
     }),
     hamburger: {
       display: "none",
-      background: "rgba(244, 232, 193, 0.3)",
-      border: "none",
-      fontSize: "1.8rem",
+      background: "none", // Cambiado: sin fondo
+      border: "none", // Cambiado: sin borde
+      fontSize: "1.5rem",
       cursor: "pointer",
-      padding: "0.6rem 0.8rem",
-      color: "#3a5a40",
+      padding: "0.5rem 0.7rem",
+      color: isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B", // Cambiado color para coincidir
       transition: "all 0.3s ease",
-      borderRadius: "10px",
+      borderRadius: "8px",
+      width: "42px",
+      height: "42px",
+      alignItems: "center",
+      justifyContent: "center",
     },
     mobileMenu: {
-      position: "absolute",
-      top: "100%",
+      position: "fixed",
+      top: isAtTop ? "75px" : "65px",
       left: "0",
       right: "0",
-      background: "linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(244, 232, 193, 0.4) 100%)",
-      backdropFilter: "blur(20px)",
-      borderBottom: "2px solid rgba(58, 90, 64, 0.1)",
-      padding: "1.5rem 2rem",
+      background: "rgba(255, 255, 255, 0.98)",
+      backdropFilter: "blur(15px)",
+      borderBottom: "1px solid rgba(255, 107, 53, 0.1)",
+      padding: "1.5rem",
       display: isMenuOpen ? "flex" : "none",
       flexDirection: "column",
-      gap: "0.8rem",
+      gap: "0.5rem",
       zIndex: "999",
-      boxShadow: "0 8px 32px rgba(58, 90, 64, 0.1)",
+      boxShadow: "0 10px 30px rgba(255, 107, 53, 0.1)",
+      maxHeight: "calc(100vh - 75px)",
+      overflowY: "auto",
+    },
+    mobileNavLink: {
+      textDecoration: "none",
+      color: "#1E293B",
+      fontSize: "0.95rem",
+      fontWeight: "600",
+      padding: "0.8rem 1rem",
+      cursor: "pointer",
+      background: "none",
+      border: "none",
+      textAlign: "left",
+      borderRadius: "8px",
+      transition: "all 0.2s ease",
+      fontFamily: "'Inter', sans-serif",
+      width: "100%",
+    },
+    spacer: {
+      height: isAtTop ? "75px" : "65px",
+      transition: "height 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
     },
   };
 
-  const keyframes = `
-    @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600&display=swap');
-
-    .nav-link-wrapper:hover .nav-link-underline {
-      transform: scaleX(1);
-      transform-origin: left;
-    }
-
-    @media (max-width: 1024px) {
-      .nav-links {
-        gap: 0.2rem !important;
-      }
-    }
-
-    @media (max-width: 768px) {
-      .navbar {
-        padding: 0.6rem 1.5rem !important;
-        gap: 1rem !important;
-      }
-
-      .left-section {
-        gap: 1rem !important;
-      }
-
-      .nav-links {
-        display: none !important;
-      }
-
-      .logo-image {
-        height: 70px !important;
-      }
-
-      .hamburger {
-        display: flex !important;
-      }
-
-      .right-section {
-        gap: 0.5rem !important;
-      }
-
-      .login-btn {
-        padding: 0.6rem 1.2rem !important;
-        font-size: 0.8rem !important;
-      }
-
-      .user-tag-btn {
-        display: none !important;
-      }
-
-      .icon-button {
-        width: 40px !important;
-        height: 40px !important;
-        font-size: 1.2rem !important;
-      }
-
-      .notif-dropdown {
-        width: 300px !important;
-        right: -10px !important;
-        max-height: 400px !important;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .navbar {
-        padding: 0.6rem 1rem !important;
-      }
-
-      .logo-image {
-        height: 55px !important;
-      }
-
-      .icon-button {
-        width: 38px !important;
-        height: 38px !important;
-        font-size: 1.1rem !important;
-      }
-
-      .login-btn {
-        display: none !important;
-      }
-
-      .notif-dropdown {
-        width: 280px !important;
-        right: -20px !important;
-        max-height: 380px !important;
-      }
-    }
-  `;
-
   const handleLogoHover = (e) => {
-    e.currentTarget.style.transform = "scale(1.1) rotate(2deg)";
-    e.currentTarget.style.filter = "drop-shadow(0 8px 16px rgba(58, 90, 64, 0.2))";
+    e.currentTarget.style.transform = "scale(1.05)";
   };
 
   const handleLogoLeave = (e) => {
-    e.currentTarget.style.transform = "scale(1) rotate(0deg)";
-    e.currentTarget.style.filter = "drop-shadow(0 2px 4px rgba(58, 90, 64, 0.1))";
+    e.currentTarget.style.transform = "scale(1)";
   };
 
   const handleLoginClick = () => {
@@ -591,29 +610,200 @@ export default function Navbar() {
 
   const renderNavLink = (link) => (
     <div key={link.label} className="nav-link-wrapper" style={{ position: "relative" }}>
-      <a
-        href={link.href}
+      <button
+        onClick={() => handleNavigate(link.href)}
         style={styles.navLink}
         className="nav-link"
-        onClick={() => setIsMenuOpen(false)}
         onMouseEnter={(e) => {
-          e.target.style.color = "#6b8e4e";
+          e.target.style.color = "#FF6B35";
         }}
         onMouseLeave={(e) => {
-          e.target.style.color = "#3a5a40";
+          e.target.style.color = isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B";
         }}
       >
         {link.label}
-        <span className="nav-link-underline" style={styles.navLinkUnderline}></span>
-      </a>
+      </button>
     </div>
   );
 
+  const renderMobileNavLink = (link) => (
+    <button
+      key={link.label}
+      onClick={() => handleNavigate(link.href)}
+      style={styles.mobileNavLink}
+      onMouseEnter={(e) => {
+        e.target.style.color = "#FF6B35";
+        e.target.style.background = "rgba(255, 107, 53, 0.05)";
+      }}
+      onMouseLeave={(e) => {
+        e.target.style.color = "#1E293B";
+        e.target.style.background = "none";
+      }}
+    >
+      {link.label}
+    </button>
+  );
+
+  const userName = user ? (
+    user.nombre ? `${user.nombre} ${user.apellido || ""}`.trim() :
+    user.email ? user.email.split('@')[0] :
+    user.correo ? user.correo.split('@')[0] :
+    user.username || user.usuario || "Usuario"
+  ) : null;
+
   return (
     <>
-      <style>{keyframes}</style>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
-      <nav style={styles.navbar} className="navbar">
+        /* Scrollbar personalizada */
+        .notificaciones-list::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .notificaciones-list::-webkit-scrollbar-track {
+          background: rgba(255, 107, 53, 0.05);
+          border-radius: 3px;
+        }
+
+        .notificaciones-list::-webkit-scrollbar-thumb {
+          background: rgba(255, 107, 53, 0.2);
+          border-radius: 3px;
+        }
+
+        .notificaciones-list::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 107, 53, 0.3);
+        }
+
+        /* Asegurar que todos los botones tengan el mismo estilo sin bordes */
+        .nav-link, 
+        .icon-button,
+        .user-tag-btn,
+        .hamburger {
+          border: none !important;
+          box-shadow: none !important;
+          background: none !important;
+        }
+
+        .nav-link:hover,
+        .icon-button:hover,
+        .user-tag-btn:hover,
+        .hamburger:hover {
+          background: none !important;
+          border: none !important;
+          box-shadow: none !important;
+        }
+
+        /* Iconos con el mismo tamaño */
+        .icon-button {
+          width: 42px !important;
+          height: 42px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          font-size: 1.1rem !important;
+        }
+
+        .hamburger {
+          width: 42px !important;
+          height: 42px !important;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+          .navbar {
+            padding-left: 2rem !important;
+            padding-right: 2rem !important;
+          }
+
+          .nav-links {
+            gap: 0.5rem !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .navbar {
+            padding: ${isAtTop ? "1.2rem 1.5rem" : "0.8rem 1.5rem"} !important;
+          }
+
+          .nav-links {
+            display: none !important;
+          }
+
+          .logo-image {
+            height: ${isAtTop ? "45px" : "38px"} !important;
+          }
+
+          .hamburger {
+            display: flex !important;
+          }
+
+          .right-section {
+            gap: 0.5rem !important;
+          }
+
+          .login-btn {
+            padding: 0.5rem 1rem !important;
+            font-size: 0.85rem !important;
+          }
+
+          .user-tag-btn span:last-child {
+            display: none;
+          }
+
+          .notif-dropdown {
+            width: 280px !important;
+            right: -10px !important;
+          }
+
+          .mobile-menu {
+            top: ${isAtTop ? "75px" : "65px"} !important;
+          }
+
+          .navbar-spacer {
+            height: ${isAtTop ? "75px" : "65px"} !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .navbar {
+            padding: ${isAtTop ? "1rem 1rem" : "0.8rem 1rem"} !important;
+          }
+
+          .logo-image {
+            height: ${isAtTop ? "40px" : "35px"} !important;
+          }
+
+          .login-btn {
+            display: none !important;
+          }
+
+          .notif-dropdown {
+            width: 260px !important;
+            right: -20px !important;
+          }
+
+          .mobile-menu {
+            top: ${isAtTop ? "75px" : "65px"} !important;
+          }
+
+          .navbar-spacer {
+            height: ${isAtTop ? "75px" : "65px"} !important;
+          }
+        }
+      `}</style>
+
+      {/* Contenedor de espaciado para evitar que el contenido quede tapado */}
+      <div style={styles.spacer} className="navbar-spacer"></div>
+
+      <nav 
+        ref={navbarRef}
+        style={styles.navbar} 
+        className="navbar"
+        onMouseEnter={() => {
+          setIsVisible(true);
+        }}
+      >
         <div style={styles.leftSection} className="left-section">
           <a
             href="/"
@@ -623,17 +813,20 @@ export default function Navbar() {
             onMouseLeave={handleLogoLeave}
           >
             <img
-              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ZdqQwZy7zh5KfT32FjRlSaTpsHX04y.png"
-              alt="Mercado Local IA"
+              src={logoActual}
+              alt="My Harvest - Mercado Local IA"
               style={styles.logoImage}
               className="logo-image"
+              onError={(e) => {
+                console.error("Error cargando logo:", e);
+                e.target.onerror = null;
+                e.target.src = "/logo.png";
+              }}
             />
           </a>
 
           <ul style={styles.navLinks} className="nav-links">
-            {navLinks.map((link) => (
-              <li key={link.label}>{renderNavLink(link)}</li>
-            ))}
+            {navLinks.map(renderNavLink)}
           </ul>
         </div>
 
@@ -648,19 +841,17 @@ export default function Navbar() {
                 title="Favoritos"
                 aria-label="Favoritos"
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "scale(1.15) rotate(-5deg)";
-                  e.currentTarget.style.background = "linear-gradient(135deg, rgba(244, 232, 193, 0.7) 0%, rgba(244, 232, 193, 0.5) 100%)";
-                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(58, 90, 64, 0.15)";
+                  e.currentTarget.style.color = "#FF6B35";
+                  e.currentTarget.style.transform = "scale(1.1)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "scale(1) rotate(0deg)";
-                  e.currentTarget.style.background = "rgba(244, 232, 193, 0.3)";
-                  e.currentTarget.style.boxShadow = "none";
+                  e.currentTarget.style.color = isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B";
+                  e.currentTarget.style.transform = "scale(1)";
                 }}
               >
-                ♡
+                ❤️
                 {totalFavoritos > 0 && (
-                  <span style={styles.badge("#e53935")}>
+                  <span style={styles.badge("#EF4444")}>
                     {totalFavoritos > 99 ? "99+" : totalFavoritos}
                   </span>
                 )}
@@ -678,19 +869,17 @@ export default function Navbar() {
                 title="Notificaciones"
                 aria-label="Notificaciones"
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "scale(1.15)";
-                  e.currentTarget.style.background = "linear-gradient(135deg, rgba(244, 232, 193, 0.7) 0%, rgba(244, 232, 193, 0.5) 100%)";
-                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(58, 90, 64, 0.15)";
+                  e.currentTarget.style.color = "#FF6B35";
+                  e.currentTarget.style.transform = "scale(1.1)";
                 }}
                 onMouseLeave={(e) => {
+                  e.currentTarget.style.color = isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B";
                   e.currentTarget.style.transform = "scale(1)";
-                  e.currentTarget.style.background = "rgba(244, 232, 193, 0.3)";
-                  e.currentTarget.style.boxShadow = "none";
                 }}
               >
                 🔔
                 {totalNotificaciones > 0 && (
-                  <span style={styles.badge("#ff9800")}>
+                  <span style={styles.badge("#F59E0B")}>
                     {totalNotificaciones > 99 ? "99+" : totalNotificaciones}
                   </span>
                 )}
@@ -703,7 +892,7 @@ export default function Navbar() {
                     <h3 style={styles.notificacionesTitle}>Notificaciones</h3>
                   </div>
 
-                  <div style={styles.notificacionesList}>
+                  <div style={styles.notificacionesList} className="notificaciones-list">
                     {notificaciones.length === 0 ? (
                       <div style={styles.emptyNotificaciones}>
                         <div style={styles.emptyNotificacionesIcono}>🔔</div>
@@ -721,8 +910,6 @@ export default function Navbar() {
                           style={styles.notificacionItem(n.leido)}
                           onClick={() => {
                             setShowNotificaciones(false);
-
-                            // Redirigir según el tipo y rol
                             if ((n.tipo === "PEDIDO" || n.tipo === "pedido") && n.idPedido) {
                               navigate(
                                 user.rol === "VENDEDOR"
@@ -732,10 +919,14 @@ export default function Navbar() {
                             }
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.background = n.leido ? "#f5f5f5" : "#d4e9ff";
+                            e.currentTarget.style.background = n.leido 
+                              ? "rgba(248, 250, 252, 0.8)" 
+                              : "rgba(255, 107, 53, 0.1)";
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.background = n.leido ? "#ffffff" : "#e7f3ff";
+                            e.currentTarget.style.background = n.leido 
+                              ? "rgba(248, 250, 252, 0.5)" 
+                              : "rgba(255, 107, 53, 0.05)";
                           }}
                         >
                           <div style={styles.notificacionIcono}>
@@ -773,19 +964,17 @@ export default function Navbar() {
                 title="Carrito"
                 aria-label="Carrito"
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "scale(1.15) rotate(5deg)";
-                  e.currentTarget.style.background = "linear-gradient(135deg, rgba(244, 232, 193, 0.7) 0%, rgba(244, 232, 193, 0.5) 100%)";
-                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(58, 90, 64, 0.15)";
+                  e.currentTarget.style.color = "#FF6B35";
+                  e.currentTarget.style.transform = "scale(1.1)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "scale(1) rotate(0deg)";
-                  e.currentTarget.style.background = "rgba(244, 232, 193, 0.3)";
-                  e.currentTarget.style.boxShadow = "none";
+                  e.currentTarget.style.color = isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B";
+                  e.currentTarget.style.transform = "scale(1)";
                 }}
               >
                 🛒
                 {totalCarrito > 0 && (
-                  <span style={styles.badge("#d32f2f")}>
+                  <span style={styles.badge("#10B981")}>
                     {totalCarrito > 99 ? "99+" : totalCarrito}
                   </span>
                 )}
@@ -800,12 +989,12 @@ export default function Navbar() {
               style={styles.loginBtn}
               className="login-btn"
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-3px)";
-                e.currentTarget.style.boxShadow = "0 8px 25px rgba(58, 90, 64, 0.35)";
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 107, 53, 0.3)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 4px 15px rgba(58, 90, 64, 0.2)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 107, 53, 0.2)";
               }}
             >
               Iniciar Sesión
@@ -817,25 +1006,16 @@ export default function Navbar() {
                 style={styles.userTag}
                 className="user-tag-btn"
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "linear-gradient(135deg, rgba(244, 232, 193, 0.7) 0%, rgba(244, 232, 193, 0.5) 100%)";
-                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.color = "#FF6B35";
+                  e.currentTarget.style.transform = "translateY(-1px)";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "linear-gradient(135deg, rgba(244, 232, 193, 0.5) 0%, rgba(244, 232, 193, 0.3) 100%)";
+                  e.currentTarget.style.color = isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B";
                   e.currentTarget.style.transform = "translateY(0)";
                 }}
               >
-                👤 {(() => {
-                  if (user.nombre) {
-                    return `${user.nombre} ${user.apellido || ""}`.trim();
-                  }
-                  if (user.email) return user.email.split('@')[0];
-                  if (user.correo) return user.correo.split('@')[0];
-                  if (user.username) return user.username;
-                  if (user.usuario) return user.usuario;
-                  return "Usuario";
-                })()}
-                <span style={{ fontSize: "1rem", marginLeft: "0.3rem" }}>▼</span>
+                👤 {userName}
+                <span style={{ fontSize: "0.9rem", marginLeft: "0.2rem" }}>▼</span>
               </button>
 
               {/* Dropdown Menu */}
@@ -845,12 +1025,12 @@ export default function Navbar() {
                     onClick={() => handleNavigate("/perfil")}
                     style={styles.dropdownItem}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(244, 232, 193, 0.5)";
-                      e.currentTarget.style.paddingLeft = "1.8rem";
+                      e.currentTarget.style.background = "rgba(255, 107, 53, 0.05)";
+                      e.currentTarget.style.paddingLeft = "1.2rem";
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = "none";
-                      e.currentTarget.style.paddingLeft = "1.5rem";
+                      e.currentTarget.style.paddingLeft = "1rem";
                     }}
                   >
                     👤 Perfil
@@ -859,12 +1039,12 @@ export default function Navbar() {
                     onClick={() => handleNavigate("/configuracion")}
                     style={styles.dropdownItem}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(244, 232, 193, 0.5)";
-                      e.currentTarget.style.paddingLeft = "1.8rem";
+                      e.currentTarget.style.background = "rgba(255, 107, 53, 0.05)";
+                      e.currentTarget.style.paddingLeft = "1.2rem";
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = "none";
-                      e.currentTarget.style.paddingLeft = "1.5rem";
+                      e.currentTarget.style.paddingLeft = "1rem";
                     }}
                   >
                     ⚙️ Configuración
@@ -874,12 +1054,12 @@ export default function Navbar() {
                     onClick={() => handleNavigate("/mis-pedidos")}
                     style={styles.dropdownItem}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(244, 232, 193, 0.5)";
-                      e.currentTarget.style.paddingLeft = "1.8rem";
+                      e.currentTarget.style.background = "rgba(255, 107, 53, 0.05)";
+                      e.currentTarget.style.paddingLeft = "1.2rem";
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = "none";
-                      e.currentTarget.style.paddingLeft = "1.5rem";
+                      e.currentTarget.style.paddingLeft = "1rem";
                     }}
                   >
                     📦 Mis pedidos
@@ -889,12 +1069,12 @@ export default function Navbar() {
                     onClick={handleCerrarSesion}
                     style={styles.dropdownItemLogout}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(211, 47, 47, 0.1)";
-                      e.currentTarget.style.paddingLeft = "1.8rem";
+                      e.currentTarget.style.background = "rgba(239, 68, 68, 0.05)";
+                      e.currentTarget.style.paddingLeft = "1.2rem";
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = "none";
-                      e.currentTarget.style.paddingLeft = "1.5rem";
+                      e.currentTarget.style.paddingLeft = "1rem";
                     }}
                   >
                     🚪 Cerrar Sesión
@@ -910,15 +1090,15 @@ export default function Navbar() {
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Menú"
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(244, 232, 193, 0.6)";
+              e.currentTarget.style.color = "#FF6B35";
               e.currentTarget.style.transform = "scale(1.1)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(244, 232, 193, 0.3)";
+              e.currentTarget.style.color = isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B";
               e.currentTarget.style.transform = "scale(1)";
             }}
           >
-            ☰
+            {isMenuOpen ? "✕" : "☰"}
           </button>
         </div>
       </nav>
@@ -926,19 +1106,23 @@ export default function Navbar() {
       {/* Menú móvil */}
       {isMenuOpen && (
         <div style={styles.mobileMenu} className="mobile-menu">
-          {navLinks.map((link) => (
-            <div key={link.label}>{renderNavLink(link)}</div>
-          ))}
+          {navLinks.map(renderMobileNavLink)}
 
           {/* FAVORITOS - Solo para CONSUMIDOR en mobile */}
           {user && user.rol === "CONSUMIDOR" && (
             <button
               onClick={() => handleNavigate("/favoritos")}
-              style={{ ...styles.navLink, fontSize: "1rem", padding: "0.8rem 1.2rem" }}
-              onMouseEnter={(e) => (e.target.style.color = "#6b8e4e")}
-              onMouseLeave={(e) => (e.target.style.color = "#3a5a40")}
+              style={styles.mobileNavLink}
+              onMouseEnter={(e) => {
+                e.target.style.color = "#FF6B35";
+                e.target.style.background = "rgba(255, 107, 53, 0.05)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.color = "#1E293B";
+                e.target.style.background = "none";
+              }}
             >
-              ♡ Favoritos {totalFavoritos > 0 && `(${totalFavoritos})`}
+              ❤️ Favoritos {totalFavoritos > 0 && `(${totalFavoritos})`}
             </button>
           )}
 
@@ -947,18 +1131,30 @@ export default function Navbar() {
             <>
               <button
                 onClick={() => handleNavigate("/mis-pedidos")}
-                style={{ ...styles.navLink, fontSize: "1rem", padding: "0.8rem 1.2rem" }}
-                onMouseEnter={(e) => (e.target.style.color = "#6b8e4e")}
-                onMouseLeave={(e) => (e.target.style.color = "#3a5a40")}
+                style={styles.mobileNavLink}
+                onMouseEnter={(e) => {
+                  e.target.style.color = "#FF6B35";
+                  e.target.style.background = "rgba(255, 107, 53, 0.05)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.color = "#1E293B";
+                  e.target.style.background = "none";
+                }}
               >
                 📦 Mis pedidos
               </button>
 
               <button
                 onClick={() => handleNavigate("/carrito")}
-                style={{ ...styles.navLink, fontSize: "1rem", padding: "0.8rem 1.2rem" }}
-                onMouseEnter={(e) => (e.target.style.color = "#6b8e4e")}
-                onMouseLeave={(e) => (e.target.style.color = "#3a5a40")}
+                style={styles.mobileNavLink}
+                onMouseEnter={(e) => {
+                  e.target.style.color = "#FF6B35";
+                  e.target.style.background = "rgba(255, 107, 53, 0.05)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.color = "#1E293B";
+                  e.target.style.background = "none";
+                }}
               >
                 🛒 Carrito {totalCarrito > 0 && `(${totalCarrito})`}
               </button>
@@ -968,58 +1164,78 @@ export default function Navbar() {
           {!user ? (
             <button
               onClick={handleLoginClick}
-              style={{ ...styles.loginBtn, textAlign: "center", marginTop: "0.5rem", width: "100%" }}
+              style={{
+                ...styles.loginBtn,
+                marginTop: "0.5rem",
+                width: "100%",
+              }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = "0 8px 25px rgba(58, 90, 64, 0.35)";
+                e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 107, 53, 0.3)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 4px 15px rgba(58, 90, 64, 0.2)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 107, 53, 0.2)";
               }}
             >
               Iniciar Sesión
             </button>
           ) : (
             <>
-              <div style={{ ...styles.userTag, justifyContent: "center", marginTop: "0.5rem" }}>
-                👤 {(() => {
-                  if (user.nombre) {
-                    return `${user.nombre} ${user.apellido || ""}`.trim();
-                  }
-                  if (user.email) return user.email.split('@')[0];
-                  if (user.correo) return user.correo.split('@')[0];
-                  if (user.username) return user.username;
-                  if (user.usuario) return user.usuario;
-                  return "Usuario";
-                })()}
+              <div style={{
+                ...styles.userTag,
+                justifyContent: "center",
+                marginTop: "0.5rem",
+                marginBottom: "0.5rem",
+              }}>
+                👤 {userName}
               </div>
+              
               <button
                 onClick={() => handleNavigate("/perfil")}
-                style={{ ...styles.navLink, padding: "0.8rem 1.2rem" }}
-                onMouseEnter={(e) => (e.target.style.color = "#6b8e4e")}
-                onMouseLeave={(e) => (e.target.style.color = "#3a5a40")}
+                style={styles.mobileNavLink}
+                onMouseEnter={(e) => {
+                  e.target.style.color = "#FF6B35";
+                  e.target.style.background = "rgba(255, 107, 53, 0.05)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.color = "#1E293B";
+                  e.target.style.background = "none";
+                }}
               >
                 👤 Perfil
               </button>
+              
               <button
                 onClick={() => handleNavigate("/configuracion")}
-                style={{ ...styles.navLink, padding: "0.8rem 1.2rem" }}
-                onMouseEnter={(e) => (e.target.style.color = "#6b8e4e")}
-                onMouseLeave={(e) => (e.target.style.color = "#3a5a40")}
+                style={styles.mobileNavLink}
+                onMouseEnter={(e) => {
+                  e.target.style.color = "#FF6B35";
+                  e.target.style.background = "rgba(255, 107, 53, 0.05)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.color = "#1E293B";
+                  e.target.style.background = "none";
+                }}
               >
                 ⚙️ Configuración
               </button>
+              
               <button
                 onClick={handleCerrarSesion}
-                style={{ ...styles.loginBtn, textAlign: "center", width: "100%", background: "linear-gradient(135deg, #ef5350 0%, #d32f2f 100%)" }}
+                style={{
+                  ...styles.loginBtn,
+                  marginTop: "0.5rem",
+                  width: "100%",
+                  background: "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)",
+                }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.boxShadow = "0 8px 25px rgba(211, 47, 47, 0.35)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(239, 68, 68, 0.3)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(211, 47, 47, 0.2)";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(239, 68, 68, 0.2)";
                 }}
               >
                 🚪 Cerrar Sesión
