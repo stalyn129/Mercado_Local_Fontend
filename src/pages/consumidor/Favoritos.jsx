@@ -6,21 +6,68 @@ import { useFavoritos } from "../../context/FavoritosContext.jsx";
 export default function Favoritos() {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
-  // ✅ USA SOLO EL CONTEXTO - NO useState local
   const { favoritos, cargarFavoritos } = useFavoritos();
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const [circlePositions, setCirclePositions] = useState([]);
 
-  // ✅ CARGA INICIAL usando el contexto
+  // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
   useEffect(() => {
-  const loadFavoritos = async () => {
-    await cargarFavoritos();
-    setLoading(false);
-  };
-  loadFavoritos();
-}, []);
+    const generateCircles = () => {
+      const circles = [];
+      const colors = [
+        "rgba(255, 107, 53, 0.15)",    // Naranja claro
+        "rgba(52, 211, 153, 0.15)",    // Verde esmeralda
+        "rgba(59, 130, 246, 0.15)",    // Azul
+        "rgba(168, 85, 247, 0.15)",    // Morado
+        "rgba(239, 68, 68, 0.15)",     // Rojo
+        "rgba(245, 158, 11, 0.15)",    // Amarillo
+        "rgba(14, 165, 233, 0.15)",    // Azul claro
+        "rgba(236, 72, 153, 0.15)"     // Rosa
+      ];
+      
+      for (let i = 0; i < 10; i++) {
+        circles.push({
+          id: i,
+          size: Math.random() * 100 + 50,
+          top: Math.random() * 100,
+          left: Math.random() * 100,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          animationDelay: Math.random() * 5 + "s",
+          animationDuration: Math.random() * 25 + 30 + "s",
+          blur: Math.random() * 4 + 2 + "px",
+          zIndex: 0
+        });
+      }
+      setCirclePositions(circles);
+    };
 
-  // ✅ ELIMINAR UNO - llama al backend y recarga
+    generateCircles();
+    
+    const interval = setInterval(() => {
+      setCirclePositions(prev => 
+        prev.map(circle => ({
+          ...circle,
+          top: Math.random() * 100,
+          left: Math.random() * 100,
+          animationDelay: Math.random() * 4 + "s"
+        }))
+      );
+    }, 35000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // CARGA INICIAL usando el contexto
+  useEffect(() => {
+    const loadFavoritos = async () => {
+      await cargarFavoritos();
+      setLoading(false);
+    };
+    loadFavoritos();
+  }, []);
+
+  // ELIMINAR UNO - llama al backend y recarga
   const eliminarFavorito = async (idFavorito) => {
     const token = localStorage.getItem("authToken");
     if (!token) {
@@ -43,7 +90,6 @@ export default function Favoritos() {
         return;
       }
 
-      // 🔥 RECARGA desde backend - NO modifiques estado manualmente
       await cargarFavoritos();
     } catch (err) {
       console.error("Error eliminando favorito:", err);
@@ -51,7 +97,7 @@ export default function Favoritos() {
     }
   };
 
-  // ✅ VACIAR TODOS - elimina en backend y recarga
+  // VACIAR TODOS - elimina en backend y recarga
   const vaciarFavoritos = async () => {
     if (favoritos.length === 0) return;
 
@@ -78,7 +124,6 @@ export default function Favoritos() {
         )
       );
 
-      // 🔥 RECARGA desde backend - NO modifiques estado manualmente
       await cargarFavoritos();
       alert("Se han vaciado tus favoritos");
     } catch (err) {
@@ -87,192 +132,155 @@ export default function Favoritos() {
     }
   };
 
-  // ===================== UI =====================
   return (
     <div style={{
       minHeight: "100vh",
-      background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)",
-      fontFamily: "inherit"
+      background: "#f8f9fa",
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      display: "flex",
+      flexDirection: "column",
+      overflowX: "hidden"
     }}>
       
-      {/* HEADER SECTION */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
+        
+        @keyframes floatCircle {
+          0%, 100% { 
+            transform: translate(0, 0) scale(1); 
+          }
+          20% { 
+            transform: translate(20px, -25px) scale(1.08); 
+          }
+          40% { 
+            transform: translate(-15px, 20px) scale(0.92); 
+          }
+          60% { 
+            transform: translate(10px, 15px) scale(1.05); 
+          }
+          80% { 
+            transform: translate(-20px, -15px) scale(0.98); 
+          }
+        }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+
+      {/* HEADER SECTION - EXACTAMENTE IGUAL AL CARRITO */}
       <div style={{
         background: "white",
-        borderRadius: "0 0 20px 20px",
-        padding: "48px 32px",
+        borderRadius: "0 0 30px 30px",
+        padding: "90px 32px 70px 32px",
         marginBottom: "40px",
-        boxShadow: "0 4px 20px rgba(90, 143, 72, 0.12)",
+        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
         textAlign: "center",
         position: "relative",
-        overflow: "hidden"
+        overflow: "hidden",
+        borderBottom: "1px solid #f1f5f9"
       }}>
-        {/* Decoración de fondo - Círculos suaves CON ANIMACIÓN */}
-        <div style={{
-          position: "absolute",
-          top: "-80px",
-          right: "-80px",
-          width: "250px",
-          height: "250px",
-          background: "linear-gradient(135deg, rgba(255, 229, 233, 0.6) 0%, rgba(255, 208, 217, 0.4) 100%)",
-          borderRadius: "50%",
-          filter: "blur(40px)",
-          zIndex: "0",
-          animation: "float1 8s ease-in-out infinite"
-        }}></div>
         
-        <div style={{
-          position: "absolute",
-          top: "50%",
-          right: "10%",
-          width: "150px",
-          height: "150px",
-          background: "linear-gradient(135deg, rgba(218, 62, 82, 0.15) 0%, rgba(176, 34, 62, 0.08) 100%)",
-          borderRadius: "50%",
-          filter: "blur(30px)",
-          zIndex: "0",
-          animation: "float2 10s ease-in-out infinite"
-        }}></div>
-        
-        <div style={{
-          position: "absolute",
-          bottom: "-60px",
-          left: "-60px",
-          width: "200px",
-          height: "200px",
-          background: "linear-gradient(135deg, rgba(90, 143, 72, 0.12) 0%, rgba(74, 122, 58, 0.06) 100%)",
-          borderRadius: "50%",
-          filter: "blur(35px)",
-          zIndex: "0",
-          animation: "float3 12s ease-in-out infinite"
-        }}></div>
-        
-        <div style={{
-          position: "absolute",
-          top: "20%",
-          left: "15%",
-          width: "120px",
-          height: "120px",
-          background: "linear-gradient(135deg, rgba(236, 242, 227, 0.8) 0%, rgba(221, 232, 208, 0.5) 100%)",
-          borderRadius: "50%",
-          filter: "blur(25px)",
-          zIndex: "0",
-          animation: "float4 9s ease-in-out infinite"
-        }}></div>
+        {/* CÍRCULOS DE COLORES ANIMADOS - IGUAL AL CARRITO */}
+        {circlePositions.map(circle => (
+          <div 
+            key={circle.id}
+            style={{
+              position: "absolute",
+              top: `${circle.top}%`,
+              left: `${circle.left}%`,
+              width: `${circle.size}px`,
+              height: `${circle.size}px`,
+              background: circle.color,
+              borderRadius: "50%",
+              animation: `floatCircle ${circle.animationDuration} ease-in-out infinite`,
+              animationDelay: circle.animationDelay,
+              filter: `blur(${circle.blur})`,
+              opacity: 0.8,
+              zIndex: circle.zIndex
+            }}
+          />
+        ))}
 
-        <div style={{ position: "relative", zIndex: "1" }}>
-          {/* Icono decorativo */}
-          <div style={{
-            fontSize: "56px",
-            marginBottom: "16px",
-            filter: "drop-shadow(0 4px 8px rgba(218, 62, 82, 0.2))"
-          }}>
-            ❤️
-          </div>
-
-          {/* Título estilo Don Carlos Market */}
+        <div style={{ position: "relative", zIndex: "10" }}>
+          {/* Subtítulo igual al carrito */}
           <div style={{
             fontFamily: "'Playfair Display', 'Georgia', serif",
             fontSize: "14px",
             letterSpacing: "3px",
             textTransform: "uppercase",
-            color: "#6B7F69",
+            color: "#FF6B35",
             marginBottom: "8px",
             fontWeight: "500"
           }}>
-            Productos Guardados
+            Tus Favoritos
           </div>
           
+          {/* Título principal IGUAL AL CARRITO */}
           <h1 style={{
             fontFamily: "'Playfair Display', 'Georgia', serif",
-            fontSize: "48px",
-            fontWeight: "700",
-            color: "#2D3E2B",
-            margin: "0 0 16px 0",
-            letterSpacing: "1px",
-            lineHeight: "1.2"
-          }}>
-            Tus Favoritos
-          </h1>
-
-          {/* Subtítulo */}
+            fontSize: "56px", // Mismo tamaño que carrito
+            fontWeight: "800", // Mismo peso que carrito
+            color: "#FF6B35", // Mismo color que carrito
+            margin: "0 0 16px 0", // Mismo margen que carrito
+            letterSpacing: "-1px", // Mismo que carrito
+            lineHeight: "1.1", // Mismo que carrito
+            textShadow: "0 2px 4px rgba(255, 107, 53, 0.1)" // Mismo que carrito
+          }}>❤️ Mis Favoritos</h1>
+          
+          {/* Subtítulo IGUAL AL CARRITO */}
           <p style={{
-            color: "#6B7F69",
-            fontSize: "16px",
-            margin: "0 auto 24px auto",
-            maxWidth: "600px",
-            lineHeight: "1.6"
+            color: "#64748b",
+            fontSize: "16px", // Mismo tamaño que carrito
+            margin: "0 auto", // Mismo que carrito
+            maxWidth: "600px", // Mismo que carrito
+            lineHeight: "1.6", // Mismo que carrito
+            fontWeight: "400",
+            fontFamily: "'Inter', sans-serif",
+            opacity: 0.8 // Mismo que carrito
           }}>
             {favoritos.length > 0 
               ? `Tienes ${favoritos.length} producto${favoritos.length > 1 ? 's' : ''} guardado${favoritos.length > 1 ? 's' : ''} en tus favoritos`
               : "Guarda tus productos favoritos para verlos más tarde"
             }
           </p>
-
-          {/* Botón Vaciar solo si hay favoritos */}
-          {favoritos.length > 0 && (
-            <button
-              onClick={vaciarFavoritos}
-              style={{
-                padding: "12px 24px",
-                background: "#FFF0F2",
-                color: "#DA3E52",
-                border: "2px solid #DA3E52",
-                borderRadius: "12px",
-                fontWeight: "700",
-                cursor: "pointer",
-                fontSize: "14px",
-                transition: "all 0.3s ease",
-                whiteSpace: "nowrap",
-                boxShadow: "0 4px 12px rgba(218, 62, 82, 0.15)"
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = "#DA3E52";
-                e.target.style.color = "white";
-                e.target.style.transform = "translateY(-2px)";
-                e.target.style.boxShadow = "0 6px 16px rgba(218, 62, 82, 0.3)";
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = "#FFF0F2";
-                e.target.style.color = "#DA3E52";
-                e.target.style.transform = "translateY(0)";
-                e.target.style.boxShadow = "0 4px 12px rgba(218, 62, 82, 0.15)";
-              }}
-            >
-              🗑 Vaciar favoritos
-            </button>
-          )}
         </div>
       </div>
 
       {/* CONTENIDO PRINCIPAL */}
       <div style={{
-        maxWidth: "1400px",
+        maxWidth: "1400px", // Mismo que carrito
         margin: "0 auto",
-        padding: "0 20px",
-        marginBottom: "40px"
+        padding: "0 20px 40px 20px", // Mismo que carrito
+        flex: "1",
+        width: "100%"
       }}>
         {loading ? (
           <div style={{
             textAlign: "center",
             padding: "80px 20px",
             background: "white",
-            borderRadius: "20px",
-            boxShadow: "0 4px 20px rgba(90, 143, 72, 0.1)"
+            borderRadius: "24px",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.08)",
+            minHeight: "60vh",
+            border: "1px solid #f1f5f9"
           }}>
             <div style={{
               display: "inline-block",
-              width: "50px",
-              height: "50px",
-              border: "5px solid #ECF2E3",
-              borderTop: "5px solid #DA3E52",
+              width: "60px",
+              height: "60px",
+              border: "5px solid #f1f5f9",
+              borderTop: "5px solid #FF6B35",
               borderRadius: "50%",
               animation: "spin 1s linear infinite"
             }}></div>
             <p style={{
-              marginTop: "20px",
-              fontSize: "16px",
-              color: "#6B7F69",
-              fontWeight: "600"
+              marginTop: "25px",
+              fontSize: "18px",
+              color: "#2C3E50",
+              fontWeight: "600",
+              fontFamily: "'Inter', sans-serif"
             }}>
               Cargando favoritos...
             </p>
@@ -282,281 +290,394 @@ export default function Favoritos() {
             textAlign: "center",
             padding: "80px 20px",
             background: "white",
-            borderRadius: "20px",
-            boxShadow: "0 4px 20px rgba(90, 143, 72, 0.1)"
+            borderRadius: "24px",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.08)",
+            minHeight: "60vh",
+            border: "1px solid #f1f5f9"
           }}>
-            <div style={{ fontSize: "64px", marginBottom: "20px" }}>💔</div>
+            <div style={{ fontSize: "80px", marginBottom: "24px", opacity: 0.7 }}>💔</div>
+            <h2 style={{
+              color: "#2C3E50",
+              fontSize: "32px", // Mismo tamaño que carrito vacío
+              fontWeight: "800", // Mismo peso que carrito vacío
+              margin: "0 0 12px 0",
+              fontFamily: "'Playfair Display', serif" // Misma fuente que carrito
+            }}>No tienes favoritos aún</h2>
             <p style={{
-              color: "#2D3E2B",
-              fontSize: "18px",
-              fontWeight: "600",
-              margin: "0 0 8px 0"
-            }}>
-              No tienes productos favoritos aún
-            </p>
-            <p style={{
-              color: "#9AAA98",
-              fontSize: "15px",
-              margin: "0 0 24px 0"
-            }}>
-              Explora nuestros productos y guarda tus favoritos
-            </p>
+              color: "#64748b",
+              fontSize: "16px", // Mismo tamaño que carrito
+              marginBottom: "32px",
+              fontFamily: "'Inter', sans-serif" // Misma fuente que carrito
+            }}>¡Explora nuestros productos y añade tus favoritos!</p>
             <button
               onClick={() => navigate("/explorar")}
               style={{
-                padding: "14px 28px",
-                background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
+                padding: "16px 40px", // Mismo padding que carrito
+                background: "#FF6B35", // Mismo color que carrito
                 border: "none",
                 color: "white",
-                borderRadius: "12px",
+                borderRadius: "12px", // Mismo borde que carrito
                 fontWeight: "700",
                 cursor: "pointer",
-                fontSize: "15px",
+                fontSize: "16px", // Mismo tamaño que carrito
                 transition: "all 0.3s ease",
-                boxShadow: "0 4px 12px rgba(90, 143, 72, 0.25)"
+                boxShadow: "0 4px 12px rgba(255, 107, 53, 0.25)", // Mismo que carrito
+                fontFamily: "'Inter', sans-serif"
               }}
               onMouseEnter={(e) => {
                 e.target.style.transform = "translateY(-2px)";
-                e.target.style.boxShadow = "0 6px 16px rgba(90, 143, 72, 0.35)";
+                e.target.style.boxShadow = "0 6px 16px rgba(255, 107, 53, 0.35)";
+                e.target.style.background = "#FF8E53";
               }}
               onMouseLeave={(e) => {
                 e.target.style.transform = "translateY(0)";
-                e.target.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.25)";
+                e.target.style.boxShadow = "0 4px 12px rgba(255, 107, 53, 0.25)";
+                e.target.style.background = "#FF6B35";
               }}
-            >
-              Explorar productos
-            </button>
+            >Explorar Productos</button>
           </div>
         ) : (
           <div style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-            gap: "25px"
+            gridTemplateColumns: "1fr 400px", // Mismo layout que carrito cuando hay productos
+            gap: "30px",
+            alignItems: "start"
           }}>
-            {favoritos.map((fav) => (
-              <div
-                key={fav.idFavorito}
-                style={{
-                  background: "white",
-                  borderRadius: "16px",
-                  overflow: "hidden",
-                  boxShadow: "0 4px 20px rgba(90, 143, 72, 0.1)",
-                  transition: "all 0.3s ease",
-                  display: "flex",
-                  flexDirection: "column",
-                  position: "relative"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateY(-8px)";
-                  e.currentTarget.style.boxShadow = "0 12px 28px rgba(90, 143, 72, 0.18)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "0 4px 20px rgba(90, 143, 72, 0.1)";
-                }}
-              >
-                {/* Botón eliminar */}
-                <button
-                  onClick={() => eliminarFavorito(fav.idFavorito)}
-                  style={{
-                    position: "absolute",
-                    top: "12px",
-                    right: "12px",
-                    background: "rgba(255, 255, 255, 0.95)",
-                    border: "2px solid #DA3E52",
-                    borderRadius: "50%",
-                    width: "36px",
-                    height: "36px",
-                    cursor: "pointer",
-                    fontSize: "16px",
-                    fontWeight: "700",
-                    color: "#DA3E52",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "all 0.3s ease",
-                    zIndex: "2",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.15)"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = "#DA3E52";
-                    e.target.style.color = "white";
-                    e.target.style.transform = "scale(1.1)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background = "rgba(255, 255, 255, 0.95)";
-                    e.target.style.color = "#DA3E52";
-                    e.target.style.transform = "scale(1)";
-                  }}
-                  title="Quitar de favoritos"
-                >
-                  ✕
-                </button>
-
-                {/* Imagen del producto */}
-                <div
-                  onClick={() => navigate(`/producto/${fav.idProducto}`)}
-                  style={{
-                    position: "relative",
-                    overflow: "hidden",
-                    height: "200px",
-                    background: "#F9FBF7",
-                    cursor: "pointer"
-                  }}
-                >
-                  <img
-                    src={fav.imagenProducto}
-                    alt={fav.nombreProducto}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      transition: "transform 0.3s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.transform = "scale(1.08)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.transform = "scale(1)";
-                    }}
-                  />
+            {/* LISTA DE PRODUCTOS - IZQUIERDA */}
+            <div style={{
+              background: "white",
+              borderRadius: "24px", // Mismo que carrito
+              padding: "32px", // Mismo que carrito
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.08)", // Mismo que carrito
+              border: "1px solid #f1f5f9" // Mismo que carrito
+            }}>
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "28px",
+                paddingBottom: "20px",
+                borderBottom: "2px solid #f1f5f9" // Mismo que carrito
+              }}>
+                <div>
+                  <h2 style={{
+                    fontSize: "28px", // Mismo tamaño que carrito
+                    fontWeight: "800", // Mismo peso que carrito
+                    color: "#2C3E50", // Mismo color que carrito
+                    margin: "0 0 6px 0",
+                    fontFamily: "'Playfair Display', serif" // Misma fuente que carrito
+                  }}>Productos en tus favoritos</h2>
+                  <p style={{
+                    color: "#64748b", // Mismo color que carrito
+                    fontSize: "14px", // Mismo tamaño que carrito
+                    margin: "0",
+                    fontFamily: "'Inter', sans-serif" // Misma fuente que carrito
+                  }}>{favoritos.length} {favoritos.length === 1 ? 'producto' : 'productos'}</p>
                 </div>
 
-                {/* Info del producto */}
-                <div style={{
-                  padding: "18px",
-                  display: "flex",
-                  flexDirection: "column",
-                  flex: "1"
-                }}>
-                  <h3
-                    onClick={() => navigate(`/producto/${fav.idProducto}`)}
+                {favoritos.length > 0 && (
+                  <button
+                    onClick={vaciarFavoritos}
                     style={{
-                      fontSize: "16px",
+                      padding: "12px 24px", // Mismo padding que botón vaciar carrito
+                      background: "#fef2f2", // Mismo color que botón vaciar carrito
+                      color: "#dc2626", // Mismo color que botón vaciar carrito
+                      border: "2px solid #dc2626", // Mismo borde que botón vaciar carrito
+                      borderRadius: "12px", // Mismo borde que botón vaciar carrito
                       fontWeight: "700",
-                      color: "#2D3E2B",
-                      marginBottom: "8px",
-                      lineHeight: "1.3",
                       cursor: "pointer",
-                      transition: "color 0.3s ease"
+                      fontSize: "14px", // Mismo tamaño que botón vaciar carrito
+                      transition: "all 0.3s ease",
+                      fontFamily: "'Inter', sans-serif" // Misma fuente que carrito
                     }}
                     onMouseEnter={(e) => {
-                      e.target.style.color = "#5A8F48";
+                      e.target.style.background = "#dc2626";
+                      e.target.style.color = "white";
                     }}
                     onMouseLeave={(e) => {
-                      e.target.style.color = "#2D3E2B";
+                      e.target.style.background = "#fef2f2";
+                      e.target.style.color = "#dc2626";
+                    }}
+                  >🗑️ Vaciar favoritos</button>
+                )}
+              </div>
+
+              {/* GRID DE PRODUCTOS (3 columnas como explorar) */}
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                gap: "25px"
+              }}>
+                {favoritos.map((fav) => (
+                  <div
+                    key={fav.idFavorito}
+                    style={{
+                      background: "white",
+                      borderRadius: "16px",
+                      overflow: "hidden",
+                      boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
+                      transition: "all 0.4s ease",
+                      display: "flex",
+                      flexDirection: "column",
+                      position: "relative",
+                      border: "1px solid #f1f5f9",
+                      cursor: "pointer"
+                    }}
+                    onClick={() => navigate(`/producto/${fav.idProducto}`)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-8px)";
+                      e.currentTarget.style.boxShadow = "0 15px 35px rgba(0, 0, 0, 0.15)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.08)";
                     }}
                   >
-                    {fav.nombreProducto}
-                  </h3>
-
-                  <div style={{
-                    marginTop: "auto",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "12px"
-                  }}>
-                    <div style={{
-                      fontSize: "24px",
-                      fontWeight: "800",
-                      color: "#5A8F48"
-                    }}>
-                      ${fav.precioProducto}
-                    </div>
-
+                    {/* Botón eliminar */}
                     <button
-                      onClick={() => navigate(`/producto/${fav.idProducto}`)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        eliminarFavorito(fav.idFavorito);
+                      }}
                       style={{
-                        width: "100%",
-                        padding: "14px",
-                        background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
-                        border: "none",
-                        color: "white",
-                        borderRadius: "12px",
-                        fontWeight: "700",
+                        position: "absolute",
+                        top: "15px",
+                        right: "15px",
+                        background: "white",
+                        border: "2px solid #dc2626",
+                        borderRadius: "50%",
+                        width: "40px",
+                        height: "40px",
                         cursor: "pointer",
-                        fontSize: "14px",
+                        fontSize: "18px",
+                        fontWeight: "700",
+                        color: "#dc2626",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                         transition: "all 0.3s ease",
-                        boxShadow: "0 4px 12px rgba(90, 143, 72, 0.25)"
+                        zIndex: "2",
+                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+                        fontFamily: "'Inter', sans-serif"
                       }}
                       onMouseEnter={(e) => {
-                        e.target.style.transform = "translateY(-2px)";
-                        e.target.style.boxShadow = "0 6px 16px rgba(90, 143, 72, 0.35)";
+                        e.target.style.background = "#dc2626";
+                        e.target.style.color = "white";
+                        e.target.style.transform = "scale(1.1)";
                       }}
                       onMouseLeave={(e) => {
-                        e.target.style.transform = "translateY(0)";
-                        e.target.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.25)";
+                        e.target.style.background = "white";
+                        e.target.style.color = "#dc2626";
+                        e.target.style.transform = "scale(1)";
                       }}
+                      title="Quitar de favoritos"
                     >
-                      Ver producto
+                      ✕
                     </button>
+
+                    {/* Imagen del producto */}
+                    <div style={{
+                      position: "relative",
+                      overflow: "hidden",
+                      height: "200px",
+                      background: "#f8f9fa"
+                    }}>
+                      <img
+                        src={fav.imagenProducto}
+                        alt={fav.nombreProducto}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          transition: "transform 0.5s ease"
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.transform = "scale(1.08)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.transform = "scale(1)";
+                        }}
+                      />
+                    </div>
+
+                    {/* Info del producto */}
+                    <div style={{
+                      padding: "22px",
+                      display: "flex",
+                      flexDirection: "column",
+                      flex: "1"
+                    }}>
+                      <h3 style={{
+                        fontSize: "18px",
+                        fontWeight: "700",
+                        color: "#2C3E50",
+                        marginBottom: "10px",
+                        lineHeight: "1.3",
+                        fontFamily: "'Inter', sans-serif",
+                        minHeight: "46px"
+                      }}>
+                        {fav.nombreProducto}
+                      </h3>
+
+                      <div style={{
+                        marginTop: "auto",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "16px"
+                      }}>
+                        <div style={{
+                          fontSize: "28px",
+                          fontWeight: "800",
+                          color: "#FF6B35",
+                          fontFamily: "'Inter', sans-serif"
+                        }}>
+                          ${fav.precioProducto}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* PANEL LATERAL - DERECHA */}
+            <div style={{ position: "sticky", top: "20px" }}>
+              <div style={{
+                background: "white",
+                borderRadius: "24px",
+                padding: "32px",
+                boxShadow: "0 8px 32px rgba(0, 0, 0, 0.08)",
+                border: "1px solid #f1f5f9"
+              }}>
+                <h2 style={{
+                  fontSize: "28px",
+                  fontWeight: "800",
+                  color: "#FF6B35",
+                  marginBottom: "24px",
+                  paddingBottom: "16px",
+                  borderBottom: "2px solid #f1f5f9",
+                  fontFamily: "'Playfair Display', serif"
+                }}>💝 Tus Favoritos</h2>
+
+                <div style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "16px",
+                  marginBottom: "24px"
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ 
+                      color: "#64748b", 
+                      fontSize: "16px", 
+                      fontWeight: "600",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>Productos guardados</span>
+                    <span style={{ 
+                      color: "#2C3E50", 
+                      fontSize: "20px", 
+                      fontWeight: "800",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      {favoritos.length}
+                    </span>
+                  </div>
+
+                  <div style={{ height: "2px", background: "#f1f5f9", margin: "12px 0" }}></div>
+
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "20px",
+                    background: "linear-gradient(135deg, rgba(255, 107, 53, 0.1) 0%, rgba(255, 142, 83, 0.1) 100%)",
+                    borderRadius: "14px",
+                    border: "2px solid rgba(255, 107, 53, 0.2)"
+                  }}>
+                    <span style={{ 
+                      color: "#2C3E50", 
+                      fontSize: "20px", 
+                      fontWeight: "800",
+                      fontFamily: "'Playfair Display', serif"
+                    }}>Total guardados</span>
+                    <span style={{ 
+                      color: "#FF6B35", 
+                      fontSize: "32px", 
+                      fontWeight: "900",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      {favoritos.length}
+                    </span>
                   </div>
                 </div>
+
+                <button
+                  onClick={() => navigate("/explorar")}
+                  style={{
+                    width: "100%",
+                    padding: "16px",
+                    background: "white",
+                    border: "2px solid #FF6B35",
+                    color: "#FF6B35",
+                    borderRadius: "12px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    fontSize: "16px",
+                    transition: "all 0.3s ease",
+                    fontFamily: "'Inter', sans-serif",
+                    marginBottom: "16px"
+                  }}
+                  onMouseEnter={(e) => { 
+                    e.target.style.background = "rgba(255, 107, 53, 0.1)";
+                    e.target.style.transform = "translateY(-1px)";
+                  }}
+                  onMouseLeave={(e) => { 
+                    e.target.style.background = "white";
+                    e.target.style.transform = "translateY(0)";
+                  }}
+                >← Explorar más productos</button>
+
+                <div style={{
+                  marginTop: "24px",
+                  padding: "20px",
+                  background: "#f8f9fa",
+                  borderRadius: "14px",
+                  border: "1px solid #f1f5f9"
+                }}>
+                  <p style={{
+                    margin: "0 0 12px 0",
+                    fontSize: "14px",
+                    color: "#64748b",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    fontFamily: "'Inter', sans-serif"
+                  }}><span style={{ color: "#10B981", fontSize: "18px" }}>✓</span> Guarda productos para comprar después</p>
+                  <p style={{
+                    margin: "0 0 12px 0",
+                    fontSize: "14px",
+                    color: "#64748b",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    fontFamily: "'Inter', sans-serif"
+                  }}><span style={{ color: "#10B981", fontSize: "18px" }}>✓</span> Revisa tus favoritos cuando quieras</p>
+                  <p style={{
+                    margin: "0",
+                    fontSize: "14px",
+                    color: "#64748b",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    fontFamily: "'Inter', sans-serif"
+                  }}><span style={{ color: "#10B981", fontSize: "18px" }}>✓</span> Agrega al carrito directamente</p>
+                </div>
               </div>
-            ))}
+            </div>
           </div>
         )}
       </div>
 
       <Footer />
-
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        @keyframes float1 {
-          0%, 100% {
-            transform: translate(0, 0);
-          }
-          25% {
-            transform: translate(-15px, -20px);
-          }
-          50% {
-            transform: translate(10px, -15px);
-          }
-          75% {
-            transform: translate(-5px, 10px);
-          }
-        }
-
-        @keyframes float2 {
-          0%, 100% {
-            transform: translate(0, 0);
-          }
-          33% {
-            transform: translate(-20px, 15px);
-          }
-          66% {
-            transform: translate(15px, -10px);
-          }
-        }
-
-        @keyframes float3 {
-          0%, 100% {
-            transform: translate(0, 0);
-          }
-          30% {
-            transform: translate(20px, -15px);
-          }
-          60% {
-            transform: translate(-10px, 20px);
-          }
-        }
-
-        @keyframes float4 {
-          0%, 100% {
-            transform: translate(0, 0);
-          }
-          40% {
-            transform: translate(15px, 20px);
-          }
-          80% {
-            transform: translate(-20px, -10px);
-          }
-        }
-      `}</style>
     </div>
   );
 }

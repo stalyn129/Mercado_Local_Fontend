@@ -239,23 +239,6 @@ export default function ProductoDetalle() {
               alt="Producto"
             />
 
-            <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-              <img
-                src={producto.imagenProducto}
-                onClick={() => setImgSeleccionada(producto.imagenProducto)}
-                style={{
-                  width: "70px",
-                  height: "70px",
-                  borderRadius: "10px",
-                  objectFit: "cover",
-                  border: imgSeleccionada === producto.imagenProducto ? "3px solid #FF6B35" : "2px solid #f1f5f9",
-                  cursor: "pointer",
-                  transition: "all 0.3s ease"
-                }}
-                alt="Miniatura"
-              />
-            </div>
-
             {/* Vendedor Info */}
             <div style={{ background: "#f8f9fa", padding: "16px", borderRadius: "14px" }}>
               <p style={{ fontSize: "12px", color: "#8B5CF6", margin: "0 0 6px 0", fontFamily: "'Inter', sans-serif" }}>Vendedor</p>
@@ -735,17 +718,17 @@ export default function ProductoDetalle() {
       {/* Modales */}
       {showEnvio && (
         <Modal close={() => setShowEnvio(false)} title="📦 Política de Envío">
-          <p style={{ color: "#10B981", fontFamily: "'Inter', sans-serif" }}>✓ Envío dentro de 24-48 horas</p>
-          <p style={{ color: "#10B981", fontFamily: "'Inter', sans-serif" }}>✓ Entregas dentro de la ciudad</p>
-          <p style={{ color: "#10B981", fontFamily: "'Inter', sans-serif" }}>✓ Producto fresco garantizado</p>
+          <p style={{ color: "#374151", fontFamily: "'Inter', sans-serif" }}>✓ Envío dentro de 24-48 horas</p>
+          <p style={{ color: "#374151", fontFamily: "'Inter', sans-serif" }}>✓ Entregas dentro de la ciudad</p>
+          <p style={{ color: "#374151", fontFamily: "'Inter', sans-serif" }}>✓ Producto fresco garantizado</p>
         </Modal>
       )}
 
       {showReembolso && (
         <Modal close={() => setShowReembolso(false)} title="💵 Política de Reembolso">
-          <p style={{ color: "#10B981", fontFamily: "'Inter', sans-serif" }}>✓ Reembolso hasta 48h tras entrega</p>
-          <p style={{ color: "#10B981", fontFamily: "'Inter', sans-serif" }}>✓ Requiere evidencia</p>
-          <p style={{ color: "#EF4444", fontFamily: "'Inter', sans-serif" }}>✗ No cubre daño por mal uso</p>
+          <p style={{ color: "#374151", fontFamily: "'Inter', sans-serif" }}>✓ Reembolso hasta 48h tras entrega</p>
+          <p style={{ color: "#374151", fontFamily: "'Inter', sans-serif" }}>✓ Requiere evidencia</p>
+          <p style={{ color: "#374151", fontFamily: "'Inter', sans-serif" }}>✗ No cubre daño por mal uso</p>
         </Modal>
       )}
 
@@ -797,7 +780,7 @@ function Modal({ title, children, close }) {
         }}>
           {title}
         </h2>
-        <div style={{ color: "#64748b", lineHeight: "1.8", marginBottom: "20px", fontSize: "14px", fontFamily: "'Inter', sans-serif" }}>
+        <div style={{ color: "#374151", lineHeight: "1.8", marginBottom: "20px", fontSize: "14px", fontFamily: "'Inter', sans-serif" }}>
           {children}
         </div>
         <button
