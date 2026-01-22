@@ -255,7 +255,7 @@ export default function Navbar() {
       left: "0",
       right: "0",
       zIndex: "1000",
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      fontFamily: "'Playfair Display', 'Georgia', serif", // CAMBIADO: Playfair Display para todo el navbar
       gap: "2rem",
       boxShadow: isAtTop 
         ? "0 2px 10px rgba(255, 107, 53, 0.05)" 
@@ -298,7 +298,7 @@ export default function Navbar() {
       textDecoration: "none",
       color: isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B",
       fontSize: "0.95rem",
-      fontWeight: "600",
+      fontWeight: "600", // Ajustado para Playfair Display
       transition: "all 0.3s ease",
       display: "inline-block",
       padding: "0.6rem 1rem",
@@ -307,7 +307,7 @@ export default function Navbar() {
       border: "none",
       position: "relative",
       borderRadius: "8px",
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
     },
     rightSection: {
       display: "flex",
@@ -318,23 +318,23 @@ export default function Navbar() {
     userTag: {
       color: isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B",
       fontSize: "0.9rem",
-      fontWeight: "600",
+      fontWeight: "500", // Ajustado para Playfair Display
       padding: "0.6rem 1rem",
-      background: "none", // Cambiado: sin fondo
+      background: "none",
       borderRadius: "10px",
       display: "flex",
       alignItems: "center",
       gap: "0.5rem",
       whiteSpace: "nowrap",
-      border: "none", // Cambiado: sin borde
+      border: "none",
       cursor: "pointer",
       transition: "all 0.3s ease",
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
     },
     roleTag: {
       color: "white",
       fontSize: "0.7rem",
-      fontWeight: "800",
+      fontWeight: "700", // Ajustado para Playfair Display
       padding: "0.3rem 0.7rem",
       background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
       borderRadius: "12px",
@@ -343,7 +343,7 @@ export default function Navbar() {
       marginLeft: "0.3rem",
       boxShadow: "0 2px 6px rgba(255, 107, 53, 0.3)",
       letterSpacing: "0.5px",
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
     },
     dropdownMenu: {
       position: "absolute",
@@ -387,7 +387,7 @@ export default function Navbar() {
       fontWeight: "700",
       color: "#1E293B",
       margin: "0",
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
     },
     notificacionesList: {
       maxHeight: "340px",
@@ -428,13 +428,13 @@ export default function Navbar() {
       lineHeight: "1.3",
       marginBottom: "0.2rem",
       wordWrap: "break-word",
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: "'Inter', sans-serif", // Mantenemos Inter para mensajes largos
     },
     notificacionTiempo: {
       fontSize: "0.7rem",
       color: "#64748B",
       fontWeight: "400",
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: "'Inter', sans-serif", // Mantenemos Inter para texto pequeño
     },
     notificacionDot: {
       position: "absolute",
@@ -460,18 +460,18 @@ export default function Navbar() {
       fontWeight: "600",
       color: "#1E293B",
       marginBottom: "0.2rem",
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
     },
     emptyNotificacionesTexto: {
       fontSize: "0.8rem",
       color: "#64748B",
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: "'Inter', sans-serif", // Mantenemos Inter para texto explicativo
     },
     dropdownItem: {
       padding: "0.7rem 1rem",
       color: "#1E293B",
       fontSize: "0.85rem",
-      fontWeight: "500",
+      fontWeight: "500", // Ajustado para Playfair Display
       cursor: "pointer",
       border: "none",
       background: "none",
@@ -479,26 +479,26 @@ export default function Navbar() {
       textAlign: "left",
       transition: "all 0.2s ease",
       borderBottom: "1px solid rgba(255, 107, 53, 0.05)",
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
     },
     dropdownItemLogout: {
       padding: "0.7rem 1rem",
       color: "#EF4444",
       fontSize: "0.85rem",
-      fontWeight: "500",
+      fontWeight: "500", // Ajustado para Playfair Display
       cursor: "pointer",
       border: "none",
       background: "none",
       width: "100%",
       textAlign: "left",
       transition: "all 0.2s ease",
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
     },
     loginBtn: {
       textDecoration: "none",
       color: "#fff",
       fontSize: "0.9rem",
-      fontWeight: "600",
+      fontWeight: "700", // Ajustado para Playfair Display
       padding: "0.6rem 1.5rem",
       border: "none",
       borderRadius: "8px",
@@ -507,12 +507,11 @@ export default function Navbar() {
       cursor: "pointer",
       background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
       boxShadow: "0 4px 12px rgba(255, 107, 53, 0.2)",
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: "'Playfair Display', serif", // YA ESTABA CORRECTO
     },
-    // ICONOS SIN BORDES
     iconButton: {
-      background: "none", // Cambiado: sin fondo
-      border: "none", // Cambiado: sin borde
+      background: "none",
+      border: "none",
       fontSize: "1.1rem",
       cursor: "pointer",
       padding: "0.5rem",
@@ -523,7 +522,7 @@ export default function Navbar() {
       borderRadius: "8px",
       width: "42px",
       height: "42px",
-      color: isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B", // Cambiado color para coincidir
+      color: isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B",
       position: "relative",
     },
     badge: (bgColor) => ({
@@ -540,16 +539,16 @@ export default function Navbar() {
       textAlign: "center",
       lineHeight: "1",
       boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: "'Inter', sans-serif", // Mantenemos Inter para badges pequeños
     }),
     hamburger: {
       display: "none",
-      background: "none", // Cambiado: sin fondo
-      border: "none", // Cambiado: sin borde
+      background: "none",
+      border: "none",
       fontSize: "1.5rem",
       cursor: "pointer",
       padding: "0.5rem 0.7rem",
-      color: isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B", // Cambiado color para coincidir
+      color: isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B",
       transition: "all 0.3s ease",
       borderRadius: "8px",
       width: "42px",
@@ -578,7 +577,7 @@ export default function Navbar() {
       textDecoration: "none",
       color: "#1E293B",
       fontSize: "0.95rem",
-      fontWeight: "600",
+      fontWeight: "500", // Ajustado para Playfair Display
       padding: "0.8rem 1rem",
       cursor: "pointer",
       background: "none",
@@ -586,7 +585,7 @@ export default function Navbar() {
       textAlign: "left",
       borderRadius: "8px",
       transition: "all 0.2s ease",
-      fontFamily: "'Inter', sans-serif",
+      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
       width: "100%",
     },
     spacer: {
@@ -654,7 +653,27 @@ export default function Navbar() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        /* Aplicar Playfair Display a todos los elementos del navbar */
+        .navbar,
+        .nav-link,
+        .user-tag-btn,
+        .login-btn,
+        .dropdown-menu button,
+        .mobile-menu button,
+        .notificaciones-title,
+        .empty-notificaciones-mensaje {
+          font-family: 'Playfair Display', Georgia, serif !important;
+        }
+
+        /* Solo mantener Inter para texto muy pequeño o detalles */
+        .badge,
+        .notificacion-mensaje,
+        .notificacion-tiempo,
+        .empty-notificaciones-texto {
+          font-family: 'Inter', sans-serif !important;
+        }
 
         /* Scrollbar personalizada */
         .notificaciones-list::-webkit-scrollbar {
@@ -889,17 +908,17 @@ export default function Navbar() {
               {showNotificaciones && (
                 <div style={styles.notificacionesDropdown} className="notif-dropdown">
                   <div style={styles.notificacionesHeader}>
-                    <h3 style={styles.notificacionesTitle}>Notificaciones</h3>
+                    <h3 style={styles.notificacionesTitle} className="notificaciones-title">Notificaciones</h3>
                   </div>
 
                   <div style={styles.notificacionesList} className="notificaciones-list">
                     {notificaciones.length === 0 ? (
                       <div style={styles.emptyNotificaciones}>
                         <div style={styles.emptyNotificacionesIcono}>🔔</div>
-                        <div style={styles.emptyNotificacionesMensaje}>
+                        <div style={styles.emptyNotificacionesMensaje} className="empty-notificaciones-mensaje">
                           Sin notificaciones
                         </div>
-                        <div style={styles.emptyNotificacionesTexto}>
+                        <div style={styles.emptyNotificacionesTexto} className="empty-notificaciones-texto">
                           Te avisaremos cuando haya algo nuevo
                         </div>
                       </div>
@@ -936,10 +955,10 @@ export default function Navbar() {
                           </div>
 
                           <div style={styles.notificacionContenido}>
-                            <div style={styles.notificacionMensaje}>
+                            <div style={styles.notificacionMensaje} className="notificacion-mensaje">
                               {n.mensaje}
                             </div>
-                            <div style={styles.notificacionTiempo}>
+                            <div style={styles.notificacionTiempo} className="notificacion-tiempo">
                               {n.fecha ? calcularTiempoRelativo(n.fecha) : "Hace un momento"}
                             </div>
                           </div>
@@ -1018,7 +1037,7 @@ export default function Navbar() {
                 <span style={{ fontSize: "0.9rem", marginLeft: "0.2rem" }}>▼</span>
               </button>
 
-              {/* Dropdown Menu */}
+              {/* Dropdown Menu - MOSTRAR "MIS PEDIDOS" SOLO PARA CONSUMIDORES */}
               {showUserMenu && (
                 <div style={styles.dropdownMenu} className="dropdown-menu">
                   <button
@@ -1050,20 +1069,23 @@ export default function Navbar() {
                     ⚙️ Configuración
                   </button>
 
-                  <button
-                    onClick={() => handleNavigate("/mis-pedidos")}
-                    style={styles.dropdownItem}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(255, 107, 53, 0.05)";
-                      e.currentTarget.style.paddingLeft = "1.2rem";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "none";
-                      e.currentTarget.style.paddingLeft = "1rem";
-                    }}
-                  >
-                    📦 Mis pedidos
-                  </button>
+                  {/* SOLO MOSTRAR "MIS PEDIDOS" PARA CONSUMIDORES */}
+                  {user.rol === "CONSUMIDOR" && (
+                    <button
+                      onClick={() => handleNavigate("/mis-pedidos")}
+                      style={styles.dropdownItem}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "rgba(255, 107, 53, 0.05)";
+                        e.currentTarget.style.paddingLeft = "1.2rem";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "none";
+                        e.currentTarget.style.paddingLeft = "1rem";
+                      }}
+                    >
+                      📦 Mis pedidos
+                    </button>
+                  )}
 
                   <button
                     onClick={handleCerrarSesion}

@@ -120,7 +120,7 @@ export default function Home() {
   };
 
   const mainTitleStyle = {
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+    fontFamily: "'Playfair Display', 'Georgia', serif", // CAMBIADO: Playfair Display
     fontSize: "2.8rem",
     fontWeight: "900",
     background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 25%, #2ECC71 50%, #3498DB 75%, #9B59B6 100%)",
@@ -135,7 +135,7 @@ export default function Home() {
   };
 
   const subtitleStyle = {
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
     fontSize: "1.2rem",
     color: "#64748B",
     fontWeight: "400",
@@ -145,7 +145,7 @@ export default function Home() {
   };
 
   const marketLocalStyle = {
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
     fontSize: "1rem",
     color: "#FF6B35",
     fontWeight: "700",
@@ -194,6 +194,7 @@ export default function Home() {
     animation: index === activeBadge ? "pulse 2s infinite" : "none",
     border: index === activeBadge ? "none" : "1px solid rgba(255, 107, 53, 0.1)",
     cursor: "pointer",
+    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
   });
 
   // BOTÓN PRINCIPAL - MÁS COMPACTO
@@ -213,6 +214,7 @@ export default function Home() {
     boxShadow: "0 6px 20px rgba(255, 107, 53, 0.4)",
     animation: "pulse 2s infinite",
     marginTop: "0.8rem",
+    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
   };
 
   const gridContainerStyle = {
@@ -225,7 +227,7 @@ export default function Home() {
   };
 
   const gridTitleStyle = {
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: "'Playfair Display', 'Georgia', serif", // CAMBIADO: Playfair Display
     fontSize: "2rem",
     fontWeight: "800",
     color: "#1E293B",
@@ -237,7 +239,7 @@ export default function Home() {
   };
 
   const gridSubtitleStyle = {
-    fontFamily: "'Inter', sans-serif",
+    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
     fontSize: "0.95rem",
     color: "#64748B",
     textAlign: "center",
@@ -307,6 +309,7 @@ export default function Home() {
     textTransform: "uppercase",
     letterSpacing: "0.5px",
     transform: "translateY(-10px)",
+    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
   };
 
   const LoadingSkeleton = () => (
@@ -342,7 +345,7 @@ export default function Home() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&display=swap');
         
         * {
           margin: 0;
@@ -355,6 +358,20 @@ export default function Home() {
           background: linear-gradient(180deg, #F9FBF7 0%, #F0F7F0 100%);
           overflow-x: hidden;
           scroll-behavior: smooth;
+        }
+
+        /* Aplicar Playfair Display a elementos principales */
+        .main-title,
+        .market-local,
+        .subtitle,
+        .grid-title,
+        .grid-subtitle,
+        .main-button,
+        .badge,
+        .image-badge,
+        .modal-title,
+        .modal-section-title {
+          font-family: 'Playfair Display', Georgia, serif !important;
         }
 
         /* Animaciones principales */
@@ -705,6 +722,7 @@ export default function Home() {
                 lineHeight: "1.5",
                 marginBottom: "0.3rem",
                 maxWidth: "550px",
+                fontFamily: "'Inter', sans-serif", // Mantenemos Inter para párrafos descriptivos
               }}>
                 Descubre productos cultivados con pasión por agricultores locales. 
                 Frescura garantizada, calidad excepcional.
@@ -814,7 +832,7 @@ export default function Home() {
                   </div>
                   <div style={{ padding: "20px" }}>
                     <h3 style={{
-                      fontFamily: "'Inter', sans-serif",
+                      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
                       fontSize: "1.1rem",
                       fontWeight: "700",
                       color: "#1E293B",
@@ -824,7 +842,7 @@ export default function Home() {
                       Producto Premium {i + 1}
                     </h3>
                     <p style={{
-                      fontFamily: "'Inter', sans-serif",
+                      fontFamily: "'Inter', sans-serif", // Mantenemos Inter para descripción
                       fontSize: "0.9rem",
                       color: "#64748B",
                       marginBottom: "12px",
@@ -858,6 +876,7 @@ export default function Home() {
                         backgroundColor: "#F1F5F9",
                         padding: "4px 10px",
                         borderRadius: "10px",
+                        fontFamily: "'Inter', sans-serif", // Mantenemos Inter para detalles
                       }}>
                         por kg
                       </span>
@@ -897,7 +916,7 @@ export default function Home() {
                   </div>
                   <div style={{ padding: "20px" }}>
                     <h3 style={{
-                      fontFamily: "'Inter', sans-serif",
+                      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
                       fontSize: "1.1rem",
                       fontWeight: "700",
                       color: "#1E293B",
@@ -907,7 +926,7 @@ export default function Home() {
                       {p.nombreProducto}
                     </h3>
                     <p style={{
-                      fontFamily: "'Inter', sans-serif",
+                      fontFamily: "'Inter', sans-serif", // Mantenemos Inter para descripción
                       fontSize: "0.9rem",
                       color: "#64748B",
                       marginBottom: "12px",
@@ -941,6 +960,7 @@ export default function Home() {
                         backgroundColor: p.stockProducto > 0 ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
                         padding: "4px 10px",
                         borderRadius: "10px",
+                        fontFamily: "'Inter', sans-serif", // Mantenemos Inter para stock
                       }}>
                         {p.stockProducto > 0 ? `${p.stockProducto} uds` : "Agotado"}
                       </span>
@@ -1164,6 +1184,7 @@ export default function Home() {
                   animation: "pulse 2s infinite",
                   border: "1px solid rgba(255, 255, 255, 0.3)",
                   textShadow: "0 1px 2px rgba(0, 0, 0, 0.2)",
+                  fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
                 }}>
                   {selectedProduct.stockProducto > 0 ? (
                     `${selectedProduct.stockProducto} disponibles`
@@ -1198,7 +1219,8 @@ export default function Home() {
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent",
                     backgroundClip: "text",
-                  }}>
+                    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+                  }} className="modal-title">
                     {selectedProduct.nombreProducto}
                   </h2>
                   
@@ -1213,6 +1235,7 @@ export default function Home() {
                     display: "flex",
                     alignItems: "center",
                     gap: "6px",
+                    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
                   }}>
                     <span style={{ fontSize: "1.6rem", opacity: 0.8 }}>$</span>
                     {parseFloat(selectedProduct.precioProducto).toFixed(2)}
@@ -1235,6 +1258,7 @@ export default function Home() {
                     border: selectedProduct.stockProducto > 0 
                       ? "1px solid rgba(16, 185, 129, 0.2)" 
                       : "1px solid rgba(239, 68, 68, 0.2)",
+                    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
                   }}>
                     <span style={{ fontSize: "1.1rem" }}>
                       {selectedProduct.stockProducto > 0 ? "📦" : "❌"}
@@ -1260,7 +1284,8 @@ export default function Home() {
                       display: "flex",
                       alignItems: "center",
                       gap: "8px",
-                    }}>
+                      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+                    }} className="modal-section-title">
                       <span style={{
                         background: "linear-gradient(135deg, #3498DB, #9B59B6)",
                         WebkitBackgroundClip: "text",
@@ -1274,6 +1299,7 @@ export default function Home() {
                       color: "#64748B",
                       lineHeight: "1.6",
                       paddingLeft: "30px",
+                      fontFamily: "'Inter', sans-serif", // Mantenemos Inter para texto descriptivo
                     }}>
                       {selectedProduct.descripcionProducto || "Producto fresco de calidad local, cultivado con técnicas sostenibles y respetuosas con el medio ambiente."}
                     </p>
@@ -1308,11 +1334,12 @@ export default function Home() {
                           display: "flex",
                           alignItems: "center",
                           gap: "6px",
+                          fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
                         }}>
                           <span style={{ fontSize: "1rem" }}>👨‍🌾</span>
                           Agricultor
                         </div>
-                        <div style={{ fontWeight: "700", color: "#1E293B", fontSize: "1rem" }}>
+                        <div style={{ fontWeight: "700", color: "#1E293B", fontSize: "1rem", fontFamily: "'Playfair Display', serif" }}>
                           {selectedProduct.nombreVendedor}
                         </div>
                       </div>
@@ -1340,11 +1367,12 @@ export default function Home() {
                           display: "flex",
                           alignItems: "center",
                           gap: "6px",
+                          fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
                         }}>
                           <span style={{ fontSize: "1rem" }}>🏷️</span>
                           Categoría
                         </div>
-                        <div style={{ fontWeight: "700", color: "#1E293B", fontSize: "1rem" }}>
+                        <div style={{ fontWeight: "700", color: "#1E293B", fontSize: "1rem", fontFamily: "'Playfair Display', serif" }}>
                           {selectedProduct.nombreCategoria}
                         </div>
                       </div>
@@ -1374,6 +1402,7 @@ export default function Home() {
                     opacity: selectedProduct.stockProducto > 0 ? 1 : 0.6,
                     position: "relative",
                     overflow: "hidden",
+                    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
                   }}
                   onMouseEnter={(e) => {
                     if (selectedProduct.stockProducto > 0) {
@@ -1423,6 +1452,7 @@ export default function Home() {
                   justifyContent: "center",
                   gap: "8px",
                   flexWrap: "wrap",
+                  fontFamily: "'Inter', sans-serif", // Mantenemos Inter para nota pequeña
                 }}>
                   <span style={{ 
                     color: "#10B981", 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { User, Mail, Lock, Calendar, CheckCircle, AlertCircle, Eye, EyeOff, ShoppingBag, Store, CreditCard, Phone, MapPin, Building2, FileText, ArrowRight } from "lucide-react";
 import Footer from "../components/Footer";
 
@@ -8,6 +8,7 @@ export default function Register() {
     apellido: "",
     correo: "",
     contrasena: "",
+    confirmarContrasena: "",
     fechaNacimiento: "",
     idRol: 3,
     // Campos CONSUMIDOR
@@ -23,64 +24,213 @@ export default function Register() {
   });
   
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+
+  // Función para calcular edad
+  const calcularEdad = (fechaNacimiento) => {
+    const hoy = new Date();
+    const nacimiento = new Date(fechaNacimiento);
+    let edad = hoy.getFullYear() - nacimiento.getFullYear();
+    const mes = hoy.getMonth() - nacimiento.getMonth();
+    
+    if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
+      edad--;
+    }
+    
+    return edad;
+  };
+
+  // Función para validar un campo específico
+  const validateField = (name, value) => {
+    let error = "";
+    
+    switch(name) {
+      case 'nombre':
+        if (!value.trim()) error = "El nombre es requerido";
+        else if (value.length < 2) error = "El nombre debe tener al menos 2 caracteres";
+        break;
+        
+      case 'apellido':
+        if (!value.trim()) error = "El apellido es requerido";
+        else if (value.length < 2) error = "El apellido debe tener al menos 2 caracteres";
+        break;
+        
+      case 'correo':
+        if (!value.trim()) error = "El correo electrónico es requerido";
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = "Ingresa un correo electrónico válido";
+        break;
+        
+      case 'contrasena':
+        if (!value.trim()) error = "La contraseña es requerida";
+        else if (value.length < 6) error = "La contraseña debe tener al menos 6 caracteres";
+        else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(value)) error = "Debe contener mayúsculas, minúsculas y números";
+        break;
+        
+      case 'confirmarContrasena':
+        if (!value.trim()) error = "Debes confirmar tu contraseña";
+        else if (value !== form.contrasena) error = "Las contraseñas no coinciden";
+        break;
+        
+      case 'fechaNacimiento':
+        if (!value) error = "La fecha de nacimiento es requerida";
+        else {
+          const edad = calcularEdad(value);
+          if (edad < 20) error = "Debes tener al menos 20 años";
+          else if (edad > 65) error = "La edad máxima permitida es 65 años";
+        }
+        break;
+        
+      case 'cedula':
+        if (form.idRol === 3) {
+          if (!value.trim()) error = "La cédula es requerida";
+          else if (!/^\d{10}$/.test(value)) error = "La cédula debe tener 10 dígitos";
+        }
+        break;
+        
+      case 'telefono':
+        if (form.idRol === 3) {
+          if (!value.trim()) error = "El teléfono es requerido";
+          else if (!/^\d{10}$/.test(value)) error = "El teléfono debe tener 10 dígitos";
+        }
+        break;
+        
+      case 'direccion':
+        if (form.idRol === 3 && !value.trim()) error = "La dirección es requerida";
+        break;
+        
+      case 'nombreEmpresa':
+        if (form.idRol === 2 && !value.trim()) error = "El nombre del negocio es requerido";
+        break;
+        
+      case 'ruc':
+        if (form.idRol === 2) {
+          if (!value.trim()) error = "El RUC es requerido";
+          else if (!/^\d{13}$/.test(value)) error = "El RUC debe tener 13 dígitos";
+        }
+        break;
+        
+      case 'telefonoEmpresa':
+        if (form.idRol === 2) {
+          if (!value.trim()) error = "El teléfono del negocio es requerido";
+          else if (!/^\d{10}$/.test(value)) error = "El teléfono debe tener 10 dígitos";
+        }
+        break;
+        
+      case 'direccionEmpresa':
+        if (form.idRol === 2 && !value.trim()) error = "La dirección del negocio es requerida";
+        break;
+    }
+    
+    return error;
+  };
+
+  // Validación en tiempo real cuando el campo pierde el foco
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched(prev => ({ ...prev, [name]: true }));
+    
+    const error = validateField(name, value);
+    setErrors(prev => ({ ...prev, [name]: error }));
+  };
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
+    
     if (message.text) setMessage({ type: "", text: "" });
+    
+    // Validar en tiempo real si ya fue tocado el campo
+    if (touched[name]) {
+      const error = validateField(name, value);
+      setErrors(prev => ({ ...prev, [name]: error }));
+    }
   };
 
   const handleRoleChange = (newRole) => {
     setForm({ ...form, idRol: newRole });
     if (message.text) setMessage({ type: "", text: "" });
+    // Limpiar errores específicos de rol
+    const roleSpecificErrors = ['cedula', 'direccion', 'telefono', 'nombreEmpresa', 'ruc', 'direccionEmpresa', 'telefonoEmpresa'];
+    const newErrors = { ...errors };
+    roleSpecificErrors.forEach(field => delete newErrors[field]);
+    setErrors(newErrors);
+  };
+
+  // Validar todo el formulario antes de enviar
+  const validateForm = () => {
+    const newErrors = {};
+    const newTouched = {};
+    
+    // Validar todos los campos
+    Object.keys(form).forEach(field => {
+      newTouched[field] = true;
+      const error = validateField(field, form[field]);
+      if (error) newErrors[field] = error;
+    });
+    
+    setTouched(newTouched);
+    setErrors(newErrors);
+    
+    return Object.keys(newErrors).length === 0;
   };
 
   const registrar = (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      setMessage({ type: "error", text: "Por favor corrige los errores del formulario" });
+      // Hacer scroll al primer error
+      const firstErrorField = Object.keys(errors)[0];
+      if (firstErrorField) {
+        const element = document.querySelector(`[name="${firstErrorField}"]`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.focus();
+        }
+      }
+      return;
+    }
+    
     setLoading(true);
     setMessage({ type: "", text: "" });
+    
+    // Preparar datos para enviar (sin confirmarContrasena)
+    const dataToSend = { ...form };
+    delete dataToSend.confirmarContrasena;
     
     fetch("http://localhost:8080/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(dataToSend),
     })
       .then(response => response.json().then(data => ({ ok: response.ok, data })))
       .then(({ ok, data }) => {
         if (ok) {
-          setMessage({ type: "success", text: "¡Registro exitoso! Bienvenido 🎉" });
+          setMessage({ type: "success", text: "¡Registro exitoso! Redirigiendo al login... 🎉" });
           
-          // Guardar en localStorage
-          if (data.token) localStorage.setItem("authToken", data.token);
-          if (data.rol) localStorage.setItem("rol", data.rol);
-          if (data.idUsuario) localStorage.setItem("idUsuario", data.idUsuario);
-          if (data.idVendedor) localStorage.setItem("idVendedor", data.idVendedor);
-          if (data.idConsumidor) localStorage.setItem("idConsumidor", data.idConsumidor);
+          // IMPORTANTE: NO guardamos nada en localStorage aquí
+          // Guardamos el email temporalmente para pre-llenar el login
+          sessionStorage.setItem("registeredEmail", form.correo);
+          sessionStorage.setItem("registrationSuccess", "true");
           
-          // Guardar objeto user completo
-          const user = {
-            id: data.idUsuario,
-            rol: data.rol,
-            idVendedor: data.idVendedor,
-            idConsumidor: data.idConsumidor
-          };
-          localStorage.setItem("user", JSON.stringify(user));
-          
+          // Resetear formulario
           setForm({
-            nombre: "", apellido: "", correo: "", contrasena: "", fechaNacimiento: "", idRol: 3,
+            nombre: "", apellido: "", correo: "", contrasena: "", confirmarContrasena: "", fechaNacimiento: "", idRol: 3,
             cedula: "", direccion: "", telefono: "",
             nombreEmpresa: "", ruc: "", direccionEmpresa: "", telefonoEmpresa: "", descripcion: ""
           });
           
+          // Limpiar errores y touched
+          setErrors({});
+          setTouched({});
+          
+          // Redirigir a LoginModal después de 2 segundos
           setTimeout(() => {
-            if (data.rol === "VENDEDOR") {
-              window.location.href = "/vendedor";
-            } else if (data.rol === "CONSUMIDOR") {
-              window.location.href = "/";
-            } else {
-              window.location.href = "/";
-            }
+            window.location.href = "/LoginModal";
           }, 2000);
           
         } else {
@@ -88,7 +238,7 @@ export default function Register() {
         }
       })
       .catch(error => {
-        setMessage({ type: "error", text: "Error en la conexión con el servidor" });
+        setMessage({ type: "error", text: "Error en la conexión con el servidor. Verifica que el backend esté corriendo." });
         console.error(error);
       })
       .finally(() => {
@@ -96,11 +246,30 @@ export default function Register() {
       });
   };
 
+  // Determinar si un campo tiene error
+  const getFieldStatus = (fieldName) => {
+    if (!touched[fieldName]) return "";
+    return errors[fieldName] ? "error" : "success";
+  };
+
+  // Calcular fecha mínima y máxima (20-65 años)
+  const calcularFechasLimite = () => {
+    const hoy = new Date();
+    const fechaMax = new Date(hoy.getFullYear() - 20, hoy.getMonth(), hoy.getDate());
+    const fechaMin = new Date(hoy.getFullYear() - 65, hoy.getMonth(), hoy.getDate());
+    
+    return {
+      max: fechaMax.toISOString().split('T')[0],
+      min: fechaMin.toISOString().split('T')[0]
+    };
+  };
+
+  const fechasLimite = calcularFechasLimite();
+
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Comfortaa:wght@400;500;600&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
 
         * {
           margin: 0;
@@ -110,8 +279,8 @@ export default function Register() {
 
         .register-container {
           min-height: 100vh;
-          background: #faf8f3;
-          font-family: "Comfortaa", sans-serif;
+          background: #fffaf5;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
           padding: 60px 20px;
         }
 
@@ -156,7 +325,7 @@ export default function Register() {
         }
 
         .overlay-title {
-          font-family: "Playfair Display", serif;
+          font-family: 'Playfair Display', 'Georgia', serif;
           font-size: 42px;
           font-weight: 700;
           margin-bottom: 15px;
@@ -167,6 +336,7 @@ export default function Register() {
           font-size: 18px;
           opacity: 0.95;
           line-height: 1.6;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         /* LADO DERECHO - FORMULARIO */
@@ -189,7 +359,7 @@ export default function Register() {
         }
 
         .form-side::-webkit-scrollbar-thumb {
-          background: #6b8e6e;
+          background: #FF6B35;
           border-radius: 10px;
         }
 
@@ -198,28 +368,21 @@ export default function Register() {
           margin-bottom: 40px;
         }
 
-        .form-logo {
-          width: 80px;
-          height: 80px;
-          margin: 0 auto 20px;
-          background: linear-gradient(135deg, #3a5a40 0%, #6b8e4e 100%);
-          border-radius: 24px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
+        /* TÍTULO MÁS GRANDE Y CON MEJOR ESPACIADO */
         .form-title {
-          font-family: "Playfair Display", serif;
-          font-size: 36px;
-          font-weight: 700;
-          color: #3a5a40;
+          font-family: 'Playfair Display', 'Georgia', serif;
+          font-size: 56px; /* MUCHO MÁS GRANDE */
+          font-weight: 800;
+          color: #1a1a1a;
           margin-bottom: 10px;
+          letter-spacing: -1px;
+          line-height: 1.1;
         }
 
         .form-subtitle {
           color: #666;
-          font-size: 16px;
+          font-size: 18px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         /* SELECTOR DE ROL */
@@ -228,11 +391,12 @@ export default function Register() {
         }
 
         .role-label {
-          font-size: 15px;
+          font-size: 18px;
           font-weight: 600;
-          color: #3a5a40;
+          color: #1a1a1a;
           margin-bottom: 15px;
           display: block;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         .role-buttons {
@@ -243,7 +407,7 @@ export default function Register() {
 
         .role-btn {
           padding: 25px 20px;
-          border: 2px solid #e0ddd0;
+          border: 2px solid #f0f0f0;
           background: white;
           border-radius: 20px;
           cursor: pointer;
@@ -252,17 +416,18 @@ export default function Register() {
           flex-direction: column;
           align-items: center;
           gap: 12px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         .role-btn:hover {
           transform: translateY(-3px);
-          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+          box-shadow: 0 8px 20px rgba(255, 107, 53, 0.1);
         }
 
         .role-btn.active {
-          border-color: #3a5a40;
-          background: #f0f5f1;
-          box-shadow: 0 8px 20px rgba(58, 90, 64, 0.15);
+          border-color: #FF6B35;
+          background: rgba(255, 107, 53, 0.05);
+          box-shadow: 0 8px 20px rgba(255, 107, 53, 0.15);
         }
 
         .role-icon {
@@ -276,23 +441,25 @@ export default function Register() {
         }
 
         .role-btn.active .role-icon {
-          background: linear-gradient(135deg, #6b8e4e 0%, #3a5a40 100%);
+          background: linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%);
         }
 
         .role-btn:not(.active) .role-icon {
-          background: #e0ddd0;
+          background: #f0f0f0;
         }
 
         .role-name {
           font-weight: 600;
           font-size: 16px;
-          color: #2d3e32;
+          color: #1a1a1a;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         .role-desc {
           font-size: 13px;
           color: #666;
           text-align: center;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         /* INPUTS */
@@ -301,13 +468,13 @@ export default function Register() {
         }
 
         .section-title {
-          font-family: "Playfair Display", serif;
+          font-family: 'Playfair Display', 'Georgia', serif;
           font-size: 22px;
           font-weight: 700;
-          color: #3a5a40;
+          color: #1a1a1a;
           margin-bottom: 25px;
           padding-bottom: 15px;
-          border-bottom: 2px solid #e0ddd0;
+          border-bottom: 2px solid #f0f0f0;
           display: flex;
           align-items: center;
           gap: 10px;
@@ -327,8 +494,9 @@ export default function Register() {
           display: block;
           font-size: 14px;
           font-weight: 600;
-          color: #3a5a40;
+          color: #555;
           margin-bottom: 8px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         .input-wrapper {
@@ -340,31 +508,47 @@ export default function Register() {
           left: 16px;
           top: 50%;
           transform: translateY(-50%);
-          color: #d48f27;
+          color: #FF6B35;
           pointer-events: none;
         }
 
         .form-input {
           width: 100%;
           padding: 14px 16px 14px 48px;
-          border: 2px solid #e0ddd0;
+          border: 2px solid #f0f0f0;
           border-radius: 14px;
           font-size: 15px;
-          font-family: "Comfortaa", sans-serif;
-          background: #fffdf7;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          background: white;
           transition: all 0.3s ease;
           outline: none;
         }
 
         .form-input:focus {
-          border-color: #6b8e4e;
-          box-shadow: 0 0 0 4px rgba(107, 142, 78, 0.1);
+          border-color: #FF6B35;
+          box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .form-input.error {
+          border-color: #ff4444;
+          background: rgba(255, 68, 68, 0.02);
+        }
+
+        .form-input.success {
+          border-color: #4CAF50;
+          background: rgba(76, 175, 80, 0.02);
+        }
+
+        .form-input::placeholder {
+          color: #aaa;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         .form-textarea {
           padding: 14px 16px;
           resize: none;
           min-height: 100px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         .password-toggle {
@@ -377,10 +561,55 @@ export default function Register() {
           color: #aaa;
           cursor: pointer;
           transition: color 0.3s ease;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .password-toggle:hover {
+          color: #FF6B35;
+        }
+
+        .error-message {
+          color: #ff4444;
+          font-size: 12px;
+          margin-top: 5px;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          animation: fadeIn 0.3s ease;
+        }
+
+        .success-message {
+          color: #4CAF50;
+          font-size: 12px;
+          margin-top: 5px;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          animation: fadeIn 0.3s ease;
+        }
+
+        .age-info {
           color: #666;
+          font-size: 11px;
+          margin-top: 3px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          font-style: italic;
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(-5px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
 
         /* ALERT */
@@ -394,6 +623,7 @@ export default function Register() {
           font-size: 14px;
           font-weight: 500;
           animation: slideDown 0.3s ease;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         @keyframes slideDown {
@@ -408,40 +638,40 @@ export default function Register() {
         }
 
         .alert-success {
-          background: #d4edda;
-          color: #155724;
-          border: 2px solid #c3e6cb;
+          background: rgba(76, 175, 80, 0.1);
+          color: #2E7D32;
+          border: 2px solid rgba(76, 175, 80, 0.2);
         }
 
         .alert-error {
-          background: #f8d7da;
-          color: #721c24;
-          border: 2px solid #f5c6cb;
+          background: rgba(255, 68, 68, 0.1);
+          color: #C62828;
+          border: 2px solid rgba(255, 68, 68, 0.2);
         }
 
         /* BOTÓN */
         .submit-btn {
           width: 100%;
           padding: 18px;
-          background: linear-gradient(135deg, #3a5a40 0%, #6b8e4e 100%);
+          background: linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%);
           color: white;
           border: none;
           border-radius: 16px;
           font-size: 17px;
           font-weight: 600;
-          font-family: "Comfortaa", sans-serif;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
           cursor: pointer;
           transition: all 0.3s ease;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 10px;
-          box-shadow: 0 8px 20px rgba(58, 90, 64, 0.3);
+          box-shadow: 0 8px 20px rgba(255, 107, 53, 0.3);
         }
 
         .submit-btn:hover:not(:disabled) {
           transform: translateY(-2px);
-          box-shadow: 0 12px 30px rgba(58, 90, 64, 0.4);
+          box-shadow: 0 12px 30px rgba(255, 107, 53, 0.4);
         }
 
         .submit-btn:active:not(:disabled) {
@@ -474,13 +704,14 @@ export default function Register() {
           margin: 25px 0;
           color: #999;
           font-size: 14px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         .divider::before,
         .divider::after {
           content: '';
           flex: 1;
-          border-bottom: 1px solid #e0ddd0;
+          border-bottom: 1px solid #f0f0f0;
         }
 
         .divider span {
@@ -493,11 +724,11 @@ export default function Register() {
           padding: 16px;
           background: white;
           color: #444;
-          border: 2px solid #e0ddd0;
+          border: 2px solid #f0f0f0;
           border-radius: 16px;
           font-size: 16px;
           font-weight: 600;
-          font-family: "Comfortaa", sans-serif;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
           cursor: pointer;
           transition: all 0.3s ease;
           display: flex;
@@ -510,7 +741,8 @@ export default function Register() {
         .google-btn:hover {
           transform: translateY(-2px);
           box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-          border-color: #d0d0d0;
+          border-color: #FF6B35;
+          background: rgba(255, 107, 53, 0.02);
         }
 
         .google-btn:active {
@@ -527,10 +759,11 @@ export default function Register() {
           margin-top: 25px;
           font-size: 14px;
           color: #666;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         .login-link a {
-          color: #d48f27;
+          color: #FF6B35;
           font-weight: 600;
           text-decoration: none;
           transition: opacity 0.3s ease;
@@ -538,6 +771,7 @@ export default function Register() {
 
         .login-link a:hover {
           opacity: 0.8;
+          text-decoration: underline;
         }
 
         /* RESPONSIVE */
@@ -576,7 +810,7 @@ export default function Register() {
           }
 
           .form-title {
-            font-size: 28px;
+            font-size: 42px;
           }
 
           .overlay-title {
@@ -600,8 +834,9 @@ export default function Register() {
                 alt="Productos frescos locales" 
               />
               <div className="image-overlay">
-                <h2 className="overlay-title">Mercado Local-IA</h2>
+                <h2 className="overlay-title">My Harvest</h2>
                 <p className="overlay-subtitle">
+                  MERCADO - IA<br />
                   Conectando productores locales con consumidores de toda la región. 
                   Productos frescos, directos del campo a tu mesa.
                 </p>
@@ -612,11 +847,8 @@ export default function Register() {
           {/* LADO DERECHO - FORMULARIO */}
           <div className="form-side">
             
-            {/* HEADER */}
+            {/* HEADER SIN LOGO - SOLO TÍTULO Y SUBTÍTULO */}
             <div className="form-header">
-              <div className="form-logo">
-                <User className="w-10 h-10 text-white" strokeWidth={1.5} />
-              </div>
               <h1 className="form-title">Crear Cuenta</h1>
               <p className="form-subtitle">Únete a nuestra comunidad</p>
             </div>
@@ -635,7 +867,7 @@ export default function Register() {
 
             {/* SELECTOR DE ROL */}
             <div className="role-selector">
-              <label className="role-label">¿Cómo te gustaría unirte? *</label>
+              <label className="role-label">¿Cómo te gustaría unirte?</label>
               <div className="role-buttons">
                 <button
                   type="button"
@@ -666,13 +898,13 @@ export default function Register() {
             {/* INFORMACIÓN PERSONAL */}
             <div className="form-section">
               <h3 className="section-title">
-                <User className="w-5 h-5" style={{ color: "#6b8e4e" }} strokeWidth={1.5} />
+                <User className="w-5 h-5" style={{ color: "#FF6B35" }} strokeWidth={1.5} />
                 Información Personal
               </h3>
               
               <div className="input-row">
                 <div className="input-group">
-                  <label className="input-label">Nombre *</label>
+                  <label className="input-label">Nombre</label>
                   <div className="input-wrapper">
                     <User className="input-icon w-5 h-5" strokeWidth={1.5} />
                     <input
@@ -680,15 +912,28 @@ export default function Register() {
                       name="nombre"
                       value={form.nombre}
                       onChange={handleChange}
-                      className="form-input"
+                      onBlur={handleBlur}
+                      className={`form-input ${getFieldStatus("nombre")}`}
                       placeholder="Juan"
                       required
                     />
                   </div>
+                  {errors.nombre && touched.nombre && (
+                    <div className="error-message">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.nombre}
+                    </div>
+                  )}
+                  {!errors.nombre && touched.nombre && form.nombre && (
+                    <div className="success-message">
+                      <CheckCircle className="w-4 h-4" />
+                      Nombre válido
+                    </div>
+                  )}
                 </div>
                 
                 <div className="input-group">
-                  <label className="input-label">Apellido *</label>
+                  <label className="input-label">Apellido</label>
                   <div className="input-wrapper">
                     <User className="input-icon w-5 h-5" strokeWidth={1.5} />
                     <input
@@ -696,16 +941,29 @@ export default function Register() {
                       name="apellido"
                       value={form.apellido}
                       onChange={handleChange}
-                      className="form-input"
+                      onBlur={handleBlur}
+                      className={`form-input ${getFieldStatus("apellido")}`}
                       placeholder="Pérez"
                       required
                     />
                   </div>
+                  {errors.apellido && touched.apellido && (
+                    <div className="error-message">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.apellido}
+                    </div>
+                  )}
+                  {!errors.apellido && touched.apellido && form.apellido && (
+                    <div className="success-message">
+                      <CheckCircle className="w-4 h-4" />
+                      Apellido válido
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="input-group">
-                <label className="input-label">Correo electrónico *</label>
+                <label className="input-label">Correo electrónico</label>
                 <div className="input-wrapper">
                   <Mail className="input-icon w-5 h-5" strokeWidth={1.5} />
                   <input
@@ -713,15 +971,28 @@ export default function Register() {
                     name="correo"
                     value={form.correo}
                     onChange={handleChange}
-                    className="form-input"
+                    onBlur={handleBlur}
+                    className={`form-input ${getFieldStatus("correo")}`}
                     placeholder="tu@email.com"
                     required
                   />
                 </div>
+                {errors.correo && touched.correo && (
+                  <div className="error-message">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.correo}
+                  </div>
+                )}
+                {!errors.correo && touched.correo && form.correo && (
+                  <div className="success-message">
+                    <CheckCircle className="w-4 h-4" />
+                    Correo válido
+                  </div>
+                )}
               </div>
 
               <div className="input-group">
-                <label className="input-label">Contraseña *</label>
+                <label className="input-label">Contraseña</label>
                 <div className="input-wrapper">
                   <Lock className="input-icon w-5 h-5" strokeWidth={1.5} />
                   <input
@@ -729,7 +1000,8 @@ export default function Register() {
                     name="contrasena"
                     value={form.contrasena}
                     onChange={handleChange}
-                    className="form-input"
+                    onBlur={handleBlur}
+                    className={`form-input ${getFieldStatus("contrasena")}`}
                     placeholder="••••••••"
                     required
                   />
@@ -741,10 +1013,63 @@ export default function Register() {
                     {showPassword ? <EyeOff className="w-5 h-5" strokeWidth={1.5} /> : <Eye className="w-5 h-5" strokeWidth={1.5} />}
                   </button>
                 </div>
+                {errors.contrasena && touched.contrasena && (
+                  <div className="error-message">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.contrasena}
+                  </div>
+                )}
+                {!errors.contrasena && touched.contrasena && form.contrasena && form.contrasena.length >= 6 && (
+                  <div className="success-message">
+                    <CheckCircle className="w-4 h-4" />
+                    Contraseña segura
+                  </div>
+                )}
+                {touched.contrasena && !errors.contrasena && (
+                  <div className="success-message" style={{ fontSize: "11px", color: "#666" }}>
+                    ✓ La contraseña debe tener al menos 6 caracteres, incluyendo mayúsculas, minúsculas y números
+                  </div>
+                )}
               </div>
 
               <div className="input-group">
-                <label className="input-label">Fecha de nacimiento *</label>
+                <label className="input-label">Confirmar Contraseña</label>
+                <div className="input-wrapper">
+                  <Lock className="input-icon w-5 h-5" strokeWidth={1.5} />
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    name="confirmarContrasena"
+                    value={form.confirmarContrasena}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    className={`form-input ${getFieldStatus("confirmarContrasena")}`}
+                    placeholder="••••••••"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="password-toggle"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-5 h-5" strokeWidth={1.5} /> : <Eye className="w-5 h-5" strokeWidth={1.5} />}
+                  </button>
+                </div>
+                {errors.confirmarContrasena && touched.confirmarContrasena && (
+                  <div className="error-message">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.confirmarContrasena}
+                  </div>
+                )}
+                {!errors.confirmarContrasena && touched.confirmarContrasena && form.confirmarContrasena && form.contrasena === form.confirmarContrasena && (
+                  <div className="success-message">
+                    <CheckCircle className="w-4 h-4" />
+                    Las contraseñas coinciden
+                  </div>
+                )}
+              </div>
+
+              <div className="input-group">
+                <label className="input-label">Fecha de nacimiento</label>
                 <div className="input-wrapper">
                   <Calendar className="input-icon w-5 h-5" strokeWidth={1.5} />
                   <input
@@ -752,10 +1077,28 @@ export default function Register() {
                     name="fechaNacimiento"
                     value={form.fechaNacimiento}
                     onChange={handleChange}
-                    className="form-input"
+                    onBlur={handleBlur}
+                    className={`form-input ${getFieldStatus("fechaNacimiento")}`}
+                    min={fechasLimite.min}
+                    max={fechasLimite.max}
                     required
                   />
                 </div>
+                <div className="age-info">
+                  Rango de edad permitido: 20 a 65 años
+                </div>
+                {errors.fechaNacimiento && touched.fechaNacimiento && (
+                  <div className="error-message">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.fechaNacimiento}
+                  </div>
+                )}
+                {!errors.fechaNacimiento && touched.fechaNacimiento && form.fechaNacimiento && (
+                  <div className="success-message">
+                    <CheckCircle className="w-4 h-4" />
+                    Edad válida (entre 20 y 65 años)
+                  </div>
+                )}
               </div>
             </div>
 
@@ -763,32 +1106,95 @@ export default function Register() {
             {form.idRol === 3 && (
               <div className="form-section">
                 <h3 className="section-title">
-                  <ShoppingBag className="w-5 h-5" style={{ color: "#6b8e4e" }} strokeWidth={1.5} />
+                  <ShoppingBag className="w-5 h-5" style={{ color: "#FF6B35" }} strokeWidth={1.5} />
                   Información del Consumidor
                 </h3>
                 
                 <div className="input-group">
-                  <label className="input-label">Cédula *</label>
+                  <label className="input-label">Cédula</label>
                   <div className="input-wrapper">
                     <CreditCard className="input-icon w-5 h-5" strokeWidth={1.5} />
-                    <input type="text" name="cedula" value={form.cedula} onChange={handleChange} className="form-input" placeholder="0102030405" required />
+                    <input 
+                      type="text" 
+                      name="cedula" 
+                      value={form.cedula} 
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={`form-input ${getFieldStatus("cedula")}`}
+                      placeholder="0102030405" 
+                      required 
+                    />
                   </div>
+                  {errors.cedula && touched.cedula && (
+                    <div className="error-message">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.cedula}
+                    </div>
+                  )}
+                  {!errors.cedula && touched.cedula && form.cedula && (
+                    <div className="success-message">
+                      <CheckCircle className="w-4 h-4" />
+                      Cédula válida
+                    </div>
+                  )}
                 </div>
 
                 <div className="input-group">
-                  <label className="input-label">Dirección *</label>
+                  <label className="input-label">Dirección</label>
                   <div className="input-wrapper">
                     <MapPin className="input-icon w-5 h-5" strokeWidth={1.5} />
-                    <input type="text" name="direccion" value={form.direccion} onChange={handleChange} className="form-input" placeholder="Dirección del domicilio" required />
+                    <input 
+                      type="text" 
+                      name="direccion" 
+                      value={form.direccion} 
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={`form-input ${getFieldStatus("direccion")}`}
+                      placeholder="Dirección del domicilio" 
+                      required 
+                    />
                   </div>
+                  {errors.direccion && touched.direccion && (
+                    <div className="error-message">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.direccion}
+                    </div>
+                  )}
+                  {!errors.direccion && touched.direccion && form.direccion && (
+                    <div className="success-message">
+                      <CheckCircle className="w-4 h-4" />
+                      Dirección válida
+                    </div>
+                  )}
                 </div>
 
                 <div className="input-group">
-                  <label className="input-label">Teléfono *</label>
+                  <label className="input-label">Teléfono</label>
                   <div className="input-wrapper">
                     <Phone className="input-icon w-5 h-5" strokeWidth={1.5} />
-                    <input type="text" name="telefono" value={form.telefono} onChange={handleChange} className="form-input" placeholder="0999999999" required />
+                    <input 
+                      type="text" 
+                      name="telefono" 
+                      value={form.telefono} 
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={`form-input ${getFieldStatus("telefono")}`}
+                      placeholder="0999999999" 
+                      required 
+                    />
                   </div>
+                  {errors.telefono && touched.telefono && (
+                    <div className="error-message">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.telefono}
+                    </div>
+                  )}
+                  {!errors.telefono && touched.telefono && form.telefono && (
+                    <div className="success-message">
+                      <CheckCircle className="w-4 h-4" />
+                      Teléfono válido
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -797,45 +1203,136 @@ export default function Register() {
             {form.idRol === 2 && (
               <div className="form-section">
                 <h3 className="section-title">
-                  <Store className="w-5 h-5" style={{ color: "#d48f27" }} strokeWidth={1.5} />
+                  <Store className="w-5 h-5" style={{ color: "#FF6B35" }} strokeWidth={1.5} />
                   Información del Negocio
                 </h3>
                 
                 <div className="input-group">
-                  <label className="input-label">Nombre del negocio *</label>
+                  <label className="input-label">Nombre del negocio</label>
                   <div className="input-wrapper">
                     <Building2 className="input-icon w-5 h-5" strokeWidth={1.5} />
-                    <input type="text" name="nombreEmpresa" value={form.nombreEmpresa} onChange={handleChange} className="form-input" placeholder="Frutas Don Pepe" required />
+                    <input 
+                      type="text" 
+                      name="nombreEmpresa" 
+                      value={form.nombreEmpresa} 
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={`form-input ${getFieldStatus("nombreEmpresa")}`}
+                      placeholder="Frutas Don Pepe" 
+                      required 
+                    />
                   </div>
+                  {errors.nombreEmpresa && touched.nombreEmpresa && (
+                    <div className="error-message">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.nombreEmpresa}
+                    </div>
+                  )}
+                  {!errors.nombreEmpresa && touched.nombreEmpresa && form.nombreEmpresa && (
+                    <div className="success-message">
+                      <CheckCircle className="w-4 h-4" />
+                      Nombre válido
+                    </div>
+                  )}
                 </div>
 
                 <div className="input-group">
-                  <label className="input-label">RUC *</label>
+                  <label className="input-label">RUC</label>
                   <div className="input-wrapper">
                     <FileText className="input-icon w-5 h-5" strokeWidth={1.5} />
-                    <input type="text" name="ruc" value={form.ruc} onChange={handleChange} className="form-input" placeholder="1102345678001" required />
+                    <input 
+                      type="text" 
+                      name="ruc" 
+                      value={form.ruc} 
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={`form-input ${getFieldStatus("ruc")}`}
+                      placeholder="1102345678001" 
+                      required 
+                    />
                   </div>
+                  {errors.ruc && touched.ruc && (
+                    <div className="error-message">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.ruc}
+                    </div>
+                  )}
+                  {!errors.ruc && touched.ruc && form.ruc && (
+                    <div className="success-message">
+                      <CheckCircle className="w-4 h-4" />
+                      RUC válido
+                    </div>
+                  )}
                 </div>
 
                 <div className="input-group">
-                  <label className="input-label">Dirección del negocio *</label>
+                  <label className="input-label">Dirección del negocio</label>
                   <div className="input-wrapper">
                     <MapPin className="input-icon w-5 h-5" strokeWidth={1.5} />
-                    <input type="text" name="direccionEmpresa" value={form.direccionEmpresa} onChange={handleChange} className="form-input" placeholder="Mercado Central, Local 12" required />
+                    <input 
+                      type="text" 
+                      name="direccionEmpresa" 
+                      value={form.direccionEmpresa} 
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={`form-input ${getFieldStatus("direccionEmpresa")}`}
+                      placeholder="Mercado Central, Local 12" 
+                      required 
+                    />
                   </div>
+                  {errors.direccionEmpresa && touched.direccionEmpresa && (
+                    <div className="error-message">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.direccionEmpresa}
+                    </div>
+                  )}
+                  {!errors.direccionEmpresa && touched.direccionEmpresa && form.direccionEmpresa && (
+                    <div className="success-message">
+                      <CheckCircle className="w-4 h-4" />
+                      Dirección válida
+                    </div>
+                  )}
                 </div>
 
                 <div className="input-group">
-                  <label className="input-label">Teléfono del negocio *</label>
+                  <label className="input-label">Teléfono del negocio</label>
                   <div className="input-wrapper">
                     <Phone className="input-icon w-5 h-5" strokeWidth={1.5} />
-                    <input type="text" name="telefonoEmpresa" value={form.telefonoEmpresa} onChange={handleChange} className="form-input" placeholder="0987654321" required />
+                    <input 
+                      type="text" 
+                      name="telefonoEmpresa" 
+                      value={form.telefonoEmpresa} 
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={`form-input ${getFieldStatus("telefonoEmpresa")}`}
+                      placeholder="0987654321" 
+                      required 
+                    />
                   </div>
+                  {errors.telefonoEmpresa && touched.telefonoEmpresa && (
+                    <div className="error-message">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.telefonoEmpresa}
+                    </div>
+                  )}
+                  {!errors.telefonoEmpresa && touched.telefonoEmpresa && form.telefonoEmpresa && (
+                    <div className="success-message">
+                      <CheckCircle className="w-4 h-4" />
+                      Teléfono válido
+                    </div>
+                  )}
                 </div>
 
                 <div className="input-group">
                   <label className="input-label">Descripción del negocio</label>
-                  <textarea name="descripcion" value={form.descripcion} onChange={handleChange} className="form-input form-textarea" placeholder="Venta de verduras frescas y productos orgánicos..." />
+                  <textarea 
+                    name="descripcion" 
+                    value={form.descripcion} 
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    className="form-input form-textarea" 
+                    placeholder="Venta de verduras frescas y productos orgánicos..." 
+                  />
                 </div>
               </div>
             )}
@@ -885,7 +1382,7 @@ export default function Register() {
             {/* LINK LOGIN */}
             <p className="login-link">
               ¿Ya tienes cuenta?{" "}
-              <a href="/login">Inicia sesión aquí</a>
+              <a href="/LoginModal">Inicia sesión aquí</a>
             </p>
           </div>
 
