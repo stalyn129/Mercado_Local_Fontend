@@ -9,7 +9,6 @@ export default function PedidoDetalle() {
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
-  // Detectar origen de navegación
   const origen = location.state?.origen || "CHECKOUT";
 
   const [pedido, setPedido] = useState(null);
@@ -17,6 +16,7 @@ export default function PedidoDetalle() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Estados para pago (solo si el pedido está pendiente)
   const [metodoPago, setMetodoPago] = useState("EFECTIVO");
   const [montoEfectivo, setMontoEfectivo] = useState("");
   const [comprobante, setComprobante] = useState(null);
@@ -25,6 +25,220 @@ export default function PedidoDetalle() {
   const [fechaTarjeta, setFechaTarjeta] = useState("");
   const [titular, setTitular] = useState("");
   const [finalizando, setFinalizando] = useState(false);
+
+  const [lineaTiempo, setLineaTiempo] = useState([]);
+
+  // CORRECCIÓN MEJORADA: Determinar si mostrar checkout
+  const mostrarCheckout = () => {
+    if (!pedido) return false;
+
+    // Mostrar checkout solo si:
+    // 1. Viene de checkout (origen CHECKOUT) o no se especifica origen
+    // 2. El pedido está PENDIENTE o CREADO
+    // 3. El pago NO está confirmado
+    // 4. No está cancelado
+    const esOrigenCheckout = origen === "CHECKOUT" || !location.state?.origen;
+    
+    if (esOrigenCheckout && 
+        (pedido.estadoPedido === "PENDIENTE" || pedido.estadoPedido === "CREADO") &&
+        pedido.estadoPago !== "PAGADO" &&
+        pedido.estadoPago !== "EN_VERIFICACION" &&
+        pedido.estadoPedido !== "CANCELADO") {
+      return true;
+    }
+    
+    return false;
+  };
+
+  // LÍNEA DE TIEMPO MEJORADA - Más precisa
+  const construirLineaTiempo = (pedidoData) => {
+    const estados = [];
+    let orden = 1;
+
+    // Estado 1: Pedido realizado
+    estados.push({
+      estado: "PEDIDO_REALIZADO",
+      descripcion: "Pedido realizado",
+      fecha: pedidoData.fechaPedido,
+      completado: true,
+      icono: "📦",
+      orden: orden++
+    });
+
+    // Estado 2: Proceso de pago
+    if (pedidoData.estadoPago === "PENDIENTE") {
+      estados.push({
+        estado: "ESPERANDO_PAGO",
+        descripcion: "Esperando confirmación de pago",
+        fecha: pedidoData.fechaPedido,
+        completado: false,
+        icono: "⏳",
+        orden: orden++
+      });
+    } else if (pedidoData.estadoPago === "EN_VERIFICACION") {
+      estados.push({
+        estado: "PAGO_EN_VERIFICACION",
+        descripcion: "Verificando pago",
+        fecha: pedidoData.fechaPedido,
+        completado: false,
+        icono: "🔍",
+        orden: orden++
+      });
+    } else if (pedidoData.estadoPago === "PAGADO") {
+      estados.push({
+        estado: "PAGO_CONFIRMADO",
+        descripcion: "Pago confirmado",
+        fecha: pedidoData.fechaPedido,
+        completado: true,
+        icono: "✅",
+        orden: orden++
+      });
+    } else if (pedidoData.estadoPago === "RECHAZADO") {
+      estados.push({
+        estado: "PAGO_RECHAZADO",
+        descripcion: "Pago rechazado",
+        fecha: pedidoData.fechaPedido,
+        completado: true,
+        icono: "❌",
+        orden: orden++
+      });
+    }
+
+    // Estados de procesamiento solo si el pago está confirmado
+    if (pedidoData.estadoPago === "PAGADO" && pedidoData.estadoPedido !== "CANCELADO") {
+      
+      // Estado 3: Vendedor acepta
+      if (pedidoData.estadoPedidoVendedor) {
+        const estadosVendedor = {
+          "NUEVO": { desc: "Vendedor ha aceptado el pedido", icon: "👍", completado: true },
+          "EN_PROCESO": { desc: "Vendedor preparando tu pedido", icon: "👨‍🍳", completado: false },
+          "DESPACHADO": { desc: "Pedido despachado", icon: "🚚", completado: true },
+          "ENTREGADO": { desc: "Pedido entregado", icon: "🏠", completado: true }
+        };
+        
+        if (estadosVendedor[pedidoData.estadoPedidoVendedor]) {
+          const estadoVendedor = estadosVendedor[pedidoData.estadoPedidoVendedor];
+          estados.push({
+            estado: pedidoData.estadoPedidoVendedor,
+            descripcion: estadoVendedor.desc,
+            fecha: pedidoData.fechaPedido,
+            completado: estadoVendedor.completado,
+            icono: estadoVendedor.icon,
+            orden: orden++
+          });
+        }
+      }
+
+      // Estado 4: Recolectando (si ya pasó NUEVO)
+      if (pedidoData.estadoPedidoVendedor && 
+          pedidoData.estadoPedidoVendedor !== "NUEVO") {
+        estados.push({
+          estado: "RECOLECTANDO",
+          descripcion: "Recolectando productos",
+          fecha: pedidoData.fechaPedido,
+          completado: pedidoData.estadoPedidoVendedor === "DESPACHADO" || 
+                     pedidoData.estadoPedidoVendedor === "ENTREGADO",
+          icono: "🛒",
+          orden: orden++
+        });
+      }
+
+      // Estado 5: Empacando
+      if (pedidoData.estadoPedidoVendedor === "DESPACHADO" ||
+          pedidoData.estadoPedidoVendedor === "ENTREGADO") {
+        estados.push({
+          estado: "EMPACANDO",
+          descripcion: "Empacando tu pedido",
+          fecha: pedidoData.fechaPedido,
+          completado: true,
+          icono: "📦",
+          orden: orden++
+        });
+      }
+
+      // Estado 6: En camino
+      if (pedidoData.estadoPedidoVendedor === "DESPACHADO") {
+        estados.push({
+          estado: "EN_CAMINO",
+          descripcion: "Pedido en camino",
+          fecha: pedidoData.fechaPedido,
+          completado: false,
+          icono: "🚗",
+          orden: orden++
+        });
+      } else if (pedidoData.estadoPedidoVendedor === "ENTREGADO") {
+        estados.push({
+          estado: "EN_CAMINO",
+          descripcion: "Pedido en camino",
+          fecha: pedidoData.fechaPedido,
+          completado: true,
+          icono: "🚗",
+          orden: orden++
+        });
+      }
+    }
+
+    // Estado final: Completado/Cancelado
+    if (pedidoData.estadoPedido === "COMPLETADO") {
+      estados.push({
+        estado: "COMPLETADO",
+        descripcion: "Pedido completado",
+        fecha: pedidoData.fechaPedido,
+        completado: true,
+        icono: "🎉",
+        orden: orden++
+      });
+    } else if (pedidoData.estadoPedido === "CANCELADO") {
+      estados.push({
+        estado: "CANCELADO",
+        descripcion: "Pedido cancelado",
+        fecha: pedidoData.fechaPedido,
+        completado: true,
+        icono: "❌",
+        orden: orden++
+      });
+    }
+
+    // Usar EstadoSeguimientoPedido si está disponible (prioridad)
+    if (pedidoData.estadoSeguimiento) {
+      const seguimientoMap = {
+        "PEDIDO_REALIZADO": { desc: "Pedido realizado", icon: "📦", completado: true },
+        "ESPERANDO_PAGO": { desc: "Esperando pago", icon: "⏳", completado: pedidoData.estadoPago !== "PENDIENTE" },
+        "RECOLECTANDO": { desc: "Recolectando productos", icon: "🛒", completado: pedidoData.estadoPedidoVendedor === "DESPACHADO" || pedidoData.estadoPedidoVendedor === "ENTREGADO" },
+        "EMPACANDO": { desc: "Empacando pedido", icon: "📦", completado: pedidoData.estadoPedidoVendedor === "DESPACHADO" || pedidoData.estadoPedidoVendedor === "ENTREGADO" },
+        "EN_CAMINO": { desc: "Pedido en camino", icon: "🚚", completado: pedidoData.estadoPedidoVendedor === "ENTREGADO" },
+        "LISTO_PARA_RETIRO": { desc: "Listo para retiro", icon: "📦", completado: pedidoData.estadoPedidoVendedor === "DESPACHADO" || pedidoData.estadoPedidoVendedor === "ENTREGADO" },
+        "ENTREGADO": { desc: "Entregado", icon: "🏠", completado: pedidoData.estadoPedidoVendedor === "ENTREGADO" }
+      };
+
+      if (seguimientoMap[pedidoData.estadoSeguimiento]) {
+        const seguimiento = seguimientoMap[pedidoData.estadoSeguimiento];
+        // Reemplazar o agregar estado según corresponda
+        const index = estados.findIndex(e => e.estado === pedidoData.estadoSeguimiento);
+        if (index === -1) {
+          estados.push({
+            estado: pedidoData.estadoSeguimiento,
+            descripcion: seguimiento.desc,
+            fecha: pedidoData.fechaPedido,
+            completado: seguimiento.completado,
+            icono: seguimiento.icon,
+            orden: orden++
+          });
+        } else {
+          estados[index] = {
+            ...estados[index],
+            descripcion: seguimiento.desc,
+            icono: seguimiento.icon,
+            completado: seguimiento.completado
+          };
+        }
+      }
+    }
+
+    // Ordenar por orden
+    estados.sort((a, b) => a.orden - b.orden);
+    setLineaTiempo(estados);
+  };
 
   const cargarPedido = async () => {
     const token = localStorage.getItem("authToken");
@@ -40,6 +254,7 @@ export default function PedidoDetalle() {
       }
 
       const dataPedido = await resPedido.json();
+      console.log("📦 Datos del pedido:", dataPedido);
 
       const resDetalles = await fetch(
         `${API_URL}/pedidos/${idPedido}/detalles`,
@@ -56,6 +271,7 @@ export default function PedidoDetalle() {
 
       setPedido(dataPedido);
       setDetalles(dataDetalles);
+      construirLineaTiempo(dataPedido);
       setLoading(false);
     } catch (err) {
       console.error("❌ Error cargando pedido:", err);
@@ -68,15 +284,35 @@ export default function PedidoDetalle() {
     cargarPedido();
   }, [idPedido]);
 
+  const obtenerColorEstadoGeneral = (estado) => {
+    const colores = {
+      "CREADO": "#4A90E2",
+      "PENDIENTE": "#F4B419",
+      "PROCESANDO": "#2196F3",
+      "COMPLETADO": "#5A8F48",
+      "CANCELADO": "#E74C3C",
+    };
+    return colores[estado] || "#6B7F69";
+  };
+
+  const obtenerColorEstadoPago = (estado) => {
+    const colores = {
+      "PENDIENTE": "#F4B419",
+      "EN_VERIFICACION": "#FF9800",
+      "PAGADO": "#5A8F48",
+      "RECHAZADO": "#F44336",
+      "CANCELADO": "#E74C3C",
+    };
+    return colores[estado] || "#6B7F69";
+  };
+
   // Validación del formulario
   const validarFormulario = () => {
     if (metodoPago === "EFECTIVO") {
-      // Ya no es obligatorio el monto, pero si lo pone debe ser mayor o igual
       if (montoEfectivo && parseFloat(montoEfectivo) < pedido.total) {
         alert("❌ El monto debe ser mayor o igual al total del pedido");
         return false;
       }
-      // Si no pone monto, está bien (pagará el monto exacto)
       return true;
     }
 
@@ -109,141 +345,115 @@ export default function PedidoDetalle() {
     return true;
   };
 
-  // 🆕 FUNCIÓN MEJORADA CON DEBUGGING
   const finalizarCompra = async () => {
-  if (!validarFormulario()) return;
+    if (!validarFormulario()) return;
 
-  const token = localStorage.getItem("authToken");
-  if (!token) return navigate("/loginmodal");
+    const token = localStorage.getItem("authToken");
+    if (!token) return navigate("/loginmodal");
 
-  // 🚨 AVISO ESPECIAL PARA EFECTIVO
-  let confirmar;
-  if (metodoPago === "EFECTIVO") {
-    confirmar = window.confirm(
-      `⚠️ IMPORTANTE - Pago en Efectivo\n\n` +
-      `• Total a pagar: $${pedido.total.toFixed(2)}\n` +
-      `• Pagarás al recibir el pedido\n` +
-      `• Una vez confirmado, NO PODRÁS CANCELAR\n` +
-      `• El vendedor preparará tu pedido de inmediato\n\n` +
-      `¿Confirmas tu pedido?`
-    );
-  } else {
-    confirmar = window.confirm(
-      `¿Confirmar pedido por $${pedido.total.toFixed(2)} con ${metodoPago}?`
-    );
-  }
-
-  if (!confirmar) return;
-
-  setFinalizando(true);
-
-  try {
-    let body;
-    let headers = {
-      Authorization: `Bearer ${token}`,
-    };
-
-    // 🔥 CORRECCIÓN PRINCIPAL - Manejo correcto de EFECTIVO
+    let confirmar;
     if (metodoPago === "EFECTIVO") {
-      headers["Content-Type"] = "application/json";
-      
-      // Si el usuario ingresó un monto, lo enviamos, sino enviamos el total exacto
-      const montoFinal = montoEfectivo && parseFloat(montoEfectivo) >= pedido.total
-        ? parseFloat(montoEfectivo)
-        : pedido.total;
-      
-      body = JSON.stringify({
-        metodoPago: "EFECTIVO",
-        montoEfectivo: montoFinal
-      });
-      
-      console.log("💵 EFECTIVO - Enviando:", {
-        metodoPago: "EFECTIVO",
-        montoEfectivo: montoFinal
-      });
-      
-    } else if (metodoPago === "TRANSFERENCIA") {
-      // Para TRANSFERENCIA usamos FormData
-      body = new FormData();
-      body.append("metodoPago", "TRANSFERENCIA");
-      if (comprobante) {
-        body.append("comprobante", comprobante);
-        console.log("🏦 TRANSFERENCIA - Archivo:", comprobante.name);
-      }
-      
-    } else if (metodoPago === "TARJETA") {
-      // Para TARJETA usamos FormData
-      body = new FormData();
-      body.append("metodoPago", "TARJETA");
-      body.append("numTarjeta", numTarjeta.replace(/\s/g, ""));
-      body.append("cvv", cvv);
-      body.append("fechaTarjeta", fechaTarjeta);
-      body.append("titular", titular);
-      console.log("💳 TARJETA - Datos enviados");
-    }
-
-    const url = `${API_URL}/pedidos/finalizar/${idPedido}`;
-    console.log("🔵 URL:", url);
-    console.log("🔵 Método de pago:", metodoPago);
-    console.log("🔵 Headers:", headers);
-
-    const res = await fetch(url, {
-      method: "PUT",
-      headers: headers,
-      body: body,
-    });
-
-    console.log("📥 Status de respuesta:", res.status);
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("❌ Error del servidor:", errorText);
-      throw new Error(errorText || "No se pudo finalizar el pedido");
-    }
-
-    const data = await res.json();
-    console.log("✅ Respuesta exitosa:", data);
-
-    // ✅ Éxito - Mostrar mensaje apropiado según el método de pago
-    if (metodoPago === "EFECTIVO") {
-      alert(
-        `🎉 ¡Pedido confirmado!\n\n` +
-        `Pagarás $${pedido.total.toFixed(2)} en efectivo al recibir tu pedido.\n` +
-        `El vendedor está preparando tu orden.`
+      confirmar = window.confirm(
+        `⚠️ IMPORTANTE - Pago en Efectivo\n\n` +
+        `• Total a pagar: $${pedido.total.toFixed(2)}\n` +
+        `• Pagarás al recibir el pedido\n` +
+        `• Una vez confirmado, NO PODRÁS CANCELAR\n` +
+        `• El vendedor preparará tu pedido de inmediato\n\n` +
+        `¿Confirmas tu pedido?`
       );
     } else {
-      alert("🎉 ¡Compra finalizada con éxito!");
+      confirmar = window.confirm(
+        `¿Confirmar pedido por $${pedido.total.toFixed(2)} con ${metodoPago}?`
+      );
     }
 
-    // Recargar el pedido actualizado
-    await cargarPedido();
+    if (!confirmar) return;
 
-  } catch (err) {
-    console.error("❌ Error completo:", err);
-    alert(`❌ Error al finalizar pedido:\n${err.message}`);
-  } finally {
-    setFinalizando(false);
-  }
-};
+    setFinalizando(true);
 
-  // 🟢 FUNCIÓN MEJORADA PARA VOLVER O CANCELAR
+    try {
+      let body;
+      let headers = {
+        Authorization: `Bearer ${token}`,
+      };
+
+      if (metodoPago === "EFECTIVO") {
+        headers["Content-Type"] = "application/json";
+
+        const montoFinal = montoEfectivo && parseFloat(montoEfectivo) >= pedido.total
+          ? parseFloat(montoEfectivo)
+          : pedido.total;
+
+        body = JSON.stringify({
+          metodoPago: "EFECTIVO",
+          montoEfectivo: montoFinal
+        });
+
+      } else if (metodoPago === "TRANSFERENCIA") {
+        body = new FormData();
+        body.append("metodoPago", "TRANSFERENCIA");
+        if (comprobante) {
+          body.append("comprobante", comprobante);
+        }
+
+      } else if (metodoPago === "TARJETA") {
+        body = new FormData();
+        body.append("metodoPago", "TARJETA");
+        body.append("numTarjeta", numTarjeta.replace(/\s/g, ""));
+        body.append("cvv", cvv);
+        body.append("fechaTarjeta", fechaTarjeta);
+        body.append("titular", titular);
+      }
+
+      const url = `${API_URL}/pedidos/finalizar/${idPedido}`;
+
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: headers,
+        body: body,
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || "No se pudo finalizar el pedido");
+      }
+
+      const data = await res.json();
+
+      if (metodoPago === "EFECTIVO") {
+        alert(
+          `🎉 ¡Pedido confirmado!\n\n` +
+          `Pagarás $${pedido.total.toFixed(2)} en efectivo al recibir tu pedido.\n` +
+          `El vendedor está preparando tu orden.`
+        );
+      } else {
+        alert("🎉 ¡Compra finalizada con éxito!");
+      }
+
+      await cargarPedido();
+
+    } catch (err) {
+      console.error("❌ Error:", err);
+      alert(`❌ Error al finalizar pedido:\n${err.message}`);
+    } finally {
+      setFinalizando(false);
+    }
+  };
+
   const confirmarSalir = async () => {
     if (!pedido) return;
 
-    const pedidoFinalizado =
-      pedido.estadoPedido === "CREADO" ||
-      pedido.estadoPedido === "PENDIENTE" ||
-      pedido.estadoPedido === "PROCESANDO";
+    // Solo permitir cancelar si el pedido está pendiente y no está pagado
+    const pedidoCancelable =
+      (pedido.estadoPedido === "PENDIENTE" || pedido.estadoPedido === "CREADO") &&
+      pedido.estadoPago !== "PAGADO" &&
+      pedido.estadoPago !== "EN_VERIFICACION";
 
-    const vieneDeMisPedidos = origen === "MIS_PEDIDOS";
-
-    // 🟢 Si viene del historial o ya está finalizado, solo vuelve
-    if (vieneDeMisPedidos || pedidoFinalizado) {
+    if (!pedidoCancelable) {
       navigate("/mis-pedidos");
       return;
     }
 
-    // ⚠️ SOLO checkout + pendiente puede cancelar
     const ok = window.confirm(
       "¿Estás seguro de cancelar este pedido? Los productos volverán al carrito."
     );
@@ -265,6 +475,14 @@ export default function PedidoDetalle() {
       console.error("Error cancelando pedido:", err);
       navigate("/carrito");
     }
+  };
+
+  // Función auxiliar para formatear moneda
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('es-EC', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
   };
 
   if (loading) {
@@ -314,14 +532,6 @@ export default function PedidoDetalle() {
     );
   }
 
-  const estadoColors = {
-    PENDIENTE: "#F4B419",
-    PENDIENTE_VERIFICACION: "#F4B419",
-    PROCESANDO: "#4A90E2",
-    COMPLETADO: "#5A8F48",
-    CANCELADO: "#E74C3C",
-  };
-
   const labelStyle = {
     display: "block",
     fontWeight: "600",
@@ -340,15 +550,8 @@ export default function PedidoDetalle() {
     transition: "all 0.3s ease",
   };
 
-  const pedidoFinalizado =
-    pedido.estadoPedido === "CREADO" ||
-    pedido.estadoPedido === "PENDIENTE" ||
-    pedido.estadoPedido === "PROCESANDO";
-
-  const vieneDeMisPedidos = origen === "MIS_PEDIDOS";
-
-  const pedidoCancelable =
-    !vieneDeMisPedidos && pedido.estadoPedido === "PENDIENTE";
+  // Determinar qué vista mostrar
+  const mostrarVistaCheckout = mostrarCheckout();
 
   return (
     <>
@@ -380,6 +583,14 @@ export default function PedidoDetalle() {
               grid-template-columns: 1fr !important;
             }
           }
+
+          .linea-tiempo-item {
+            transition: all 0.3s ease;
+          }
+
+          .linea-tiempo-item:hover {
+            transform: translateX(5px);
+          }
         `}</style>
 
         <div
@@ -401,7 +612,7 @@ export default function PedidoDetalle() {
               cursor: "pointer",
               fontSize: "14px",
               fontWeight: "600",
-              color: pedidoCancelable ? "#E74C3C" : "#5A8F48",
+              color: mostrarVistaCheckout ? "#E74C3C" : "#5A8F48",
               marginBottom: "20px",
               boxShadow: "0 2px 8px rgba(90, 143, 72, 0.1)",
               transition: "all 0.3s ease",
@@ -415,13 +626,11 @@ export default function PedidoDetalle() {
               e.target.style.boxShadow = "0 2px 8px rgba(90, 143, 72, 0.1)";
             }}
           >
-            {pedidoCancelable
-              ? "← Cancelar y volver"
-              : "← Volver a mis compras"}
+            {mostrarVistaCheckout ? "← Cancelar y volver" : "← Volver a mis pedidos"}
           </button>
 
-          {/* VISTA CUANDO YA ESTÁ FINALIZADO - REDISEÑADA */}
-          {pedidoFinalizado ? (
+          {/* VISTA DETALLES DEL PEDIDO (cuando ya está finalizado) */}
+          {!mostrarVistaCheckout ? (
             <div style={{ animation: "slideUp 0.6s ease-out" }}>
               {/* Encabezado con estado */}
               <div
@@ -498,22 +707,142 @@ export default function PedidoDetalle() {
                       })}
                     </p>
                   </div>
-                  <div
-                    style={{
-                      background: estadoColors[pedido.estadoPedido] || "#6B7F69",
-                      color: "white",
-                      padding: "12px 24px",
-                      borderRadius: "25px",
-                      fontWeight: "700",
-                      fontSize: "14px",
-                      whiteSpace: "nowrap",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                    }}
-                  >
-                    {pedido.estadoPedido === "COMPLETADO" && "✓ "}
-                    {pedido.estadoPedido}
+                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                    <div
+                      style={{
+                        background: obtenerColorEstadoGeneral(pedido.estadoPedido),
+                        color: "white",
+                        padding: "12px 24px",
+                        borderRadius: "25px",
+                        fontWeight: "700",
+                        fontSize: "14px",
+                        whiteSpace: "nowrap",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                      }}
+                    >
+                      {pedido.estadoPedido === "COMPLETADO" && "✓ "}
+                      {pedido.estadoPedido}
+                    </div>
+                    {pedido.estadoPago && (
+                      <div
+                        style={{
+                          background: obtenerColorEstadoPago(pedido.estadoPago),
+                          color: "white",
+                          padding: "12px 20px",
+                          borderRadius: "25px",
+                          fontWeight: "700",
+                          fontSize: "14px",
+                          whiteSpace: "nowrap",
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                        }}
+                      >
+                        {pedido.estadoPago === "PAGADO" && "✅ "}
+                        {pedido.estadoPago}
+                      </div>
+                    )}
+                    {pedido.estadoPedidoVendedor && (
+                      <div
+                        style={{
+                          background: "#2196F3",
+                          color: "white",
+                          padding: "12px 20px",
+                          borderRadius: "25px",
+                          fontWeight: "700",
+                          fontSize: "14px",
+                          whiteSpace: "nowrap",
+                          boxShadow: "0 4px 12px rgba(33, 150, 243, 0.1)",
+                        }}
+                      >
+                        📦 {pedido.estadoPedidoVendedor}
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* Línea de tiempo del pedido */}
+                {lineaTiempo.length > 0 && (
+                  <div style={{ marginTop: "30px" }}>
+                    <h3
+                      style={{
+                        fontFamily: "'Playfair Display', serif",
+                        fontSize: "20px",
+                        fontWeight: "700",
+                        color: "#2D3E2B",
+                        marginBottom: "20px",
+                      }}
+                    >
+                      📋 Seguimiento del pedido
+                    </h3>
+                    <div style={{ position: "relative" }}>
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: "20px",
+                          top: "0",
+                          bottom: "0",
+                          width: "2px",
+                          background: "#ECF2E3",
+                          zIndex: "1",
+                        }}
+                      ></div>
+
+                      {lineaTiempo.map((item, index) => (
+                        <div
+                          key={index}
+                          className="linea-tiempo-item"
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            marginBottom: "25px",
+                            position: "relative",
+                            zIndex: "2",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: "42px",
+                              height: "42px",
+                              borderRadius: "50%",
+                              background: item.completado ? "#5A8F48" : "#E0E0E0",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "20px",
+                              marginRight: "20px",
+                              flexShrink: "0",
+                              color: "white",
+                            }}
+                          >
+                            {item.icono}
+                          </div>
+
+                          <div>
+                            <div
+                              style={{
+                                fontWeight: "700",
+                                fontSize: "15px",
+                                color: item.completado ? "#2D3E2B" : "#9E9E9E",
+                                marginBottom: "4px",
+                              }}
+                            >
+                              {item.descripcion}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "13px",
+                                color: item.completado ? "#6B7F69" : "#BDBDBD",
+                              }}
+                            >
+                              {item.completado
+                                ? "Completado"
+                                : "En proceso..."}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div
@@ -551,92 +880,96 @@ export default function PedidoDetalle() {
                       <span>🛒</span> Productos del pedido
                     </h2>
 
-                    {detalles.map((d, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          background: "#FAFBF9",
-                          padding: "20px",
-                          borderRadius: "16px",
-                          marginBottom: "14px",
-                          display: "flex",
-                          gap: "18px",
-                          alignItems: "center",
-                          transition: "all 0.3s ease",
-                          border: "1px solid #F0F4ED",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.transform = "translateY(-2px)";
-                          e.currentTarget.style.boxShadow =
-                            "0 6px 16px rgba(90, 143, 72, 0.12)";
-                          e.currentTarget.style.borderColor = "#E3EBD9";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.transform = "translateY(0)";
-                          e.currentTarget.style.boxShadow = "none";
-                          e.currentTarget.style.borderColor = "#F0F4ED";
-                        }}
-                      >
-                        {d.producto?.imagenProducto && (
-                          <img
-                            src={d.producto.imagenProducto}
-                            alt={d.producto.nombreProducto}
-                            style={{
-                              width: "80px",
-                              height: "80px",
-                              borderRadius: "12px",
-                              objectFit: "cover",
-                              flexShrink: 0,
-                              border: "2px solid #ECF2E3",
-                            }}
-                          />
-                        )}
-
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <strong
-                            style={{
-                              fontSize: "16px",
-                              color: "#2D3E2B",
-                              display: "block",
-                              marginBottom: "6px",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {d.producto?.nombreProducto || "Producto"}
-                          </strong>
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: "12px",
-                              fontSize: "14px",
-                              color: "#6B7F69",
-                            }}
-                          >
-                            <span>Cant: {d.cantidad}</span>
-                            <span>•</span>
-                            <span>${(d.subtotal / d.cantidad).toFixed(2)} c/u</span>
-                          </div>
-                        </div>
-
+                    {detalles.length === 0 ? (
+                      <p style={{ color: "#6B7F69", textAlign: "center", padding: "20px" }}>
+                        No hay productos en este pedido
+                      </p>
+                    ) : (
+                      detalles.map((d, i) => (
                         <div
+                          key={i}
                           style={{
-                            fontSize: "20px",
-                            fontWeight: "700",
-                            color: "#5A8F48",
-                            whiteSpace: "nowrap",
-                            flexShrink: 0,
+                            background: "#FAFBF9",
+                            padding: "20px",
+                            borderRadius: "16px",
+                            marginBottom: "14px",
+                            display: "flex",
+                            gap: "18px",
+                            alignItems: "center",
+                            transition: "all 0.3s ease",
+                            border: "1px solid #F0F4ED",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = "translateY(-2px)";
+                            e.currentTarget.style.boxShadow =
+                              "0 6px 16px rgba(90, 143, 72, 0.12)";
+                            e.currentTarget.style.borderColor = "#E3EBD9";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = "translateY(0)";
+                            e.currentTarget.style.boxShadow = "none";
+                            e.currentTarget.style.borderColor = "#F0F4ED";
                           }}
                         >
-                          ${d.subtotal.toFixed(2)}
+                          {d.producto?.imagenProducto && (
+                            <img
+                              src={d.producto.imagenProducto}
+                              alt={d.producto.nombreProducto}
+                              style={{
+                                width: "80px",
+                                height: "80px",
+                                borderRadius: "12px",
+                                objectFit: "cover",
+                                flexShrink: 0,
+                                border: "2px solid #ECF2E3",
+                              }}
+                            />
+                          )}
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <strong
+                              style={{
+                                fontSize: "16px",
+                                color: "#2D3E2B",
+                                display: "block",
+                                marginBottom: "6px",
+                              }}
+                            >
+                              {d.producto?.nombreProducto || "Producto"}
+                            </strong>
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: "12px",
+                                fontSize: "14px",
+                                color: "#6B7F69",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <span>Cant: {d.cantidad}</span>
+                              <span>•</span>
+                              <span>${formatCurrency(d.subtotal / d.cantidad)} c/u</span>
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              fontSize: "20px",
+                              fontWeight: "700",
+                              color: "#5A8F48",
+                              whiteSpace: "nowrap",
+                              flexShrink: 0,
+                            }}
+                          >
+                            ${formatCurrency(d.subtotal)}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
 
-                {/* Columna derecha - Resumen mejorado */}
+                {/* Columna derecha - Resumen */}
                 <div>
                   <div
                     style={{
@@ -683,7 +1016,7 @@ export default function PedidoDetalle() {
                             color: "#2D3E2B",
                           }}
                         >
-                          ${pedido.subtotal.toFixed(2)}
+                          ${formatCurrency(pedido.subtotal || 0)}
                         </span>
                       </div>
 
@@ -706,7 +1039,7 @@ export default function PedidoDetalle() {
                             color: "#2D3E2B",
                           }}
                         >
-                          ${pedido.iva.toFixed(2)}
+                          ${formatCurrency(pedido.iva || 0)}
                         </span>
                       </div>
 
@@ -735,6 +1068,7 @@ export default function PedidoDetalle() {
                           {pedido.metodoPago === "EFECTIVO" && "💵 Efectivo"}
                           {pedido.metodoPago === "TRANSFERENCIA" && "🏦 Transferencia"}
                           {pedido.metodoPago === "TARJETA" && "💳 Tarjeta"}
+                          {!pedido.metodoPago && "No especificado"}
                         </span>
                       </div>
                     </div>
@@ -757,7 +1091,7 @@ export default function PedidoDetalle() {
                           color: "#2D3E2B",
                         }}
                       >
-                        Total pagado
+                        Total
                       </span>
                       <span
                         style={{
@@ -767,51 +1101,15 @@ export default function PedidoDetalle() {
                           fontFamily: "'Playfair Display', serif",
                         }}
                       >
-                        ${pedido.total.toFixed(2)}
+                        ${formatCurrency(pedido.total || 0)}
                       </span>
-                    </div>
-
-                    {/* Información adicional */}
-                    <div
-                      style={{
-                        marginTop: "24px",
-                        padding: "16px",
-                        background: "#FAFBF9",
-                        borderRadius: "12px",
-                        border: "1px solid #F0F4ED",
-                      }}
-                    >
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: "13px",
-                          color: "#6B7F69",
-                          lineHeight: "1.6",
-                        }}
-                      >
-                        {pedido.estadoPedido === "CREADO" && (
-                          <>
-                            ✓ Tu pedido ha sido creado exitosamente. Gracias por tu compra.
-                          </>
-                        )}
-                        {pedido.estadoPedido === "PENDIENTE" && (
-                          <>
-                            ⏳ Tu pedido está en verificación. Te notificaremos cuando sea procesado.
-                          </>
-                        )}
-                        {pedido.estadoPedido === "PROCESANDO" && (
-                          <>
-                            🔄 Tu pedido está siendo procesado. Pronto estará listo.
-                          </>
-                        )}
-                      </p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           ) : (
-            /* VISTA CUANDO ESTÁ PENDIENTE - CHECKOUT */
+            /* VISTA CHECKOUT (solo cuando el pedido necesita pago) */
             <div
               style={{
                 display: "grid",
@@ -821,73 +1119,8 @@ export default function PedidoDetalle() {
               }}
               className="grid-layout"
             >
-              {/* COLUMNA PRINCIPAL - Productos y Detalles */}
+              {/* COLUMNA IZQUIERDA - Productos */}
               <div>
-                {/* Header del Pedido */}
-                <div
-                  style={{
-                    background: "white",
-                    padding: "25px",
-                    borderRadius: "16px",
-                    boxShadow: "0 4px 20px rgba(90, 143, 72, 0.08)",
-                    marginBottom: "20px",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      flexWrap: "wrap",
-                      gap: "15px",
-                    }}
-                  >
-                    <div>
-                      <h1
-                        style={{
-                          fontFamily: "'Playfair Display', serif",
-                          fontWeight: "900",
-                          margin: "0 0 6px 0",
-                          fontSize: "32px",
-                          color: "#2D3E2B",
-                        }}
-                      >
-                        📦 Pedido #{pedido.idPedido}
-                      </h1>
-                      <p
-                        style={{
-                          fontSize: "13px",
-                          color: "#6B7F69",
-                          margin: 0,
-                        }}
-                      >
-                        📅{" "}
-                        {new Date(pedido.fechaPedido).toLocaleDateString("es-ES", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                    <div
-                      style={{
-                        background: estadoColors[pedido.estadoPedido] || "#6B7F69",
-                        color: "white",
-                        padding: "8px 16px",
-                        borderRadius: "20px",
-                        fontWeight: "700",
-                        fontSize: "13px",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {pedido.estadoPedido}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Lista de Productos */}
                 <div
                   style={{
                     background: "white",
@@ -907,7 +1140,7 @@ export default function PedidoDetalle() {
                       marginTop: 0,
                     }}
                   >
-                    🛒 Productos
+                    🛒 Productos del pedido
                   </h2>
 
                   {detalles.map((d, i) => (
@@ -921,16 +1154,6 @@ export default function PedidoDetalle() {
                         display: "flex",
                         gap: "15px",
                         alignItems: "center",
-                        transition: "all 0.3s ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = "translateY(-2px)";
-                        e.currentTarget.style.boxShadow =
-                          "0 4px 12px rgba(90, 143, 72, 0.1)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow = "none";
                       }}
                     >
                       {d.producto?.imagenProducto && (
@@ -953,9 +1176,6 @@ export default function PedidoDetalle() {
                             fontSize: "15px",
                             color: "#2D3E2B",
                             display: "block",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
                           }}
                         >
                           {d.producto?.nombreProducto || "Producto"}
@@ -968,7 +1188,7 @@ export default function PedidoDetalle() {
                           }}
                         >
                           Cantidad: {d.cantidad} • Precio: $
-                          {(d.subtotal / d.cantidad).toFixed(2)}
+                          {formatCurrency(d.subtotal / d.cantidad)}
                         </p>
                       </div>
 
@@ -981,16 +1201,16 @@ export default function PedidoDetalle() {
                           flexShrink: 0,
                         }}
                       >
-                        ${d.subtotal.toFixed(2)}
+                        ${formatCurrency(d.subtotal)}
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* COLUMNA DERECHA - Solo si el pedido NO está finalizado */}
+              {/* COLUMNA DERECHA - Pago */}
               <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                {/* Resumen de Compra */}
+                {/* Resumen */}
                 <div
                   style={{
                     background: "linear-gradient(135deg, #F9D94A 0%, #F5C542 100%)",
@@ -1029,7 +1249,7 @@ export default function PedidoDetalle() {
                         color: "#2D3E2B",
                       }}
                     >
-                      ${pedido.subtotal.toFixed(2)}
+                      ${formatCurrency(pedido.subtotal || 0)}
                     </span>
                   </div>
 
@@ -1050,7 +1270,7 @@ export default function PedidoDetalle() {
                         color: "#2D3E2B",
                       }}
                     >
-                      ${pedido.iva.toFixed(2)}
+                      ${formatCurrency(pedido.iva || 0)}
                     </span>
                   </div>
 
@@ -1079,7 +1299,7 @@ export default function PedidoDetalle() {
                         color: "#2D3E2B",
                       }}
                     >
-                      ${pedido.total.toFixed(2)}
+                      ${formatCurrency(pedido.total || 0)}
                     </span>
                   </div>
                 </div>
@@ -1120,7 +1340,6 @@ export default function PedidoDetalle() {
                       color: "#2D3E2B",
                       cursor: "pointer",
                       background: "white",
-                      transition: "all 0.3s ease",
                     }}
                   >
                     <option value="EFECTIVO">💵 Efectivo</option>
@@ -1129,7 +1348,7 @@ export default function PedidoDetalle() {
                   </select>
 
                   {metodoPago === "EFECTIVO" && (
-                    <div style={{ animation: "fadeIn 0.3s ease-out" }}>
+                    <div>
                       <div
                         style={{
                           background: "#FFF3CD",
@@ -1148,7 +1367,7 @@ export default function PedidoDetalle() {
                         }}>
                           💵 <strong>Pago contra entrega</strong><br />
                           <span style={{ fontWeight: "normal" }}>
-                            Pagarás <strong>${pedido.total.toFixed(2)}</strong> en efectivo cuando recibas tu pedido.
+                            Pagarás <strong>${formatCurrency(pedido.total || 0)}</strong> en efectivo cuando recibas tu pedido.
                           </span>
                         </p>
                       </div>
@@ -1159,7 +1378,7 @@ export default function PedidoDetalle() {
                         step="0.01"
                         value={montoEfectivo}
                         onChange={(e) => setMontoEfectivo(e.target.value)}
-                        placeholder={`Mínimo: $${pedido.total.toFixed(2)}`}
+                        placeholder={`Mínimo: $${formatCurrency(pedido.total || 0)}`}
                         style={inputStyle}
                       />
                       {montoEfectivo &&
@@ -1174,14 +1393,14 @@ export default function PedidoDetalle() {
                             }}
                           >
                             ✓ Cambio: $
-                            {(parseFloat(montoEfectivo) - pedido.total).toFixed(2)}
+                            {formatCurrency(parseFloat(montoEfectivo) - pedido.total)}
                           </p>
                         )}
                     </div>
                   )}
 
                   {metodoPago === "TRANSFERENCIA" && (
-                    <div style={{ animation: "fadeIn 0.3s ease-out" }}>
+                    <div>
                       <label style={labelStyle}>Subir comprobante:</label>
                       <input
                         type="file"
@@ -1197,27 +1416,11 @@ export default function PedidoDetalle() {
                           fontSize: "13px",
                         }}
                       />
-                      {comprobante && (
-                        <p
-                          style={{
-                            marginTop: "8px",
-                            marginBottom: 0,
-                            color: "#5A8F48",
-                            fontSize: "12px",
-                            fontWeight: "600",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          ✓ {comprobante.name}
-                        </p>
-                      )}
                     </div>
                   )}
 
                   {metodoPago === "TARJETA" && (
-                    <div style={{ animation: "fadeIn 0.3s ease-out" }}>
+                    <div>
                       <label style={labelStyle}>Número de tarjeta:</label>
                       <input
                         type="text"
@@ -1276,7 +1479,7 @@ export default function PedidoDetalle() {
                   )}
                 </div>
 
-                {/* BOTÓN FINALIZAR */}
+                {/* Botón Finalizar */}
                 <button
                   onClick={finalizarCompra}
                   disabled={finalizando}
@@ -1291,23 +1494,6 @@ export default function PedidoDetalle() {
                     border: "none",
                     cursor: finalizando ? "not-allowed" : "pointer",
                     transition: "all 0.3s ease",
-                    boxShadow: finalizando
-                      ? "none"
-                      : "0 4px 12px rgba(90, 143, 72, 0.3)",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!finalizando) {
-                      e.target.style.transform = "translateY(-2px)";
-                      e.target.style.boxShadow =
-                        "0 8px 20px rgba(90, 143, 72, 0.4)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!finalizando) {
-                      e.target.style.transform = "translateY(0)";
-                      e.target.style.boxShadow =
-                        "0 4px 12px rgba(90, 143, 72, 0.3)";
-                    }
                   }}
                 >
                   {finalizando ? "⏳ Procesando..." : "✔ Finalizar Compra"}
