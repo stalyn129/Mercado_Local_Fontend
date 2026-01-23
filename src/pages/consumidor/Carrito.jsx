@@ -8,39 +8,32 @@ export default function Carrito() {
     carrito,
     actualizarCantidad,
     eliminarProducto,
-    limpiarCarrito,
-    cargarCarritoDesdeAPI // Necesitas esta función en tu contexto
+    limpiarCarrito
+    // NOTA: NO incluimos cargarCarritoDesdeAPI aquí porque no existe
   } = useCarrito();
 
   const navigate = useNavigate();
+  
   const [subtotal, setSubtotal] = useState(0);
   const [iva, setIVA] = useState(0);
   const [total, setTotal] = useState(0);
   const [circlePositions, setCirclePositions] = useState([]);
-  const [cargandoCarrito, setCargandoCarrito] = useState(true);
+  // NOTA: No usamos cargandoCarrito para evitar problemas
 
   // ==================== CARGAR CARRITO AL INICIAR ====================
   useEffect(() => {
-    const cargarCarrito = async () => {
-      const token = localStorage.getItem("authToken");
-      const user = JSON.parse(localStorage.getItem("user"));
-      
-      if (token && user?.idConsumidor) {
-        setCargandoCarrito(true);
-        try {
-          await cargarCarritoDesdeAPI(); // Esta función debe estar en tu CarritoContext
-        } catch (error) {
-          console.error("Error cargando carrito:", error);
-        } finally {
-          setCargandoCarrito(false);
-        }
-      } else {
-        setCargandoCarrito(false);
-      }
-    };
-
-    cargarCarrito();
-  }, []); // Se ejecuta solo al montar el componente
+    console.log("🔍 Componente Carrito montado");
+    console.log("📦 Carrito actual:", carrito);
+    
+    // Verificar usuario
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    console.log("👤 Usuario:", user);
+    
+    // Si hay usuario pero no es consumidor, mostrar advertencia
+    if (user.rol && user.rol !== "CONSUMIDOR") {
+      console.log("⚠️ Usuario no es consumidor, rol:", user.rol);
+    }
+  }, []);
 
   // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
   useEffect(() => {
@@ -92,7 +85,7 @@ export default function Carrito() {
   // Calcular totales
   useEffect(() => {
     const sub = carrito.reduce(
-      (acc, item) => acc + item.producto.precio * item.cantidad,
+      (acc, item) => acc + (item.producto?.precio || 0) * (item.cantidad || 0),
       0
     );
     const ivaCalc = sub * 0.12;
@@ -102,12 +95,12 @@ export default function Carrito() {
   }, [carrito]);
 
   const realizarCheckout = () => {
-    const user = JSON.parse(localStorage.getItem("user"));
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
     const token = localStorage.getItem("authToken");
 
-    if (!token || !user?.idConsumidor) {
-      alert("❌ Debes iniciar sesión");
-      navigate("/loginmodal");
+    if (!token || !user.idConsumidor) {
+      alert("❌ Debes iniciar sesión como consumidor para finalizar la compra");
+      navigate("/LoginModal");
       return;
     }
 
@@ -116,43 +109,19 @@ export default function Carrito() {
       return;
     }
 
+    console.log("✅ Procediendo al checkout...");
     navigate("/checkout");
   };
 
-  // Estado de carga
-  if (cargandoCarrito) {
-    return (
-      <div style={{
-        minHeight: "100vh",
-        background: "#f8f9fa",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "'Inter', sans-serif"
-      }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{
-            display: "inline-block",
-            width: "60px",
-            height: "60px",
-            border: "5px solid #f1f5f9",
-            borderTop: "5px solid #FF6B35",
-            borderRadius: "50%",
-            animation: "spin 1s linear infinite"
-          }}></div>
-          <p style={{
-            marginTop: "25px",
-            fontSize: "18px",
-            color: "#2C3E50",
-            fontWeight: "600",
-            fontFamily: "'Inter', sans-serif"
-          }}>
-            Cargando tu carrito...
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const handleDecrementar = (item) => {
+    if (item.cantidad > 1) {
+      actualizarCantidad(item.idItem, item.cantidad - 1);
+    } else {
+      if (window.confirm("¿Quieres eliminar este producto del carrito?")) {
+        eliminarProducto(item.idItem);
+      }
+    }
+  };
 
   return (
     <div style={{
@@ -189,7 +158,6 @@ export default function Carrito() {
           100% { transform: rotate(360deg); }
         }
         
-        /* Estilos para el scroll personalizado */
         .scroll-container {
           scrollbar-width: thin;
           scrollbar-color: #FF6B35 #f1f5f9;
@@ -282,7 +250,9 @@ export default function Carrito() {
             fontFamily: "'Inter', sans-serif",
             opacity: 0.8
           }}>
-            Revisa tus productos antes de finalizar tu compra
+            {carrito.length === 0 
+              ? "Añade productos para comenzar tu compra" 
+              : `Tienes ${carrito.length} producto${carrito.length !== 1 ? 's' : ''} en tu carrito`}
           </p>
         </div>
       </div>
@@ -361,7 +331,7 @@ export default function Carrito() {
               padding: "32px",
               boxShadow: "0 8px 32px rgba(0, 0, 0, 0.08)",
               border: "1px solid #f1f5f9",
-              height: "650px", // ALTURA FIJA IGUAL AL PANEL DERECHO
+              height: "650px",
               display: "flex",
               flexDirection: "column"
             }}>
@@ -391,7 +361,11 @@ export default function Carrito() {
                 </div>
 
                 <button
-                  onClick={limpiarCarrito}
+                  onClick={() => {
+                    if (window.confirm("¿Estás seguro de que quieres vaciar el carrito?")) {
+                      limpiarCarrito();
+                    }
+                  }}
                   style={{
                     padding: "12px 24px",
                     background: "#fef2f2",
@@ -416,162 +390,176 @@ export default function Carrito() {
               </div>
 
               {/* CONTENEDOR CON SCROLL VERTICAL */}
-              <div style={{
+              <div className="scroll-container" style={{
                 flex: 1,
                 overflowY: "auto",
-                paddingRight: "10px",
-                className: "scroll-container"
+                paddingRight: "10px"
               }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                  {carrito.map((item) => (
-                    <div
-                      key={item.idItem}
-                      style={{
-                        display: "flex",
-                        gap: "20px",
-                        padding: "24px",
-                        background: "#f8f9fa",
-                        borderRadius: "16px",
-                        border: "2px solid #f1f5f9",
-                        transition: "all 0.3s ease"
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.08)";
-                        e.currentTarget.style.borderColor = "#FF6B35";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.boxShadow = "none";
-                        e.currentTarget.style.borderColor = "#f1f5f9";
-                      }}
-                    >
-                      <img
-                        src={item.producto.imagen}
-                        alt={item.producto.nombre}
+                  {carrito.map((item, index) => {
+                    const producto = item.producto || {};
+                    const precio = producto.precio || 0;
+                    const cantidad = item.cantidad || 0;
+                    const subtotalItem = precio * cantidad;
+
+                    return (
+                      <div
+                        key={item.idItem || `item-${index}`}
                         style={{
-                          width: "120px",
-                          height: "120px",
-                          borderRadius: "12px",
-                          objectFit: "cover",
-                        }}
-                      />
-
-                      <div style={{ flex: 1 }}>
-                        <h3 style={{ 
-                          margin: "0 0 8px 0", 
-                          color: "#2C3E50", 
-                          fontSize: "18px",
-                          fontWeight: "700",
-                          fontFamily: "'Inter', sans-serif"
-                        }}>{item.producto.nombre}</h3>
-                        <p style={{ 
-                          color: "#FF6B35", 
-                          fontWeight: "800", 
-                          margin: "0 0 12px 0",
-                          fontSize: "20px",
-                          fontFamily: "'Inter', sans-serif"
-                        }}>
-                          ${item.producto.precio.toFixed(2)}
-                        </p>
-
-                        <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "12px" }}>
-                          <button
-                            onClick={() => actualizarCantidad(item.idItem, item.cantidad - 1)}
-                            style={{
-                              width: "36px",
-                              height: "36px",
-                              background: "#FF6B35",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "10px",
-                              cursor: "pointer",
-                              fontWeight: "800",
-                              fontSize: "18px",
-                              transition: "all 0.2s ease",
-                              fontFamily: "'Inter', sans-serif"
-                            }}
-                            onMouseEnter={(e) => e.target.style.background = "#FF8E53"}
-                            onMouseLeave={(e) => e.target.style.background = "#FF6B35"}
-                          >−</button>
-
-                          <strong style={{ 
-                            minWidth: "40px", 
-                            textAlign: "center", 
-                            fontSize: "18px",
-                            fontFamily: "'Inter', sans-serif",
-                            color: "#2C3E50"
-                          }}>
-                            {item.cantidad}
-                          </strong>
-
-                          <button
-                            onClick={() => actualizarCantidad(item.idItem, item.cantidad + 1)}
-                            style={{
-                              width: "36px",
-                              height: "36px",
-                              background: "#FF6B35",
-                              color: "white",
-                              border: "none",
-                              borderRadius: "10px",
-                              cursor: "pointer",
-                              fontWeight: "800",
-                              fontSize: "18px",
-                              transition: "all 0.2s ease",
-                              fontFamily: "'Inter', sans-serif"
-                            }}
-                            onMouseEnter={(e) => e.target.style.background = "#FF8E53"}
-                            onMouseLeave={(e) => e.target.style.background = "#FF6B35"}
-                          >+</button>
-                        </div>
-
-                        <p style={{ 
-                          fontWeight: "700", 
-                          margin: "0", 
-                          color: "#2C3E50",
-                          fontSize: "16px",
-                          fontFamily: "'Inter', sans-serif"
-                        }}>
-                          Subtotal: ${(item.producto.precio * item.cantidad).toFixed(2)}
-                        </p>
-                      </div>
-
-                      <button
-                        onClick={() => eliminarProducto(item.idItem)}
-                        style={{
-                          background: "#dc2626",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "10px",
-                          padding: "10px 16px",
-                          cursor: "pointer",
-                          height: "44px",
-                          fontWeight: "700",
-                          fontSize: "16px",
-                          transition: "all 0.3s ease",
-                          fontFamily: "'Inter', sans-serif"
+                          display: "flex",
+                          gap: "20px",
+                          padding: "24px",
+                          background: "#f8f9fa",
+                          borderRadius: "16px",
+                          border: "2px solid #f1f5f9",
+                          transition: "all 0.3s ease"
                         }}
                         onMouseEnter={(e) => {
-                          e.target.style.background = "#ef4444";
-                          e.target.style.transform = "scale(1.05)";
+                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.08)";
+                          e.currentTarget.style.borderColor = "#FF6B35";
                         }}
                         onMouseLeave={(e) => {
-                          e.target.style.background = "#dc2626";
-                          e.target.style.transform = "scale(1)";
+                          e.currentTarget.style.boxShadow = "none";
+                          e.currentTarget.style.borderColor = "#f1f5f9";
                         }}
-                      >✕ Eliminar</button>
-                    </div>
-                  ))}
+                      >
+                        <img
+                          src={producto.imagen || 'https://via.placeholder.com/120x120/FF6B35/FFFFFF?text=Producto'}
+                          alt={producto.nombre || 'Producto'}
+                          style={{
+                            width: "120px",
+                            height: "120px",
+                            borderRadius: "12px",
+                            objectFit: "cover",
+                          }}
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'https://via.placeholder.com/120x120/FF6B35/FFFFFF?text=Producto';
+                          }}
+                        />
+
+                        <div style={{ flex: 1 }}>
+                          <h3 style={{ 
+                            margin: "0 0 8px 0", 
+                            color: "#2C3E50", 
+                            fontSize: "18px",
+                            fontWeight: "700",
+                            fontFamily: "'Inter', sans-serif"
+                          }}>{producto.nombre || 'Producto sin nombre'}</h3>
+                          <p style={{ 
+                            color: "#FF6B35", 
+                            fontWeight: "800", 
+                            margin: "0 0 12px 0",
+                            fontSize: "20px",
+                            fontFamily: "'Inter', sans-serif"
+                          }}>
+                            ${precio.toFixed(2)}
+                          </p>
+
+                          <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "12px" }}>
+                            <button
+                              onClick={() => handleDecrementar(item)}
+                              style={{
+                                width: "36px",
+                                height: "36px",
+                                background: "#FF6B35",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "10px",
+                                cursor: "pointer",
+                                fontWeight: "800",
+                                fontSize: "18px",
+                                transition: "all 0.2s ease",
+                                fontFamily: "'Inter', sans-serif"
+                              }}
+                              onMouseEnter={(e) => e.target.style.background = "#FF8E53"}
+                              onMouseLeave={(e) => e.target.style.background = "#FF6B35"}
+                            >−</button>
+
+                            <strong style={{ 
+                              minWidth: "40px", 
+                              textAlign: "center", 
+                              fontSize: "18px",
+                              fontFamily: "'Inter', sans-serif",
+                              color: "#2C3E50"
+                            }}>
+                              {cantidad}
+                            </strong>
+
+                            <button
+                              onClick={() => actualizarCantidad(item.idItem, cantidad + 1)}
+                              style={{
+                                width: "36px",
+                                height: "36px",
+                                background: "#FF6B35",
+                                color: "white",
+                                border: "none",
+                                borderRadius: "10px",
+                                cursor: "pointer",
+                                fontWeight: "800",
+                                fontSize: "18px",
+                                transition: "all 0.2s ease",
+                                fontFamily: "'Inter', sans-serif"
+                              }}
+                              onMouseEnter={(e) => e.target.style.background = "#FF8E53"}
+                              onMouseLeave={(e) => e.target.style.background = "#FF6B35"}
+                            >+</button>
+                          </div>
+
+                          <p style={{ 
+                            fontWeight: "700", 
+                            margin: "0", 
+                            color: "#2C3E50",
+                            fontSize: "16px",
+                            fontFamily: "'Inter', sans-serif"
+                          }}>
+                            Subtotal: ${subtotalItem.toFixed(2)}
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            if (window.confirm("¿Estás seguro de que quieres eliminar este producto?")) {
+                              eliminarProducto(item.idItem);
+                            }
+                          }}
+                          style={{
+                            background: "#dc2626",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "10px",
+                            padding: "10px 16px",
+                            cursor: "pointer",
+                            height: "44px",
+                            fontWeight: "700",
+                            fontSize: "16px",
+                            transition: "all 0.3s ease",
+                            fontFamily: "'Inter', sans-serif"
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.background = "#ef4444";
+                            e.target.style.transform = "scale(1.05)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.background = "#dc2626";
+                            e.target.style.transform = "scale(1)";
+                          }}
+                        >✕ Eliminar</button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
-            {/* RESUMEN DE COMPRA - MISMA ALTURA */}
+            {/* RESUMEN DE COMPRA */}
             <div style={{
               background: "white",
               borderRadius: "24px",
               padding: "32px",
               boxShadow: "0 8px 32px rgba(0, 0, 0, 0.08)",
               border: "1px solid #f1f5f9",
-              height: "650px", // MISMA ALTURA QUE EL PANEL IZQUIERDO
+              height: "650px",
               display: "flex",
               flexDirection: "column"
             }}>
@@ -598,11 +586,11 @@ export default function Carrito() {
                     fontSize: "16px", 
                     fontWeight: "600",
                     fontFamily: "'Inter', sans-serif"
-                  }}>Subtotal</span>
+                  }}>Productos ({carrito.length})</span>
                   <span style={{ 
                     color: "#2C3E50", 
-                    fontSize: "20px", 
-                    fontWeight: "800",
+                    fontSize: "18px", 
+                    fontWeight: "700",
                     fontFamily: "'Inter', sans-serif"
                   }}>
                     ${subtotal.toFixed(2)}
@@ -618,11 +606,28 @@ export default function Carrito() {
                   }}>IVA (12%)</span>
                   <span style={{ 
                     color: "#2C3E50", 
-                    fontSize: "20px", 
-                    fontWeight: "800",
+                    fontSize: "18px", 
+                    fontWeight: "700",
                     fontFamily: "'Inter', sans-serif"
                   }}>
                     ${iva.toFixed(2)}
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ 
+                    color: "#64748b", 
+                    fontSize: "16px", 
+                    fontWeight: "600",
+                    fontFamily: "'Inter', sans-serif"
+                  }}>Costo de envío</span>
+                  <span style={{ 
+                    color: "#10B981", 
+                    fontSize: "18px", 
+                    fontWeight: "700",
+                    fontFamily: "'Inter', sans-serif"
+                  }}>
+                    ¡Gratis!
                   </span>
                 </div>
 
@@ -653,7 +658,25 @@ export default function Carrito() {
                   </span>
                 </div>
 
-                <div style={{ flex: 1 }}></div> {/* Espacio flexible para empujar botones abajo */}
+                <div style={{ 
+                  marginTop: "20px",
+                  padding: "16px",
+                  background: "#f0f9ff",
+                  borderRadius: "12px",
+                  border: "1px solid #bae6fd"
+                }}>
+                  <p style={{ 
+                    margin: "0", 
+                    fontSize: "14px", 
+                    color: "#0369a1",
+                    fontFamily: "'Inter', sans-serif",
+                    fontWeight: "500"
+                  }}>
+                    💡 <strong>Tip:</strong> Tu envío será coordinado directamente con el vendedor para asegurar la mejor calidad.
+                  </p>
+                </div>
+
+                <div style={{ flex: 1 }}></div>
               </div>
 
               <button
