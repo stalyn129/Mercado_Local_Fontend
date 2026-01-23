@@ -22,14 +22,15 @@ export default function Navbar() {
   const [isVisible, setIsVisible] = useState(true);
   const [isAtTop, setIsAtTop] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [carritoCount, setCarritoCount] = useState(0); // Estado local para carrito
   const navigate = useNavigate();
   const location = useLocation();
   const { carrito } = useCarrito();
   const { favoritos, cargarFavoritos } = useFavoritos();
   const navbarRef = useRef(null);
 
-  // Calcular total del carrito
-  const totalCarrito = carrito.reduce((acc, item) => acc + item.cantidad, 0);
+  // Calcular total del carrito DESDE EL CONTEXTO
+  const totalCarritoContext = carrito.reduce((acc, item) => acc + item.cantidad, 0);
 
   // Efecto para controlar el comportamiento de scroll
   useEffect(() => {
@@ -117,9 +118,14 @@ export default function Navbar() {
     }
   }, [favoritos, user]);
 
-  // Cargar notificaciones
+  // CORREGIDO: Cargar notificaciones SOLO para CONSUMIDORES
   useEffect(() => {
-    if (!user?.idUsuario) return;
+    // SOLO cargar notificaciones para CONSUMIDORES
+    if (!user?.idUsuario || user.rol !== "CONSUMIDOR") {
+      setNotificaciones([]);
+      setTotalNotificaciones(0);
+      return;
+    }
 
     const token = localStorage.getItem("authToken");
     if (!token) return;
@@ -132,14 +138,48 @@ export default function Navbar() {
         const total = await contarNotificaciones(user.idUsuario, token);
         setTotalNotificaciones(total || 0);
       } catch (error) {
-        console.error("Error cargando notificaciones:", error);
+        console.log("Notificaciones no disponibles o error de conexión");
         setNotificaciones([]);
         setTotalNotificaciones(0);
       }
     };
 
     cargarNotificaciones();
-  }, [user?.idUsuario, location]);
+  }, [user?.idUsuario, user?.rol, location]);
+
+  // CORREGIDO: Sincronizar carrito con estado local
+  useEffect(() => {
+    // Actualizar desde el contexto
+    setCarritoCount(totalCarritoContext);
+  }, [totalCarritoContext]);
+
+  // También cargar del localStorage al inicio por si acaso
+  useEffect(() => {
+    const cargarCarritoDesdeLocalStorage = () => {
+      try {
+        const carritoGuardado = localStorage.getItem("carrito");
+        if (carritoGuardado) {
+          const carritoParseado = JSON.parse(carritoGuardado);
+          const total = carritoParseado.reduce((acc, item) => acc + (item.cantidad || 1), 0);
+          setCarritoCount(total);
+        }
+      } catch (error) {
+        console.log("No se pudo cargar carrito desde localStorage:", error);
+      }
+    };
+
+    cargarCarritoDesdeLocalStorage();
+    
+    // Escuchar cambios en localStorage (por si otra pestaña modifica el carrito)
+    const handleStorageChange = (e) => {
+      if (e.key === "carrito") {
+        cargarCarritoDesdeLocalStorage();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
 
   // Efecto para cerrar dropdowns al hacer clic fuera
   useEffect(() => {
@@ -255,7 +295,7 @@ export default function Navbar() {
       left: "0",
       right: "0",
       zIndex: "1000",
-      fontFamily: "'Playfair Display', 'Georgia', serif", // CAMBIADO: Playfair Display para todo el navbar
+      fontFamily: "'Playfair Display', 'Georgia', serif",
       gap: "2rem",
       boxShadow: isAtTop 
         ? "0 2px 10px rgba(255, 107, 53, 0.05)" 
@@ -298,7 +338,7 @@ export default function Navbar() {
       textDecoration: "none",
       color: isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B",
       fontSize: "0.95rem",
-      fontWeight: "600", // Ajustado para Playfair Display
+      fontWeight: "600",
       transition: "all 0.3s ease",
       display: "inline-block",
       padding: "0.6rem 1rem",
@@ -307,7 +347,7 @@ export default function Navbar() {
       border: "none",
       position: "relative",
       borderRadius: "8px",
-      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+      fontFamily: "'Playfair Display', serif",
     },
     rightSection: {
       display: "flex",
@@ -318,7 +358,7 @@ export default function Navbar() {
     userTag: {
       color: isAtTop ? "rgba(30, 41, 59, 0.9)" : "#1E293B",
       fontSize: "0.9rem",
-      fontWeight: "500", // Ajustado para Playfair Display
+      fontWeight: "500",
       padding: "0.6rem 1rem",
       background: "none",
       borderRadius: "10px",
@@ -329,12 +369,12 @@ export default function Navbar() {
       border: "none",
       cursor: "pointer",
       transition: "all 0.3s ease",
-      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+      fontFamily: "'Playfair Display', serif",
     },
     roleTag: {
       color: "white",
       fontSize: "0.7rem",
-      fontWeight: "700", // Ajustado para Playfair Display
+      fontWeight: "700",
       padding: "0.3rem 0.7rem",
       background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
       borderRadius: "12px",
@@ -343,7 +383,7 @@ export default function Navbar() {
       marginLeft: "0.3rem",
       boxShadow: "0 2px 6px rgba(255, 107, 53, 0.3)",
       letterSpacing: "0.5px",
-      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+      fontFamily: "'Playfair Display', serif",
     },
     dropdownMenu: {
       position: "absolute",
@@ -387,7 +427,7 @@ export default function Navbar() {
       fontWeight: "700",
       color: "#1E293B",
       margin: "0",
-      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+      fontFamily: "'Playfair Display', serif",
     },
     notificacionesList: {
       maxHeight: "340px",
@@ -428,13 +468,13 @@ export default function Navbar() {
       lineHeight: "1.3",
       marginBottom: "0.2rem",
       wordWrap: "break-word",
-      fontFamily: "'Inter', sans-serif", // Mantenemos Inter para mensajes largos
+      fontFamily: "'Inter', sans-serif",
     },
     notificacionTiempo: {
       fontSize: "0.7rem",
       color: "#64748B",
       fontWeight: "400",
-      fontFamily: "'Inter', sans-serif", // Mantenemos Inter para texto pequeño
+      fontFamily: "'Inter', sans-serif",
     },
     notificacionDot: {
       position: "absolute",
@@ -460,18 +500,18 @@ export default function Navbar() {
       fontWeight: "600",
       color: "#1E293B",
       marginBottom: "0.2rem",
-      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+      fontFamily: "'Playfair Display', serif",
     },
     emptyNotificacionesTexto: {
       fontSize: "0.8rem",
       color: "#64748B",
-      fontFamily: "'Inter', sans-serif", // Mantenemos Inter para texto explicativo
+      fontFamily: "'Inter', sans-serif",
     },
     dropdownItem: {
       padding: "0.7rem 1rem",
       color: "#1E293B",
       fontSize: "0.85rem",
-      fontWeight: "500", // Ajustado para Playfair Display
+      fontWeight: "500",
       cursor: "pointer",
       border: "none",
       background: "none",
@@ -479,26 +519,26 @@ export default function Navbar() {
       textAlign: "left",
       transition: "all 0.2s ease",
       borderBottom: "1px solid rgba(255, 107, 53, 0.05)",
-      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+      fontFamily: "'Playfair Display', serif",
     },
     dropdownItemLogout: {
       padding: "0.7rem 1rem",
       color: "#EF4444",
       fontSize: "0.85rem",
-      fontWeight: "500", // Ajustado para Playfair Display
+      fontWeight: "500",
       cursor: "pointer",
       border: "none",
       background: "none",
       width: "100%",
       textAlign: "left",
       transition: "all 0.2s ease",
-      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+      fontFamily: "'Playfair Display', serif",
     },
     loginBtn: {
       textDecoration: "none",
       color: "#fff",
       fontSize: "0.9rem",
-      fontWeight: "700", // Ajustado para Playfair Display
+      fontWeight: "700",
       padding: "0.6rem 1.5rem",
       border: "none",
       borderRadius: "8px",
@@ -507,7 +547,7 @@ export default function Navbar() {
       cursor: "pointer",
       background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
       boxShadow: "0 4px 12px rgba(255, 107, 53, 0.2)",
-      fontFamily: "'Playfair Display', serif", // YA ESTABA CORRECTO
+      fontFamily: "'Playfair Display', serif",
     },
     iconButton: {
       background: "none",
@@ -539,7 +579,7 @@ export default function Navbar() {
       textAlign: "center",
       lineHeight: "1",
       boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
-      fontFamily: "'Inter', sans-serif", // Mantenemos Inter para badges pequeños
+      fontFamily: "'Inter', sans-serif",
     }),
     hamburger: {
       display: "none",
@@ -577,7 +617,7 @@ export default function Navbar() {
       textDecoration: "none",
       color: "#1E293B",
       fontSize: "0.95rem",
-      fontWeight: "500", // Ajustado para Playfair Display
+      fontWeight: "500",
       padding: "0.8rem 1rem",
       cursor: "pointer",
       background: "none",
@@ -585,7 +625,7 @@ export default function Navbar() {
       textAlign: "left",
       borderRadius: "8px",
       transition: "all 0.2s ease",
-      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+      fontFamily: "'Playfair Display', serif",
       width: "100%",
     },
     spacer: {
@@ -878,8 +918,8 @@ export default function Navbar() {
             </div>
           )}
 
-          {/* NOTIFICACIONES - Para todos los usuarios autenticados */}
-          {user && (
+          {/* NOTIFICACIONES - SOLO para CONSUMIDORES */}
+          {user && user.rol === "CONSUMIDOR" && (
             <div style={{ position: "relative" }}>
               <button
                 onClick={() => setShowNotificaciones(!showNotificaciones)}
@@ -992,9 +1032,9 @@ export default function Navbar() {
                 }}
               >
                 🛒
-                {totalCarrito > 0 && (
+                {carritoCount > 0 && (
                   <span style={styles.badge("#10B981")}>
-                    {totalCarrito > 99 ? "99+" : totalCarrito}
+                    {carritoCount > 99 ? "99+" : carritoCount}
                   </span>
                 )}
               </button>
@@ -1178,7 +1218,7 @@ export default function Navbar() {
                   e.target.style.background = "none";
                 }}
               >
-                🛒 Carrito {totalCarrito > 0 && `(${totalCarrito})`}
+                🛒 Carrito {carritoCount > 0 && `(${carritoCount})`}
               </button>
             </>
           )}

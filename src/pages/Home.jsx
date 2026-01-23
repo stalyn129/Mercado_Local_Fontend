@@ -120,7 +120,7 @@ export default function Home() {
   };
 
   const mainTitleStyle = {
-    fontFamily: "'Playfair Display', 'Georgia', serif", // CAMBIADO: Playfair Display
+    fontFamily: "'Playfair Display', 'Georgia', serif",
     fontSize: "2.8rem",
     fontWeight: "900",
     background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 25%, #2ECC71 50%, #3498DB 75%, #9B59B6 100%)",
@@ -135,7 +135,7 @@ export default function Home() {
   };
 
   const subtitleStyle = {
-    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+    fontFamily: "'Playfair Display', serif",
     fontSize: "1.2rem",
     color: "#64748B",
     fontWeight: "400",
@@ -145,7 +145,7 @@ export default function Home() {
   };
 
   const marketLocalStyle = {
-    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+    fontFamily: "'Playfair Display', serif",
     fontSize: "1rem",
     color: "#FF6B35",
     fontWeight: "700",
@@ -194,7 +194,7 @@ export default function Home() {
     animation: index === activeBadge ? "pulse 2s infinite" : "none",
     border: index === activeBadge ? "none" : "1px solid rgba(255, 107, 53, 0.1)",
     cursor: "pointer",
-    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+    fontFamily: "'Playfair Display', serif",
   });
 
   // BOTÓN PRINCIPAL - MÁS COMPACTO
@@ -214,7 +214,7 @@ export default function Home() {
     boxShadow: "0 6px 20px rgba(255, 107, 53, 0.4)",
     animation: "pulse 2s infinite",
     marginTop: "0.8rem",
-    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+    fontFamily: "'Playfair Display', serif",
   };
 
   const gridContainerStyle = {
@@ -227,7 +227,7 @@ export default function Home() {
   };
 
   const gridTitleStyle = {
-    fontFamily: "'Playfair Display', 'Georgia', serif", // CAMBIADO: Playfair Display
+    fontFamily: "'Playfair Display', 'Georgia', serif",
     fontSize: "2rem",
     fontWeight: "800",
     color: "#1E293B",
@@ -239,7 +239,7 @@ export default function Home() {
   };
 
   const gridSubtitleStyle = {
-    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+    fontFamily: "'Playfair Display', serif",
     fontSize: "0.95rem",
     color: "#64748B",
     textAlign: "center",
@@ -275,7 +275,7 @@ export default function Home() {
   const gridItemHoverStyle = {
     transform: "translateY(-10px) scale(1.02)",
     boxShadow: "0 20px 40px rgba(255, 107, 53, 0.2)",
-    borderColor: "#FF6B35",
+    border: "1px solid #FF6B35", // SOLUCIÓN: usar border completo
   };
 
   const imageWrapperStyle = {
@@ -309,7 +309,7 @@ export default function Home() {
     textTransform: "uppercase",
     letterSpacing: "0.5px",
     transform: "translateY(-10px)",
-    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+    fontFamily: "'Playfair Display', serif",
   };
 
   const LoadingSkeleton = () => (
@@ -722,7 +722,7 @@ export default function Home() {
                 lineHeight: "1.5",
                 marginBottom: "0.3rem",
                 maxWidth: "550px",
-                fontFamily: "'Inter', sans-serif", // Mantenemos Inter para párrafos descriptivos
+                fontFamily: "'Inter', sans-serif",
               }}>
                 Descubre productos cultivados con pasión por agricultores locales. 
                 Frescura garantizada, calidad excepcional.
@@ -832,7 +832,7 @@ export default function Home() {
                   </div>
                   <div style={{ padding: "20px" }}>
                     <h3 style={{
-                      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+                      fontFamily: "'Playfair Display', serif",
                       fontSize: "1.1rem",
                       fontWeight: "700",
                       color: "#1E293B",
@@ -842,7 +842,7 @@ export default function Home() {
                       Producto Premium {i + 1}
                     </h3>
                     <p style={{
-                      fontFamily: "'Inter', sans-serif", // Mantenemos Inter para descripción
+                      fontFamily: "'Inter', sans-serif",
                       fontSize: "0.9rem",
                       color: "#64748B",
                       marginBottom: "12px",
@@ -876,7 +876,7 @@ export default function Home() {
                         backgroundColor: "#F1F5F9",
                         padding: "4px 10px",
                         borderRadius: "10px",
-                        fontFamily: "'Inter', sans-serif", // Mantenemos Inter para detalles
+                        fontFamily: "'Inter', sans-serif",
                       }}>
                         por kg
                       </span>
@@ -916,7 +916,7 @@ export default function Home() {
                   </div>
                   <div style={{ padding: "20px" }}>
                     <h3 style={{
-                      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
+                      fontFamily: "'Playfair Display', serif",
                       fontSize: "1.1rem",
                       fontWeight: "700",
                       color: "#1E293B",
@@ -926,7 +926,7 @@ export default function Home() {
                       {p.nombreProducto}
                     </h3>
                     <p style={{
-                      fontFamily: "'Inter', sans-serif", // Mantenemos Inter para descripción
+                      fontFamily: "'Inter', sans-serif",
                       fontSize: "0.9rem",
                       color: "#64748B",
                       marginBottom: "12px",
@@ -960,7 +960,7 @@ export default function Home() {
                         backgroundColor: p.stockProducto > 0 ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
                         padding: "4px 10px",
                         borderRadius: "10px",
-                        fontFamily: "'Inter', sans-serif", // Mantenemos Inter para stock
+                        fontFamily: "'Inter', sans-serif",
                       }}>
                         {p.stockProducto > 0 ? `${p.stockProducto} uds` : "Agotado"}
                       </span>
@@ -971,516 +971,524 @@ export default function Home() {
             </div>
           )}
         </div>
-      </div>
 
-      {/* MODAL DE PRODUCTO - MÁS COMPACTO Y ELEGANTE */}
-      {selectedProduct && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "rgba(0, 0, 0, 0.92)",
-          zIndex: 2000,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "20px",
-          animation: "fadeIn 0.3s ease",
-          overflow: "hidden",
-        }} onClick={() => setSelectedProduct(null)}>
-          
-          {/* Efectos de fondo sutiles */}
+        {/* MODAL DE PRODUCTO - CORREGIDO (sin conflictos de border) */}
+        {selectedProduct && (
           <div style={{
-            position: "absolute",
+            position: "fixed",
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            background: `
-              radial-gradient(circle at 20% 30%, rgba(255, 107, 53, 0.12) 0%, transparent 40%),
-              radial-gradient(circle at 80% 70%, rgba(46, 204, 113, 0.12) 0%, transparent 40%)
-            `,
-            zIndex: -1,
-          }}></div>
-          
-          {/* Círculos decorativos sutiles */}
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={i}
-              style={{
-                position: "absolute",
-                width: `${Math.random() * 30 + 15}px`,
-                height: `${Math.random() * 30 + 15}px`,
-                background: `radial-gradient(circle, 
-                  rgba(${Math.random() > 0.5 ? '255, 107, 53' : '46, 204, 113'}, ${Math.random() * 0.08 + 0.05}), 
-                  transparent 70%)`,
-                borderRadius: "50%",
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                filter: "blur(4px)",
-                animation: `floatCircle ${Math.random() * 8 + 8}s ease-in-out infinite`,
-                animationDelay: `${Math.random() * 2}s`,
-                zIndex: -1,
-              }}
-            />
-          ))}
-
-          <div
-            style={{
-              position: "relative",
-              maxWidth: "850px", // Reducido de 1000px
-              width: "100%",
-              maxHeight: "85vh", // Reducido de 90vh
-              borderRadius: "24px",
-              overflow: "hidden",
-              boxShadow: `
-                0 20px 40px -12px rgba(0, 0, 0, 0.5),
-                0 0 0 1px rgba(255, 255, 255, 0.05),
-                0 0 40px rgba(255, 107, 53, 0.2)
-              `,
-              animation: "modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-              background: "linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)",
-              backdropFilter: "blur(8px)",
-              border: "1px solid rgba(255, 255, 255, 0.2)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-
-            {/* Botón cerrar */}
-            <button
-              style={{
-                position: "absolute",
-                top: "20px",
-                right: "20px",
-                background: "linear-gradient(135deg, rgba(255, 107, 53, 0.95), rgba(255, 142, 83, 0.95))",
-                border: "none",
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                fontSize: "1.4rem",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "all 0.3s ease",
-                boxShadow: "0 6px 16px rgba(255, 107, 53, 0.4)",
-                zIndex: 2001,
-                fontWeight: "bold",
-                color: "white",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "scale(1.12) rotate(90deg)";
-                e.currentTarget.style.boxShadow = "0 8px 22px rgba(255, 107, 53, 0.6)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "scale(1) rotate(0deg)";
-                e.currentTarget.style.boxShadow = "0 6px 16px rgba(255, 107, 53, 0.4)";
-              }}
-              onClick={() => setSelectedProduct(null)}
-            >
-              ✕
-            </button>
-
-            {/* Contenido del modal */}
+            background: "rgba(0, 0, 0, 0.92)",
+            zIndex: 2000,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            animation: "fadeIn 0.3s ease",
+            overflow: "hidden",
+          }} onClick={() => setSelectedProduct(null)}>
+            
+            {/* Efectos de fondo sutiles */}
             <div style={{
-              display: "flex",
-              width: "100%",
-              height: "100%",
-              flexDirection: window.innerWidth <= 768 ? "column" : "row",
-            }}>
-              
-              {/* Sección de imagen - más compacta pero elegante */}
-              <div style={{
-                flex: "1", // Proporción balanceada
-                background: "linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "35px 30px", // Reducido
-                position: "relative",
-                overflow: "hidden",
-                minHeight: "350px", // Reducido
-              }}>
-                {/* Fondo sutil */}
-                <div style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: `
+                radial-gradient(circle at 20% 30%, rgba(255, 107, 53, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 80% 70%, rgba(46, 204, 113, 0.12) 0%, transparent 40%)
+              `,
+              zIndex: -1,
+            }}></div>
+            
+            {/* Círculos decorativos sutiles */}
+            {[...Array(8)].map((_, i) => (
+              <div
+                key={i}
+                style={{
                   position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: `
-                    radial-gradient(circle at 10% 20%, rgba(255, 107, 53, 0.05) 0%, transparent 40%),
-                    radial-gradient(circle at 90% 80%, rgba(46, 204, 113, 0.05) 0%, transparent 40%)
-                  `,
-                  zIndex: 0,
-                }}></div>
-                
-                {/* Contenedor de imagen */}
-                <div style={{
-                  position: "relative",
-                  zIndex: 2,
-                  width: "100%",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: "16px",
-                  overflow: "hidden",
-                  background: "rgba(255, 255, 255, 0.9)",
-                  boxShadow: `
-                    inset 0 0 20px rgba(255, 255, 255, 0.8),
-                    0 6px 24px rgba(0, 0, 0, 0.1)
-                  `,
-                  padding: "15px",
-                }}>
-                  {/* Imagen principal */}
-                  <img
-                    src={selectedProduct.imagenProducto}
-                    alt={selectedProduct.nombreProducto}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "contain",
-                      borderRadius: "10px",
-                      boxShadow: `
-                        0 10px 30px rgba(0, 0, 0, 0.15),
-                        0 4px 16px rgba(255, 107, 53, 0.12),
-                        inset 0 0 0 1px rgba(255, 255, 255, 0.5)
-                      `,
-                      transition: "transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-                      transform: "scale(0.96)",
-                    }}
-                    onLoad={(e) => {
-                      e.target.style.transform = "scale(1)";
-                    }}
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = "https://via.placeholder.com/500x400/F8FAFC/64748B?text=Producto+Fresco";
-                      e.target.style.transform = "scale(1)";
-                    }}
-                  />
-                </div>
-                
-                {/* Badge de stock - más compacto */}
-                <div style={{
+                  width: `${Math.random() * 30 + 15}px`,
+                  height: `${Math.random() * 30 + 15}px`,
+                  background: `radial-gradient(circle, 
+                    rgba(${Math.random() > 0.5 ? '255, 107, 53' : '46, 204, 113'}, ${Math.random() * 0.08 + 0.05}), 
+                    transparent 70%)`,
+                  borderRadius: "50%",
+                  top: `${Math.random() * 100}%`,
+                  left: `${Math.random() * 100}%`,
+                  filter: "blur(4px)",
+                  animation: `floatCircle ${Math.random() * 8 + 8}s ease-in-out infinite`,
+                  animationDelay: `${Math.random() * 2}s`,
+                  zIndex: -1,
+                }}
+              />
+            ))}
+
+            <div
+              style={{
+                position: "relative",
+                maxWidth: "850px",
+                width: "100%",
+                maxHeight: "85vh",
+                borderRadius: "24px",
+                overflow: "hidden",
+                boxShadow: `
+                  0 20px 40px -12px rgba(0, 0, 0, 0.5),
+                  0 0 0 1px rgba(255, 255, 255, 0.05),
+                  0 0 40px rgba(255, 107, 53, 0.2)
+                `,
+                animation: "modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                background: "linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)",
+                backdropFilter: "blur(8px)",
+                // SOLUCIÓN: Solo border, sin borderLeft/borderRight
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+
+              {/* Botón cerrar */}
+              <button
+                style={{
                   position: "absolute",
                   top: "20px",
-                  left: "20px",
-                  background: "linear-gradient(135deg, #FF4444, #FF6B35)",
-                  color: "white",
-                  padding: "8px 14px",
-                  borderRadius: "8px",
-                  fontSize: "0.9rem",
-                  fontWeight: "700",
-                  boxShadow: "0 4px 16px rgba(255, 68, 68, 0.25)",
-                  zIndex: 3,
+                  right: "20px",
+                  background: "linear-gradient(135deg, rgba(255, 107, 53, 0.95), rgba(255, 142, 83, 0.95))",
+                  border: "none",
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "50%",
+                  fontSize: "1.4rem",
+                  cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  minWidth: "85px",
-                  height: "36px",
-                  animation: "pulse 2s infinite",
-                  border: "1px solid rgba(255, 255, 255, 0.3)",
-                  textShadow: "0 1px 2px rgba(0, 0, 0, 0.2)",
-                  fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
-                }}>
-                  {selectedProduct.stockProducto > 0 ? (
-                    `${selectedProduct.stockProducto} disponibles`
-                  ) : (
-                    "Agotado"
-                  )}
-                </div>
-              </div>
-              
-              {/* Sección de información - más compacta */}
+                  transition: "all 0.3s ease",
+                  boxShadow: "0 6px 16px rgba(255, 107, 53, 0.4)",
+                  zIndex: 2001,
+                  fontWeight: "bold",
+                  color: "white",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.12) rotate(90deg)";
+                  e.currentTarget.style.boxShadow = "0 8px 22px rgba(255, 107, 53, 0.6)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1) rotate(0deg)";
+                  e.currentTarget.style.boxShadow = "0 6px 16px rgba(255, 107, 53, 0.4)";
+                }}
+                onClick={() => setSelectedProduct(null)}
+              >
+                ✕
+              </button>
+
+              {/* Contenido del modal */}
               <div style={{
-                flex: "1",
-                padding: "35px 30px",
                 display: "flex",
-                flexDirection: "column",
-                overflowY: "auto",
-                maxHeight: "85vh",
-                background: "rgba(255, 255, 255, 0.97)",
-                borderLeft: window.innerWidth > 768 ? "1px solid rgba(226, 232, 240, 0.3)" : "none",
-                borderTop: window.innerWidth <= 768 ? "1px solid rgba(226, 232, 240, 0.3)" : "none",
+                width: "100%",
+                height: "100%",
+                flexDirection: window.innerWidth <= 768 ? "column" : "row",
               }}>
-                <div>
-                  {/* Nombre del producto */}
-                  <h2 style={{
-                    fontSize: "1.8rem", // Reducido
-                    fontWeight: "900",
-                    color: "#1E293B",
-                    marginBottom: "6px",
-                    lineHeight: "1.2",
-                    letterSpacing: "-0.3px",
-                    background: "linear-gradient(90deg, #FF6B35, #2ECC71)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    backgroundClip: "text",
-                    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
-                  }} className="modal-title">
-                    {selectedProduct.nombreProducto}
-                  </h2>
-                  
-                  {/* Precio */}
-                  <div style={{
-                    fontSize: "2.2rem", // Reducido
-                    fontWeight: "900",
-                    color: "#FF6B35",
-                    textShadow: "0 2px 8px rgba(255, 107, 53, 0.2)",
-                    animation: "pulsePrice 3s infinite",
-                    marginBottom: "12px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
-                  }}>
-                    <span style={{ fontSize: "1.6rem", opacity: 0.8 }}>$</span>
-                    {parseFloat(selectedProduct.precioProducto).toFixed(2)}
-                  </div>
-                  
-                  {/* Unidades disponibles */}
-                  <div style={{
-                    fontSize: "0.95rem",
-                    color: selectedProduct.stockProducto > 0 ? "#10B981" : "#EF4444",
-                    fontWeight: "600",
-                    marginBottom: "22px",
-                    backgroundColor: selectedProduct.stockProducto > 0 
-                      ? "rgba(16, 185, 129, 0.1)" 
-                      : "rgba(239, 68, 68, 0.1)",
-                    padding: "8px 16px",
-                    borderRadius: "10px",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    border: selectedProduct.stockProducto > 0 
-                      ? "1px solid rgba(16, 185, 129, 0.2)" 
-                      : "1px solid rgba(239, 68, 68, 0.2)",
-                    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
-                  }}>
-                    <span style={{ fontSize: "1.1rem" }}>
-                      {selectedProduct.stockProducto > 0 ? "📦" : "❌"}
-                    </span>
-                    <span>
-                      {selectedProduct.stockProducto > 0 
-                        ? `${selectedProduct.stockProducto} unidades disponibles`
-                        : "Producto agotado"}
-                    </span>
-                  </div>
-                  
-                  {/* Descripción del producto */}
-                  <div style={{
-                    marginBottom: "25px",
-                    paddingBottom: "20px",
-                    borderBottom: "1px solid rgba(226, 232, 240, 0.4)",
-                  }}>
-                    <h3 style={{
-                      fontSize: "1.1rem", // Reducido
-                      fontWeight: "700",
-                      color: "#1E293B",
-                      marginBottom: "12px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
-                    }} className="modal-section-title">
-                      <span style={{
-                        background: "linear-gradient(135deg, #3498DB, #9B59B6)",
-                        WebkitBackgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                        fontSize: "1.2rem",
-                      }}>📋</span>
-                      Descripción del Producto
-                    </h3>
-                    <p style={{
-                      fontSize: "0.95rem", // Reducido
-                      color: "#64748B",
-                      lineHeight: "1.6",
-                      paddingLeft: "30px",
-                      fontFamily: "'Inter', sans-serif", // Mantenemos Inter para texto descriptivo
-                    }}>
-                      {selectedProduct.descripcionProducto || "Producto fresco de calidad local, cultivado con técnicas sostenibles y respetuosas con el medio ambiente."}
-                    </p>
-                  </div>
-                  
-                  {/* Información adicional */}
-                  <div style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-                    gap: "15px",
-                    marginBottom: "25px",
-                  }}>
-                    {selectedProduct.nombreVendedor && (
-                      <div style={{
-                        background: "rgba(248, 250, 252, 0.8)",
-                        padding: "16px",
-                        borderRadius: "14px",
-                        border: "1px solid rgba(226, 232, 240, 0.4)",
-                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
-                        transition: "all 0.3s ease",
-                      }} onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = "translateY(-3px)";
-                        e.currentTarget.style.boxShadow = "0 8px 20px rgba(0, 0, 0, 0.08)";
-                      }} onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.05)";
-                      }}>
-                        <div style={{ 
-                          color: "#64748B", 
-                          fontSize: "0.85rem", 
-                          marginBottom: "6px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
-                        }}>
-                          <span style={{ fontSize: "1rem" }}>👨‍🌾</span>
-                          Agricultor
-                        </div>
-                        <div style={{ fontWeight: "700", color: "#1E293B", fontSize: "1rem", fontFamily: "'Playfair Display', serif" }}>
-                          {selectedProduct.nombreVendedor}
-                        </div>
-                      </div>
-                    )}
-                    
-                    {selectedProduct.nombreCategoria && (
-                      <div style={{
-                        background: "rgba(248, 250, 252, 0.8)",
-                        padding: "16px",
-                        borderRadius: "14px",
-                        border: "1px solid rgba(226, 232, 240, 0.4)",
-                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
-                        transition: "all 0.3s ease",
-                      }} onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = "translateY(-3px)";
-                        e.currentTarget.style.boxShadow = "0 8px 20px rgba(0, 0, 0, 0.08)";
-                      }} onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.05)";
-                      }}>
-                        <div style={{ 
-                          color: "#64748B", 
-                          fontSize: "0.85rem", 
-                          marginBottom: "6px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
-                        }}>
-                          <span style={{ fontSize: "1rem" }}>🏷️</span>
-                          Categoría
-                        </div>
-                        <div style={{ fontWeight: "700", color: "#1E293B", fontSize: "1rem", fontFamily: "'Playfair Display', serif" }}>
-                          {selectedProduct.nombreCategoria}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
                 
-                {/* BOTÓN "VER DETALLES COMPLETOS" - más compacto */}
-                <button
-                  style={{
-                    width: "100%",
-                    background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
-                    color: "white",
-                    padding: "16px 28px",
-                    fontWeight: "700",
-                    borderRadius: "14px",
-                    border: "none",
-                    cursor: selectedProduct.stockProducto > 0 ? "pointer" : "not-allowed",
-                    fontSize: "1rem",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "10px",
-                    boxShadow: "0 8px 20px rgba(255, 107, 53, 0.3)",
-                    transition: "all 0.3s ease",
-                    marginTop: "auto",
-                    opacity: selectedProduct.stockProducto > 0 ? 1 : 0.6,
-                    position: "relative",
-                    overflow: "hidden",
-                    fontFamily: "'Playfair Display', serif", // CAMBIADO: Playfair Display
-                  }}
-                  onMouseEnter={(e) => {
-                    if (selectedProduct.stockProducto > 0) {
-                      e.target.style.transform = "translateY(-3px)";
-                      e.target.style.boxShadow = "0 12px 28px rgba(255, 107, 53, 0.4)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (selectedProduct.stockProducto > 0) {
-                      e.target.style.transform = "translateY(0)";
-                      e.target.style.boxShadow = "0 8px 20px rgba(255, 107, 53, 0.3)";
-                    }
-                  }}
-                  onClick={() => {
-                    if (selectedProduct.stockProducto > 0) {
-                      window.location.href = `/producto/${selectedProduct.idProducto}`;
-                    }
-                  }}
-                >
-                  {/* Efecto de brillo sutil */}
+                {/* Sección de imagen - más compacta pero elegante */}
+                <div style={{
+                  flex: "1",
+                  background: "linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "35px 30px",
+                  position: "relative",
+                  overflow: "hidden",
+                  minHeight: "350px",
+                }}>
+                  {/* Fondo sutil */}
                   <div style={{
                     position: "absolute",
                     top: 0,
-                    left: "-100%",
-                    width: "100%",
-                    height: "100%",
-                    background: "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent)",
-                    animation: "modalShimmer 3s infinite",
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: `
+                      radial-gradient(circle at 10% 20%, rgba(255, 107, 53, 0.05) 0%, transparent 40%),
+                      radial-gradient(circle at 90% 80%, rgba(46, 204, 113, 0.05) 0%, transparent 40%)
+                    `,
+                    zIndex: 0,
                   }}></div>
                   
-                  <span style={{ zIndex: 1 }}>
-                    {selectedProduct.stockProducto > 0 ? "Ver Detalles Completos" : "Producto Agotado"}
-                  </span>
-                  <span style={{ fontSize: "1.2rem", zIndex: 1, opacity: 0.9 }}>→</span>
-                </button>
+                  {/* Contenedor de imagen */}
+                  <div style={{
+                    position: "relative",
+                    zIndex: 2,
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: "16px",
+                    overflow: "hidden",
+                    background: "rgba(255, 255, 255, 0.9)",
+                    boxShadow: `
+                      inset 0 0 20px rgba(255, 255, 255, 0.8),
+                      0 6px 24px rgba(0, 0, 0, 0.1)
+                    `,
+                    padding: "15px",
+                  }}>
+                    {/* Imagen principal */}
+                    <img
+                      src={selectedProduct.imagenProducto}
+                      alt={selectedProduct.nombreProducto}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "contain",
+                        borderRadius: "10px",
+                        boxShadow: `
+                          0 10px 30px rgba(0, 0, 0, 0.15),
+                          0 4px 16px rgba(255, 107, 53, 0.12),
+                          inset 0 0 0 1px rgba(255, 255, 255, 0.5)
+                        `,
+                        transition: "transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                        transform: "scale(0.96)",
+                      }}
+                      onLoad={(e) => {
+                        e.target.style.transform = "scale(1)";
+                      }}
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "https://via.placeholder.com/500x400/F8FAFC/64748B?text=Producto+Fresco";
+                        e.target.style.transform = "scale(1)";
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Badge de stock - más compacto */}
+                  <div style={{
+                    position: "absolute",
+                    top: "20px",
+                    left: "20px",
+                    background: "linear-gradient(135deg, #FF4444, #FF6B35)",
+                    color: "white",
+                    padding: "8px 14px",
+                    borderRadius: "8px",
+                    fontSize: "0.9rem",
+                    fontWeight: "700",
+                    boxShadow: "0 4px 16px rgba(255, 68, 68, 0.25)",
+                    zIndex: 3,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: "85px",
+                    height: "36px",
+                    animation: "pulse 2s infinite",
+                    border: "1px solid rgba(255, 255, 255, 0.3)",
+                    textShadow: "0 1px 2px rgba(0, 0, 0, 0.2)",
+                    fontFamily: "'Playfair Display', serif",
+                  }}>
+                    {selectedProduct.stockProducto > 0 ? (
+                      `${selectedProduct.stockProducto} disponibles`
+                    ) : (
+                      "Agotado"
+                    )}
+                  </div>
+                </div>
                 
-                {/* Nota adicional - más compacta */}
-                <p style={{
-                  fontSize: "0.75rem",
-                  color: "#94A3B8",
-                  textAlign: "center",
-                  marginTop: "15px",
-                  fontStyle: "italic",
-                  lineHeight: "1.4",
+                {/* Sección de información - CORREGIDA (sin conflicto de border) */}
+                <div style={{
+                  flex: "1",
+                  padding: "35px 30px",
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  flexWrap: "wrap",
-                  fontFamily: "'Inter', sans-serif", // Mantenemos Inter para nota pequeña
+                  flexDirection: "column",
+                  overflowY: "auto",
+                  maxHeight: "85vh",
+                  background: "rgba(255, 255, 255, 0.97)",
+                  // SOLUCIÓN: Condicional para evitar mezclar border con borderLeft/borderTop
+                  ...(window.innerWidth > 768 
+                    ? { borderLeft: "1px solid rgba(226, 232, 240, 0.3)" }
+                    : { borderTop: "1px solid rgba(226, 232, 240, 0.3)" }
+                  ),
                 }}>
-                  <span style={{ 
-                    color: "#10B981", 
-                    fontWeight: "600",
+                  <div>
+                    {/* Nombre del producto */}
+                    <h2 style={{
+                      fontSize: "1.8rem",
+                      fontWeight: "900",
+                      color: "#1E293B",
+                      marginBottom: "6px",
+                      lineHeight: "1.2",
+                      letterSpacing: "-0.3px",
+                      background: "linear-gradient(90deg, #FF6B35, #2ECC71)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                      fontFamily: "'Playfair Display', serif",
+                    }} className="modal-title">
+                      {selectedProduct.nombreProducto}
+                    </h2>
+                    
+                    {/* Precio */}
+                    <div style={{
+                      fontSize: "2.2rem",
+                      fontWeight: "900",
+                      color: "#FF6B35",
+                      textShadow: "0 2px 8px rgba(255, 107, 53, 0.2)",
+                      animation: "pulsePrice 3s infinite",
+                      marginBottom: "12px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontFamily: "'Playfair Display', serif",
+                    }}>
+                      <span style={{ fontSize: "1.6rem", opacity: 0.8 }}>$</span>
+                      {parseFloat(selectedProduct.precioProducto).toFixed(2)}
+                    </div>
+                    
+                    {/* Unidades disponibles */}
+                    <div style={{
+                      fontSize: "0.95rem",
+                      color: selectedProduct.stockProducto > 0 ? "#10B981" : "#EF4444",
+                      fontWeight: "600",
+                      marginBottom: "22px",
+                      backgroundColor: selectedProduct.stockProducto > 0 
+                        ? "rgba(16, 185, 129, 0.1)" 
+                        : "rgba(239, 68, 68, 0.1)",
+                      padding: "8px 16px",
+                      borderRadius: "10px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      // SOLUCIÓN: Usar border (shorthand) sin borderColor
+                      border: selectedProduct.stockProducto > 0 
+                        ? "1px solid rgba(16, 185, 129, 0.2)" 
+                        : "1px solid rgba(239, 68, 68, 0.2)",
+                      fontFamily: "'Playfair Display', serif",
+                    }}>
+                      <span style={{ fontSize: "1.1rem" }}>
+                        {selectedProduct.stockProducto > 0 ? "📦" : "❌"}
+                      </span>
+                      <span>
+                        {selectedProduct.stockProducto > 0 
+                          ? `${selectedProduct.stockProducto} unidades disponibles`
+                          : "Producto agotado"}
+                      </span>
+                    </div>
+                    
+                    {/* Descripción del producto */}
+                    <div style={{
+                      marginBottom: "25px",
+                      paddingBottom: "20px",
+                      // SOLUCIÓN: Usar borderBottom sin border
+                      borderBottom: "1px solid rgba(226, 232, 240, 0.4)",
+                    }}>
+                      <h3 style={{
+                        fontSize: "1.1rem",
+                        fontWeight: "700",
+                        color: "#1E293B",
+                        marginBottom: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        fontFamily: "'Playfair Display', serif",
+                      }} className="modal-section-title">
+                        <span style={{
+                          background: "linear-gradient(135deg, #3498DB, #9B59B6)",
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                          fontSize: "1.2rem",
+                        }}>📋</span>
+                        Descripción del Producto
+                      </h3>
+                      <p style={{
+                        fontSize: "0.95rem",
+                        color: "#64748B",
+                        lineHeight: "1.6",
+                        paddingLeft: "30px",
+                        fontFamily: "'Inter', sans-serif",
+                      }}>
+                        {selectedProduct.descripcionProducto || "Producto fresco de calidad local, cultivado con técnicas sostenibles y respetuosas con el medio ambiente."}
+                      </p>
+                    </div>
+                    
+                    {/* Información adicional */}
+                    <div style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                      gap: "15px",
+                      marginBottom: "25px",
+                    }}>
+                      {selectedProduct.nombreVendedor && (
+                        <div style={{
+                          background: "rgba(248, 250, 252, 0.8)",
+                          padding: "16px",
+                          borderRadius: "14px",
+                          // SOLUCIÓN: border sin borderColor/borderWidth separados
+                          border: "1px solid rgba(226, 232, 240, 0.4)",
+                          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+                          transition: "all 0.3s ease",
+                        }} onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = "translateY(-3px)";
+                          e.currentTarget.style.boxShadow = "0 8px 20px rgba(0, 0, 0, 0.08)";
+                        }} onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = "translateY(0)";
+                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.05)";
+                        }}>
+                          <div style={{ 
+                            color: "#64748B", 
+                            fontSize: "0.85rem", 
+                            marginBottom: "6px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            fontFamily: "'Playfair Display', serif",
+                          }}>
+                            <span style={{ fontSize: "1rem" }}>👨‍🌾</span>
+                            Agricultor
+                          </div>
+                          <div style={{ fontWeight: "700", color: "#1E293B", fontSize: "1rem", fontFamily: "'Playfair Display', serif" }}>
+                            {selectedProduct.nombreVendedor}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedProduct.nombreCategoria && (
+                        <div style={{
+                          background: "rgba(248, 250, 252, 0.8)",
+                          padding: "16px",
+                          borderRadius: "14px",
+                          // SOLUCIÓN: border sin borderColor/borderWidth separados
+                          border: "1px solid rgba(226, 232, 240, 0.4)",
+                          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+                          transition: "all 0.3s ease",
+                        }} onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = "translateY(-3px)";
+                          e.currentTarget.style.boxShadow = "0 8px 20px rgba(0, 0, 0, 0.08)";
+                        }} onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = "translateY(0)";
+                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.05)";
+                        }}>
+                          <div style={{ 
+                            color: "#64748B", 
+                            fontSize: "0.85rem", 
+                            marginBottom: "6px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            fontFamily: "'Playfair Display', serif",
+                          }}>
+                            <span style={{ fontSize: "1rem" }}>🏷️</span>
+                            Categoría
+                          </div>
+                          <div style={{ fontWeight: "700", color: "#1E293B", fontSize: "1rem", fontFamily: "'Playfair Display', serif" }}>
+                            {selectedProduct.nombreCategoria}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* BOTÓN "VER DETALLES COMPLETOS" */}
+                  <button
+                    style={{
+                      width: "100%",
+                      background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
+                      color: "white",
+                      padding: "16px 28px",
+                      fontWeight: "700",
+                      borderRadius: "14px",
+                      border: "none",
+                      cursor: selectedProduct.stockProducto > 0 ? "pointer" : "not-allowed",
+                      fontSize: "1rem",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "10px",
+                      boxShadow: "0 8px 20px rgba(255, 107, 53, 0.3)",
+                      transition: "all 0.3s ease",
+                      marginTop: "auto",
+                      opacity: selectedProduct.stockProducto > 0 ? 1 : 0.6,
+                      position: "relative",
+                      overflow: "hidden",
+                      fontFamily: "'Playfair Display', serif",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedProduct.stockProducto > 0) {
+                        e.target.style.transform = "translateY(-3px)";
+                        e.target.style.boxShadow = "0 12px 28px rgba(255, 107, 53, 0.4)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedProduct.stockProducto > 0) {
+                        e.target.style.transform = "translateY(0)";
+                        e.target.style.boxShadow = "0 8px 20px rgba(255, 107, 53, 0.3)";
+                      }
+                    }}
+                    onClick={() => {
+                      if (selectedProduct.stockProducto > 0) {
+                        window.location.href = `/producto/${selectedProduct.idProducto}`;
+                      }
+                    }}
+                  >
+                    {/* Efecto de brillo sutil */}
+                    <div style={{
+                      position: "absolute",
+                      top: 0,
+                      left: "-100%",
+                      width: "100%",
+                      height: "100%",
+                      background: "linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent)",
+                      animation: "modalShimmer 3s infinite",
+                    }}></div>
+                    
+                    <span style={{ zIndex: 1 }}>
+                      {selectedProduct.stockProducto > 0 ? "Ver Detalles Completos" : "Producto Agotado"}
+                    </span>
+                    <span style={{ fontSize: "1.2rem", zIndex: 1, opacity: 0.9 }}>→</span>
+                  </button>
+                  
+                  {/* Nota adicional */}
+                  <p style={{
+                    fontSize: "0.75rem",
+                    color: "#94A3B8",
+                    textAlign: "center",
+                    marginTop: "15px",
+                    fontStyle: "italic",
+                    lineHeight: "1.4",
                     display: "flex",
                     alignItems: "center",
-                    gap: "4px",
+                    justifyContent: "center",
+                    gap: "8px",
+                    flexWrap: "wrap",
+                    fontFamily: "'Inter', sans-serif",
                   }}>
-                    <span>🚚</span> Envío en 24-48h
-                  </span>
-                  <span style={{ color: "#64748B" }}>•</span>
-                  <span style={{ 
-                    color: "#3B82F6", 
-                    fontWeight: "600",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "4px",
-                  }}>
-                    <span>💯</span> Calidad garantizada
-                  </span>
-                </p>
+                    <span style={{ 
+                      color: "#10B981", 
+                      fontWeight: "600",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}>
+                      <span>🚚</span> Envío en 24-48h
+                    </span>
+                    <span style={{ color: "#64748B" }}>•</span>
+                    <span style={{ 
+                      color: "#3B82F6", 
+                      fontWeight: "600",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}>
+                      <span>💯</span> Calidad garantizada
+                    </span>
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <Footer />
+        <Footer />
+      </div>
     </>
   );
 }

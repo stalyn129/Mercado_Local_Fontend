@@ -1,108 +1,116 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import logo from "../assets/Logo2.png";
+import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
+import logo from "../assets/Logo2.png"
 
 export default function LoginModal() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [errorType, setErrorType] = useState("");
-  const [shakeEffect, setShakeEffect] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const navigate = useNavigate();
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [rememberMe, setRememberMe] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [shakeEffect, setShakeEffect] = useState(false)
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  const [logoError, setLogoError] = useState(false)
+  const navigate = useNavigate()
 
-  const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+  const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080"
+
+  // Manejar error del logo
+  const handleLogoError = () => {
+    console.error("Error cargando el logo")
+    setLogoError(true)
+  }
+
+  // Fallback para logo
+  const getLogoSrc = () => {
+    if (logoError) {
+      return "https://via.placeholder.com/80x80/FF6B35/ffffff?text=MH"
+    }
+    return logo
+  }
 
   // Verificar si viene del registro exitoso
   useEffect(() => {
-    const registrationSuccess = sessionStorage.getItem("registrationSuccess");
-    const registeredEmail = sessionStorage.getItem("registeredEmail");
+    const registrationSuccess = sessionStorage.getItem("registrationSuccess")
+    const registeredEmail = sessionStorage.getItem("registeredEmail")
     
     if (registrationSuccess) {
-      setShowSuccessMessage(true);
+      setShowSuccessMessage(true)
       // Mostrar mensaje por 5 segundos
       const timer = setTimeout(() => {
-        setShowSuccessMessage(false);
-      }, 5000);
+        setShowSuccessMessage(false)
+      }, 5000)
       
-      sessionStorage.removeItem("registrationSuccess");
+      sessionStorage.removeItem("registrationSuccess")
       
-      return () => clearTimeout(timer);
+      return () => clearTimeout(timer)
     }
     
     if (registeredEmail) {
-      setEmail(registeredEmail);
-      sessionStorage.removeItem("registeredEmail");
+      setEmail(registeredEmail)
+      sessionStorage.removeItem("registeredEmail")
     }
     
-    const savedEmail = localStorage.getItem("rememberEmail");
+    const savedEmail = localStorage.getItem("rememberEmail")
     if (savedEmail) {
-      setEmail(savedEmail);
-      setRememberMe(true);
+      setEmail(savedEmail)
+      setRememberMe(true)
     }
-  }, []);
+  }, [])
 
+  // Función para cerrar y volver al home
   const handleClose = () => {
-    navigate("/");
-  };
+    navigate("/")
+  }
 
+  // Validación del formulario
   const validateForm = () => {
-    setError("");
-    setErrorType("");
+    setError("")
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!email) {
-      setError("Por favor ingresa tu correo electrónico");
-      setErrorType("email");
-      triggerShake();
-      return false;
+      setError("Por favor ingresa tu correo electrónico")
+      triggerShake()
+      return false
     }
     if (!emailRegex.test(email)) {
-      setError("Por favor ingresa un correo electrónico válido");
-      setErrorType("email");
-      triggerShake();
-      return false;
+      setError("Por favor ingresa un correo electrónico válido")
+      triggerShake()
+      return false
     }
 
     if (!password) {
-      setError("Por favor ingresa tu contraseña");
-      setErrorType("password");
-      triggerShake();
-      return false;
+      setError("Por favor ingresa tu contraseña")
+      triggerShake()
+      return false
     }
     if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres");
-      setErrorType("password");
-      triggerShake();
-      return false;
+      setError("La contraseña debe tener al menos 6 caracteres")
+      triggerShake()
+      return false
     }
 
-    return true;
-  };
+    return true
+  }
 
   const triggerShake = () => {
-    setShakeEffect(true);
-    setTimeout(() => setShakeEffect(false), 500);
-  };
+    setShakeEffect(true)
+    setTimeout(() => setShakeEffect(false), 500)
+  }
 
+  // HANDLE SUBMIT CON LA FUNCIONALIDAD ORIGINAL MEJORADA
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
     
     if (!validateForm()) {
-      return;
+      return
     }
 
-    setError("");
-    setErrorType("");
-    setLoading(true);
+    setError("")
+    setLoading(true)
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
@@ -112,142 +120,104 @@ export default function LoginModal() {
           correo: email,
           contrasena: password
         }),
-        signal: controller.signal,
-      });
+      })
 
-      clearTimeout(timeoutId);
-
+      // Primero verificar si hay error en la respuesta
       if (!response.ok) {
-        const errorData = await response.text();
-        let userFriendlyMessage = "Error al iniciar sesión";
-        
+        // Si es error 401 (credenciales incorrectas)
         if (response.status === 401) {
-          userFriendlyMessage = "Credenciales incorrectas. Verifica tu correo y contraseña.";
-          setErrorType("credentials");
-        } else if (response.status === 404) {
-          userFriendlyMessage = "Usuario no encontrado";
-          setErrorType("email");
-        } else if (response.status === 500) {
-          userFriendlyMessage = "Error del servidor. Por favor, intenta más tarde.";
-          setErrorType("network");
-        } else {
-          try {
-            const errorJson = JSON.parse(errorData);
-            userFriendlyMessage = errorJson.message || errorData;
-          } catch {
-            userFriendlyMessage = errorData || "Error desconocido";
-          }
+          setError("❌ Credenciales incorrectas. Verifica tu correo y contraseña.")
+          triggerShake()
+          setLoading(false)
+          return
         }
         
-        throw new Error(userFriendlyMessage);
+        // Si es error 404 (usuario no encontrado)
+        if (response.status === 404) {
+          setError("❌ Usuario no encontrado. Verifica tu correo electrónico.")
+          triggerShake()
+          setLoading(false)
+          return
+        }
+        
+        // Otros errores
+        const errorData = await response.text()
+        throw new Error(errorData || "Error al iniciar sesión")
       }
 
-      const data = await response.json();
+      const data = await response.json()
 
-      // Guardar token y datos básicos
-      localStorage.setItem("authToken", data.token);
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("rol", data.rol);
-      localStorage.setItem("idUsuario", data.idUsuario);
+      // === FUNCIONALIDAD ORIGINAL DEL PRIMER CÓDIGO ===
+      // Guardar token para interceptores, admin, vendedor y consumidor
+      localStorage.setItem("authToken", data.token)
+      localStorage.setItem("token", data.token)      // compatibilidad
 
-      if (data.idVendedor) localStorage.setItem("idVendedor", data.idVendedor);
-      if (data.idConsumidor) localStorage.setItem("idConsumidor", data.idConsumidor);
+      // Guardar usuario COMPLETO como viene del backend
+      localStorage.setItem("user", JSON.stringify(data))
+      localStorage.setItem("rol", data.rol)
+      localStorage.setItem("idUsuario", data.id)
 
-      // IMPORTANTE: Crear objeto user completo con nombre y apellido
-      const user = {
-        id: data.idUsuario,
-        rol: data.rol,
-        idVendedor: data.idVendedor || null,
-        idConsumidor: data.idConsumidor || null,
-        nombre: data.nombre || "", // Asegurar que estos campos existan
-        apellido: data.apellido || "", // Asegurar que estos campos existan
-        correo: email,
-        token: data.token
-      };
-      
-      localStorage.setItem("user", JSON.stringify(user));
+      // Guardar IDs específicos si existen
+      if (data.idVendedor) {
+        localStorage.setItem("idVendedor", data.idVendedor)
+      }
+      if (data.idConsumidor) {
+        localStorage.setItem("idConsumidor", data.idConsumidor)
+      }
 
       // Guardar recordar email si está marcado
       if (rememberMe) {
-        localStorage.setItem("rememberEmail", email);
+        localStorage.setItem("rememberEmail", email)
       } else {
-        localStorage.removeItem("rememberEmail");
+        localStorage.removeItem("rememberEmail")
       }
 
-      // Si no vienen nombre y apellido, hacer una petición adicional para obtener perfil
-      if (!data.nombre || !data.apellido) {
-        try {
-          const userResponse = await fetch(`${API_BASE_URL}/api/usuarios/${data.idUsuario}`, {
-            headers: {
-              "Authorization": `Bearer ${data.token}`
-            }
-          });
-          
-          if (userResponse.ok) {
-            const userData = await userResponse.json();
-            // Actualizar user con datos completos
-            const updatedUser = {
-              ...user,
-              nombre: userData.nombre || "",
-              apellido: userData.apellido || ""
-            };
-            localStorage.setItem("user", JSON.stringify(updatedUser));
-          }
-        } catch (profileError) {
-          console.warn("No se pudieron obtener datos adicionales del usuario:", profileError);
-        }
-      }
+      // DEBUG: Verificar qué rol tenemos
+      console.log("ROL del usuario después de login:", data.rol)
+      console.log("Datos completos del usuario:", data)
 
-      // Redirigir según rol
+      // === REDIRECCIÓN SEGÚN ROL - MODIFICADO PARA IR A "/" ===
       if (data.rol === "VENDEDOR") {
-        navigate("/vendedor");
+        navigate("/vendedor")
       } else if (data.rol === "ADMIN") {
-        navigate("/admin");
-      } else if (data.rol === "CONSUMIDOR" || data.rol === "CLIENTE") {
-        navigate("/explorar");
+        navigate("/admin")
+      } else if (data.rol === "CONSUMIDOR") {
+        // CAMBIO AQUÍ: Ahora va a la página inicial "/"
+        navigate("/", { replace: true })
       } else {
-        navigate("/");
+        navigate("/")
       }
 
     } catch (err) {
-      if (err.name === "AbortError") {
-        setError("Tiempo de espera agotado. Verifica tu conexión a internet.");
-        setErrorType("network");
-      } else if (err.message.includes("Network") || err.message.includes("conexión")) {
-        setError("No se pudo conectar al servidor. Verifica tu conexión o si el backend está corriendo.");
-        setErrorType("network");
+      console.error("Error en login:", err)
+      
+      // Manejar errores de red o del servidor
+      if (err.message.includes("Failed to fetch") || err.message.includes("Network")) {
+        setError("❌ Error de conexión. Verifica tu internet o si el servidor está activo.")
       } else {
-        setError(err.message);
-        if (!errorType) setErrorType("general");
+        setError("❌ " + (err.message || "Error al iniciar sesión. Intenta nuevamente."))
       }
       
-      triggerShake();
+      triggerShake()
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
+  // Función para login con Google
   const handleGoogleLogin = () => {
-    window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
-  };
+    window.location.href = `${API_BASE_URL}/oauth2/authorization/google`
+  }
 
+  // Función para ir al registro
   const handleGoToRegister = () => {
-    navigate("/register");
-  };
+    navigate("/register")
+  }
 
+  // Función para olvidar contraseña
   const handleForgotPassword = () => {
-    alert("Funcionalidad de recuperación de contraseña en desarrollo.");
-  };
-
-  const getErrorClass = () => {
-    switch(errorType) {
-      case "email": return "error-email";
-      case "password": return "error-password";
-      case "credentials": return "error-credentials";
-      case "network": return "error-network";
-      default: return "error-general";
-    }
-  };
+    alert("Funcionalidad de recuperación de contraseña en desarrollo.")
+  }
 
   return (
     <>
@@ -475,10 +445,10 @@ export default function LoginModal() {
           padding: 0 25px 25px;
         }
 
-        /* Error message */
+        /* Error message - MEJORADO */
         .login-error-message {
-          background: rgba(255, 107, 53, 0.05);
-          border: 1px solid rgba(255, 107, 53, 0.2);
+          background: rgba(255, 107, 53, 0.08);
+          border: 1.5px solid rgba(255, 107, 53, 0.3);
           border-radius: 10px;
           padding: 12px 15px;
           margin-bottom: 20px;
@@ -489,11 +459,13 @@ export default function LoginModal() {
           align-items: center;
           gap: 8px;
           animation: fadeIn 0.3s ease;
+          font-weight: 500;
         }
 
         .login-error-icon {
           font-size: 14px;
           flex-shrink: 0;
+          font-weight: bold;
         }
 
         /* Formulario */
@@ -828,7 +800,11 @@ export default function LoginModal() {
             </button>
             
             <div className="login-modal-logo">
-              <img src={logo} alt="My Harvest Logo" />
+              <img 
+                src={getLogoSrc()} 
+                alt="My Harvest Logo" 
+                onError={handleLogoError}
+              />
             </div>
             
             <h1 className="login-modal-title">My Harvest</h1>
@@ -844,12 +820,8 @@ export default function LoginModal() {
 
           <div className="login-modal-content">
             {error && (
-              <div className={`login-error-message ${getErrorClass()}`}>
-                <span className="login-error-icon">
-                  {errorType === 'network' ? '🌐' : 
-                   errorType === 'credentials' ? '🔒' : 
-                   errorType === 'email' ? '📧' : '⚠️'}
-                </span>
+              <div className="login-error-message">
+                <span className="login-error-icon">⚠️</span>
                 <span>{error}</span>
               </div>
             )}
@@ -860,7 +832,7 @@ export default function LoginModal() {
                 <div className="input-container">
                   <input
                     type="email"
-                    className={`login-input ${errorType === 'email' ? 'shake-animation' : ''}`}
+                    className={`login-input ${error ? 'shake-animation' : ''}`}
                     placeholder="admin@mercadolocal.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -875,7 +847,7 @@ export default function LoginModal() {
                 <div className="input-container">
                   <input
                     type={showPassword ? "text" : "password"}
-                    className={`login-input ${errorType === 'password' ? 'shake-animation' : ''}`}
+                    className={`login-input ${error ? 'shake-animation' : ''}`}
                     placeholder="••••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -966,5 +938,5 @@ export default function LoginModal() {
         </div>
       </div>
     </>
-  );
+  )
 }

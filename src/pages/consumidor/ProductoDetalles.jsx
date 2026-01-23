@@ -67,7 +67,7 @@ export default function ProductoDetalle() {
     const usuario = JSON.parse(localStorage.getItem("user"));
 
     if (!token || !usuario?.idConsumidor) {
-      return navigate("/login");
+      return navigate("/LoginModal");
     }
 
     try {
@@ -102,7 +102,7 @@ export default function ProductoDetalle() {
     const token = localStorage.getItem("authToken");
 
     if (!usuario || !token) {
-      return navigate("/login");
+      return navigate("/LoginModal");
     }
 
     try {
@@ -121,7 +121,7 @@ export default function ProductoDetalle() {
     const usuario = JSON.parse(localStorage.getItem("user"));
 
     if (!token || !usuario?.idConsumidor) {
-      return navigate("/login");
+      return navigate("/LoginModal");
     }
 
     const body = {
