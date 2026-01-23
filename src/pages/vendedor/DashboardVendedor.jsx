@@ -62,13 +62,18 @@ export default function DashboardVendedor() {
 
       if (pedidosResponse.ok) {
         const pedidosData = await pedidosResponse.json();
-        const pedidosFormateados = pedidosData.map(pedido => ({
-          id: pedido.id,
-          numero: pedido.numero || pedido.id,
-          cliente: pedido.clienteNombre || `${pedido.cliente?.nombre} ${pedido.cliente?.apellido}` || "Cliente",
-          estado: pedido.estado || "Pendiente",
-          total: pedido.total || 0,
-          fecha: pedido.fecha
+        console.log("Datos de pedidos recibidos:", pedidosData); // DEBUG
+        
+        // 🔥 CORRECCIÓN: Mejor manejo de datos
+        const pedidosFormateados = pedidosData.map((pedido, index) => ({
+          id: pedido.idPedido || pedido.id || index,
+          numero: pedido.numeroPedido || pedido.numero || `PED-${index + 1}`,
+          cliente: pedido.clienteNombre || 
+                   `${pedido.cliente?.nombre || ''} ${pedido.cliente?.apellido || ''}`.trim() || 
+                   "Cliente sin nombre",
+          estado: pedido.estadoPedido || pedido.estado || "Pendiente",
+          total: pedido.totalPedido || pedido.total || pedido.montoTotal || 0,
+          fecha: pedido.fechaPedido || pedido.fecha || new Date().toISOString()
         }));
         setPedidosRecientes(pedidosFormateados);
       } else {
@@ -293,7 +298,7 @@ export default function DashboardVendedor() {
                 { text: "⭐ Reseñas", color: "#A0B8A8", url: "/vendedor/resenas" }
               ].map((btn, idx) => (
                 <button
-                  key={idx}
+                  key={`btn-${idx}`}
                   onClick={() => window.location.href = btn.url}
                   style={{
                     background: btn.color,
@@ -327,7 +332,7 @@ export default function DashboardVendedor() {
               gridTemplateColumns: "repeat(auto-fit, minmax(500px, 1fr))",
               gap: "30px"
             }}>
-              {/* Pedidos Recientes */}
+              {/* Pedidos Recientes - ✅ CORREGIDO DEFINITIVAMENTE */}
               <div style={{
                 background: "white",
                 borderRadius: "20px",
@@ -344,53 +349,70 @@ export default function DashboardVendedor() {
                 </h2>
                 
                 {pedidosRecientes.length > 0 ? (
-                  pedidosRecientes.map((pedido) => (
-                    <div key={pedido.id} style={{
-                      background: "#FAFCF8",
-                      borderRadius: "12px",
-                      padding: "20px",
-                      marginBottom: "12px",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      transition: "all 0.3s ease",
-                      borderLeft: "4px solid transparent"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = "translateX(5px)";
-                      e.currentTarget.style.borderLeftColor = "#6B8E6E";
-                      e.currentTarget.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.1)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "translateX(0)";
-                      e.currentTarget.style.borderLeftColor = "transparent";
-                      e.currentTarget.style.boxShadow = "none";
-                    }}>
-                      <div>
-                        <div style={{ fontWeight: "700", color: "#2D3E2B", fontSize: "16px" }}>
-                          #{pedido.numero}
+                  <div>
+                    {pedidosRecientes.map((pedido, index) => {
+                      // 🔥 SOLUCIÓN: Generar key única siempre
+                      const uniqueKey = `pedido-${pedido.id}-${pedido.numero}-${index}-${Date.now()}`;
+                      
+                      return (
+                        <div 
+                          key={uniqueKey} // ✅ KEY ÚNICA GARANTIZADA
+                          style={{
+                            background: "#FAFCF8",
+                            borderRadius: "12px",
+                            padding: "20px",
+                            marginBottom: "12px",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            transition: "all 0.3s ease",
+                            borderLeft: "4px solid transparent"
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = "translateX(5px)";
+                            e.currentTarget.style.borderLeftColor = "#6B8E6E";
+                            e.currentTarget.style.boxShadow = "0 4px 12px rgba(90, 143, 72, 0.1)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = "translateX(0)";
+                            e.currentTarget.style.borderLeftColor = "transparent";
+                            e.currentTarget.style.boxShadow = "none";
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: "700", color: "#2D3E2B", fontSize: "16px" }}>
+                              #{pedido.numero}
+                            </div>
+                            <div style={{ color: "#6B7F69", fontSize: "13px", marginTop: "4px" }}>
+                              {pedido.cliente}
+                            </div>
+                            <div style={{ color: "#94A3B8", fontSize: "11px", marginTop: "2px" }}>
+                              {new Date(pedido.fecha).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                            <span style={{
+                              background: pedido.estado.toLowerCase() === "enviado" ? "#C2DBC2" : 
+                                        pedido.estado.toLowerCase() === "completado" ? "#D4EDDA" : 
+                                        pedido.estado.toLowerCase() === "cancelado" ? "#F8D7DA" : "#FFF3E0",
+                              color: pedido.estado.toLowerCase() === "enviado" ? "#2D5A2D" : 
+                                    pedido.estado.toLowerCase() === "completado" ? "#155724" : 
+                                    pedido.estado.toLowerCase() === "cancelado" ? "#721C24" : "#F5C744",
+                              padding: "6px 14px",
+                              borderRadius: "20px",
+                              fontSize: "12px",
+                              fontWeight: "700"
+                            }}>
+                              {pedido.estado}
+                            </span>
+                            <span style={{ fontWeight: "800", fontSize: "18px", color: "#2D3E2B" }}>
+                              ${pedido.total.toFixed(2)}
+                            </span>
+                          </div>
                         </div>
-                        <div style={{ color: "#6B7F69", fontSize: "13px", marginTop: "4px" }}>
-                          {pedido.cliente}
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                        <span style={{
-                          background: pedido.estado.toLowerCase() === "enviado" ? "#C2DBC2" : "#FFF3E0",
-                          color: pedido.estado.toLowerCase() === "enviado" ? "#2D5A2D" : "#F5C744",
-                          padding: "6px 14px",
-                          borderRadius: "20px",
-                          fontSize: "12px",
-                          fontWeight: "700"
-                        }}>
-                          {pedido.estado}
-                        </span>
-                        <span style={{ fontWeight: "800", fontSize: "18px", color: "#2D3E2B" }}>
-                          ${pedido.total.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  ))
+                      );
+                    })}
+                  </div>
                 ) : (
                   <div style={{ textAlign: "center", padding: "40px", color: "#6B7F69" }}>
                     <div style={{ fontSize: "48px", marginBottom: "16px" }}>📦</div>
