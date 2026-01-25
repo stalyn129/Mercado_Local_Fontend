@@ -1,5 +1,29 @@
 import { useEffect, useState } from "react";
-import { FileSearch, AlertCircle, Filter, Download, RefreshCcw, Clock, User, Activity, X } from "lucide-react";
+import { 
+  FileSearch, 
+  AlertCircle, 
+  Filter, 
+  Download, 
+  RefreshCw, 
+  Clock, 
+  User, 
+  Activity, 
+  X,
+  Search,
+  ChevronDown,
+  BarChart3,
+  Shield,
+  Database,
+  Terminal,
+  AlertTriangle,
+  CheckCircle,
+  Info,
+  ExternalLink,
+  TrendingUp,
+  Package,
+  Layers,
+  AlertOctagon
+} from "lucide-react";
 
 const API_URL = "http://localhost:8080";
 
@@ -10,6 +34,73 @@ export default function LogsAdmin() {
   const [filter, setFilter] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [token, setToken] = useState(null);
+  const [circlePositions, setCirclePositions] = useState([]);
+  const [showFilters, setShowFilters] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // =================== CÍRCULOS FLOTANTES ===================
+  useEffect(() => {
+    const generateCircles = () => {
+      const circles = [];
+      const colors = [
+        "rgba(255, 107, 53, 0.15)",
+        "rgba(52, 211, 153, 0.15)",
+        "rgba(59, 130, 246, 0.15)",
+        "rgba(168, 85, 247, 0.15)",
+        "rgba(239, 68, 68, 0.15)",
+        "rgba(245, 158, 11, 0.15)",
+        "rgba(14, 165, 233, 0.15)",
+        "rgba(236, 72, 153, 0.15)"
+      ];
+      
+      for (let i = 0; i < 8; i++) {
+        circles.push({
+          id: i,
+          size: Math.random() * 80 + 40,
+          top: Math.random() * 100,
+          left: Math.random() * 100,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          animationDelay: Math.random() * 5 + "s",
+          animationDuration: Math.random() * 25 + 30 + "s",
+          blur: Math.random() * 4 + 2 + "px"
+        });
+      }
+      setCirclePositions(circles);
+    };
+
+    generateCircles();
+    
+    const interval = setInterval(() => {
+      setCirclePositions(prev => 
+        prev.map(circle => ({
+          ...circle,
+          top: Math.random() * 100,
+          left: Math.random() * 100,
+          animationDelay: Math.random() * 4 + "s"
+        }))
+      );
+    }, 35000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // =================== PALETA DE COLORES ===================
+  const colorPalette = {
+    primary: '#FF6B35',
+    secondary: '#8B5CF6',
+    success: '#10B981',
+    warning: '#F59E0B',
+    danger: '#EF4444',
+    info: '#3B82F6',
+    dark: '#111827',
+    light: '#F3F4F6',
+    
+    chartColors: [
+      '#FF6B35', '#8B5CF6', '#3B82F6', '#10B981', '#F59E0B',
+      '#EF4444', '#EC4899', '#06B6D4', '#6366F1', '#14B8A6',
+      '#F97316', '#84CC16', '#A855F7', '#22C55E', '#0EA5E9'
+    ]
+  };
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
@@ -24,6 +115,7 @@ export default function LogsAdmin() {
     }
 
     setLoading(true);
+    setRefreshing(true);
     setError(null);
 
     fetch(`${API_URL}/admin/logs`, {
@@ -38,11 +130,13 @@ export default function LogsAdmin() {
       .then(data => {
         setLogs(Array.isArray(data) ? data : []);
         setLoading(false);
+        setRefreshing(false);
       })
       .catch(err => {
         console.error(err);
         setError(err.message);
         setLoading(false);
+        setRefreshing(false);
       });
   };
 
@@ -75,17 +169,48 @@ export default function LogsAdmin() {
 
   const getLogTypeColor = (tipo) => {
     const colors = {
-      info: { bg: "#E8F5E3", color: "#5A8F48", border: "#5A8F48" },
-      warning: { bg: "#FFF9E6", color: "#F5C744", border: "#F5C744" },
-      error: { bg: "#FFF0F2", color: "#DA3E52", border: "#DA3E52" },
-      success: { bg: "#E8F5E3", color: "#5A8F48", border: "#5A8F48" }
+      info: { 
+        bg: "rgba(59, 130, 246, 0.15)", 
+        color: "#3B82F6", 
+        border: "#3B82F6",
+        icon: <Info size={16} />,
+        gradient: 'linear-gradient(135deg, #3B82F6, #2563EB)'
+      },
+      warning: { 
+        bg: "rgba(245, 158, 11, 0.15)", 
+        color: "#F59E0B", 
+        border: "#F59E0B",
+        icon: <AlertTriangle size={16} />,
+        gradient: 'linear-gradient(135deg, #F59E0B, #D97706)'
+      },
+      error: { 
+        bg: "rgba(239, 68, 68, 0.15)", 
+        color: "#EF4444", 
+        border: "#EF4444",
+        icon: <AlertOctagon size={16} />,
+        gradient: 'linear-gradient(135deg, #EF4444, #DC2626)'
+      },
+      success: { 
+        bg: "rgba(16, 185, 129, 0.15)", 
+        color: "#10B981", 
+        border: "#10B981",
+        icon: <CheckCircle size={16} />,
+        gradient: 'linear-gradient(135deg, #10B981, #059669)'
+      }
     };
     return colors[tipo] || colors.info;
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Sin fecha';
-    return dateString.replace("T", " ").substring(0, 19);
+    const date = new Date(dateString);
+    return date.toLocaleString('es-ES', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const limpiarFiltros = () => {
@@ -93,521 +218,1047 @@ export default function LogsAdmin() {
     setFilterType("all");
   };
 
+  // =================== COMPONENTE SELECTOR DE FILTROS ===================
+  const FilterSelector = () => {
+    return (
+      <div style={styles.selectorFiltroContainer}>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          style={styles.selectorFiltroBoton}
+        >
+          <Filter size={16} />
+          <span>
+            Filtros: 
+            {filter ? ` "${filter}"` : 
+             filterType === "all" ? ' Todos' : 
+             filterType === "info" ? ' Información' :
+             filterType === "warning" ? ' Advertencias' :
+             filterType === "error" ? ' Errores' :
+             filterType === "success" ? ' Éxitos' : ` ${filterType}`}
+          </span>
+          <ChevronDown size={16} />
+        </button>
+        
+        {showFilters && (
+          <div style={styles.selectorFiltroMenu}>
+            <div style={styles.busquedaFiltroContainer}>
+              <Search size={14} style={styles.busquedaFiltroIcon} />
+              <input
+                type="text"
+                placeholder="Buscar por acción o usuario..."
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                style={styles.busquedaFiltroInput}
+              />
+              {filter && (
+                <button
+                  onClick={() => setFilter('')}
+                  style={styles.busquedaFiltroClear}
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            
+            <div style={styles.opcionesContainer}>
+              {["all", "info", "warning", "error", "success"].map((type) => {
+                const typeConfig = getLogTypeColor(type === "all" ? "info" : type);
+                const isActive = filterType === type;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      setFilterType(type);
+                      setShowFilters(false);
+                    }}
+                    style={{
+                      ...styles.opcionFiltro,
+                      backgroundColor: isActive ? `${typeConfig.color}15` : 'transparent',
+                      color: isActive ? typeConfig.color : '#6b7280',
+                      borderLeft: isActive ? `3px solid ${typeConfig.color}` : '3px solid transparent'
+                    }}
+                  >
+                    {type !== "all" && typeConfig.icon}
+                    <span style={styles.opcionTexto}>
+                      {type === "all" ? 'Todos los tipos' : 
+                       type === "info" ? 'Información' :
+                       type === "warning" ? 'Advertencias' :
+                       type === "error" ? 'Errores' :
+                       'Éxitos'}
+                    </span>
+                    <span style={styles.opcionCount}>
+                      {type === "all" ? logs.length : 
+                       logs.filter(l => l.tipo === type).length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Calcular estadísticas
+  const stats = {
+    total: logs.length,
+    info: logs.filter(l => l.tipo === 'info').length,
+    warning: logs.filter(l => l.tipo === 'warning').length,
+    error: logs.filter(l => l.tipo === 'error').length,
+    success: logs.filter(l => l.tipo === 'success').length
+  };
+
   if (loading) {
     return (
-      <div style={{ 
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)"
-      }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ 
-            display: "inline-block",
-            width: "50px",
-            height: "50px",
-            border: "5px solid #ECF2E3",
-            borderTop: "5px solid #5A8F48",
-            borderRadius: "50%",
-            animation: "spin 1s linear infinite",
-            marginBottom: "20px"
-          }}></div>
-          <p style={{ 
-            color: "#6B7F69",
-            fontSize: "18px",
-            fontWeight: "600",
-            margin: 0
-          }}>
-            Cargando registros...
-          </p>
+      <div style={styles.container}>
+        {/* Círculos flotantes */}
+        {circlePositions.map(circle => (
+          <div 
+            key={circle.id}
+            style={{
+              ...styles.floatingCircle,
+              top: `${circle.top}%`,
+              left: `${circle.left}%`,
+              width: `${circle.size}px`,
+              height: `${circle.size}px`,
+              background: circle.color,
+              animation: `floatCircle ${circle.animationDuration} ease-in-out infinite`,
+              animationDelay: circle.animationDelay,
+              filter: `blur(${circle.blur})`
+            }}
+          />
+        ))}
+        
+        <div style={styles.mainContent}>
+          <div style={styles.loadingContainer}>
+            <div style={styles.spinner}></div>
+            <div style={styles.loadingContent}>
+              <h3 style={styles.loadingTitle}>Analizando Registros del Sistema</h3>
+              <p style={styles.loadingText}>Cargando eventos y actividad...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ 
-      minHeight: "100vh",
-      background: "linear-gradient(135deg, #F9FBF7 0%, #ECF2E3 100%)",
-      fontFamily: "inherit"
-    }}>
-      <div style={{ 
-        maxWidth: "1600px", 
-        margin: "0 auto", 
-        padding: "40px 20px",
-        paddingBottom: "80px"
-      }}>
+    <div style={styles.container}>
+      {/* Círculos flotantes */}
+      {circlePositions.map(circle => (
+        <div 
+          key={circle.id}
+          style={{
+            ...styles.floatingCircle,
+            top: `${circle.top}%`,
+            left: `${circle.left}%`,
+            width: `${circle.size}px`,
+            height: `${circle.size}px`,
+            background: circle.color,
+            animation: `floatCircle ${circle.animationDuration} ease-in-out infinite`,
+            animationDelay: circle.animationDelay,
+            filter: `blur(${circle.blur})`
+          }}
+        />
+      ))}
+      
+      {/* Contenedor Principal */}
+      <div style={styles.mainContent}>
         
         {/* Header Section */}
-        <div style={{ 
-          background: "white",
-          borderRadius: "20px",
-          padding: "48px 32px",
-          marginBottom: "40px",
-          boxShadow: "0 4px 20px rgba(90, 143, 72, 0.12)",
-          position: "relative",
-          overflow: "hidden"
-        }}>
-          {/* Decoración de fondo */}
-          <div style={{
-            position: "absolute",
-            top: "-50px",
-            right: "-50px",
-            width: "200px",
-            height: "200px",
-            background: "linear-gradient(135deg, #ECF2E3 0%, #DDE8D0 100%)",
-            borderRadius: "50%",
-            opacity: "0.5",
-            zIndex: "0"
-          }}></div>
-          <div style={{
-            position: "absolute",
-            bottom: "-30px",
-            left: "-30px",
-            width: "150px",
-            height: "150px",
-            background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
-            borderRadius: "50%",
-            opacity: "0.1",
-            zIndex: "0"
-          }}></div>
-
-          <div style={{ 
-            position: "relative", 
-            zIndex: "1",
-            display: "flex",
-            flexDirection: "column",
-            gap: "20px"
-          }}>
-            <div style={{ textAlign: "center" }}>
-              {/* Icono decorativo */}
-              <div style={{
-                fontSize: "56px",
-                marginBottom: "16px",
-                filter: "drop-shadow(0 4px 8px rgba(90, 143, 72, 0.2))"
-              }}>
-                📋
-              </div>
-
-              {/* Título principal */}
-              <h1 style={{ 
-                fontSize: "42px", 
-                fontWeight: "800", 
-                color: "#2D3E2B",
-                marginBottom: "12px",
-                letterSpacing: "-0.5px",
-                lineHeight: "1.2"
-              }}>
-                Registro del Sistema
+        <div style={styles.headerContainer}>
+          {circlePositions.slice(0, 4).map(circle => (
+            <div 
+              key={`header-${circle.id}`}
+              style={{
+                ...styles.floatingCircleHeader,
+                top: `${circle.top}%`,
+                left: `${circle.left}%`,
+                width: `${circle.size}px`,
+                height: `${circle.size}px`,
+                background: circle.color,
+                animation: `floatCircle ${circle.animationDuration} ease-in-out infinite`,
+                animationDelay: circle.animationDelay,
+                filter: `blur(${circle.blur})`
+              }}
+            />
+          ))}
+          
+          <div style={styles.headerContent}>
+            <div style={styles.headerIconLarge}>
+              <Terminal size={40} />
+            </div>
+            
+            <div style={styles.headerTitleContainer}>
+              <h1 style={styles.dashboardHeaderTitle}>
+                Registros y Auditoría del Sistema
               </h1>
-
-              {/* Subtítulo */}
-              <p style={{ 
-                color: "#6B7F69", 
-                fontSize: "16px",
-                margin: "0 0 32px 0",
-                maxWidth: "600px",
-                marginLeft: "auto",
-                marginRight: "auto",
-                lineHeight: "1.6"
-              }}>
-                Monitorea todas las actividades y eventos del sistema en tiempo real
+              <p style={styles.headerDescription}>
+                Sistema MercadoLocal-IA • {logs.length} eventos registrados • Monitoreo en tiempo real
               </p>
-
-              {/* Botones */}
-              <div style={{
-                display: "flex",
-                gap: "12px",
-                justifyContent: "center",
-                flexWrap: "wrap"
-              }}>
-                <button
-                  onClick={fetchLogs}
-                  style={{
-                    background: "linear-gradient(135deg, #5A8F48 0%, #4A7A3A 100%)",
-                    color: "white",
-                    padding: "16px 40px",
-                    fontWeight: "700",
-                    borderRadius: "14px",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: "16px",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    boxShadow: "0 6px 20px rgba(90, 143, 72, 0.35)",
-                    transition: "all 0.3s ease"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = "translateY(-3px)";
-                    e.target.style.boxShadow = "0 8px 24px rgba(90, 143, 72, 0.45)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = "translateY(0)";
-                    e.target.style.boxShadow = "0 6px 20px rgba(90, 143, 72, 0.35)";
-                  }}
-                >
-                  <RefreshCcw style={{ width: "20px", height: "20px" }} />
-                  Actualizar Registros
-                </button>
-
-                <button
-                  onClick={exportLogs}
-                  disabled={filteredLogs.length === 0}
-                  style={{
-                    background: filteredLogs.length === 0 ? "#E0E0E0" : "#F5C744",
-                    color: filteredLogs.length === 0 ? "#999" : "white",
-                    padding: "16px 40px",
-                    fontWeight: "700",
-                    borderRadius: "14px",
-                    border: "none",
-                    cursor: filteredLogs.length === 0 ? "not-allowed" : "pointer",
-                    fontSize: "16px",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    boxShadow: filteredLogs.length === 0 ? "none" : "0 6px 20px rgba(245, 199, 68, 0.35)",
-                    transition: "all 0.3s ease",
-                    opacity: filteredLogs.length === 0 ? 0.6 : 1
-                  }}
-                  onMouseEnter={(e) => {
-                    if (filteredLogs.length > 0) {
-                      e.target.style.transform = "translateY(-3px)";
-                      e.target.style.boxShadow = "0 8px 24px rgba(245, 199, 68, 0.45)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (filteredLogs.length > 0) {
-                      e.target.style.transform = "translateY(0)";
-                      e.target.style.boxShadow = "0 6px 20px rgba(245, 199, 68, 0.35)";
-                    }
-                  }}
-                >
-                  <Download style={{ width: "20px", height: "20px" }} />
-                  Exportar JSON
-                </button>
+            </div>
+            
+            <div style={styles.refreshButtonContainer}>
+              <button
+                style={styles.refreshButton}
+                onClick={fetchLogs}
+                disabled={refreshing}
+              >
+                <RefreshCw size={18} /> {refreshing ? "Actualizando..." : "Actualizar registros"}
+              </button>
+              <div style={styles.timeInfo}>
+                <Clock size={14} />
+                Última actualización: {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Filtros */}
-        <div style={{
-          background: "white",
-          borderRadius: "20px",
-          padding: "32px",
-          marginBottom: "32px",
-          boxShadow: "0 4px 20px rgba(90, 143, 72, 0.1)"
-        }}>
-          <div style={{ 
-            display: "flex", 
-            alignItems: "center", 
-            justifyContent: "space-between",
-            marginBottom: "24px",
-            flexWrap: "wrap",
-            gap: "16px"
-          }}>
-            <h2 style={{ 
-              fontSize: "22px",
-              fontWeight: "700",
-              color: "#2D3E2B",
-              margin: 0
-            }}>
-              🔍 Filtros de Búsqueda
-            </h2>
-            <button
-              onClick={limpiarFiltros}
-              style={{
-                background: "#FFF9E6",
-                color: "#F5C744",
-                border: "2px solid #F5C744",
-                padding: "10px 24px",
-                borderRadius: "10px",
-                cursor: "pointer",
-                fontWeight: "700",
-                fontSize: "14px",
-                transition: "all 0.3s ease"
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = "#F5C744";
-                e.target.style.color = "white";
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = "#FFF9E6";
-                e.target.style.color = "#F5C744";
-              }}
-            >
-              Limpiar filtros
-            </button>
+        {/* Stats Cards */}
+        <div style={styles.statsGrid}>
+          <div style={{...styles.statCard, borderTopColor: colorPalette.primary}}>
+            <div style={{...styles.statIcon, backgroundColor: `${colorPalette.primary}20`, color: colorPalette.primary}}>
+              <Database size={22} />
+            </div>
+            <div style={styles.statContent}>
+              <h3 style={styles.statNumber}>{stats.total}</h3>
+              <p style={styles.statLabel}>TOTAL DE REGISTROS</p>
+              <span style={styles.statTrend}>
+                <TrendingUp size={14} /> Sistema activo
+              </span>
+            </div>
           </div>
           
-          <div style={{ 
-            display: "grid", 
-            gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-            gap: "20px",
-            marginBottom: "20px"
-          }}>
-            {/* Buscar */}
-            <div>
-              <label style={{ 
-                display: "block",
-                fontSize: "14px",
-                fontWeight: "600",
-                color: "#2D3E2B",
-                marginBottom: "8px"
-              }}>
-                Buscar en logs
-              </label>
-              <input
-                type="text"
-                placeholder="Buscar por acción o usuario..."
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "12px 16px",
-                  border: "2px solid #ECF2E3",
-                  borderRadius: "12px",
-                  fontSize: "14px",
-                  color: "#2D3E2B",
-                  fontWeight: "500",
-                  outline: "none",
-                  transition: "all 0.2s ease"
-                }}
-                onFocus={(e) => e.target.style.borderColor = "#5A8F48"}
-                onBlur={(e) => e.target.style.borderColor = "#ECF2E3"}
-              />
+          <div style={{...styles.statCard, borderTopColor: colorPalette.info}}>
+            <div style={{...styles.statIcon, backgroundColor: `${colorPalette.info}20`, color: colorPalette.info}}>
+              <Info size={22} />
             </div>
-
-            {/* Tipo */}
-            <div>
-              <label style={{ 
-                display: "block",
-                fontSize: "14px",
-                fontWeight: "600",
-                color: "#2D3E2B",
-                marginBottom: "8px"
-              }}>
-                Tipo de evento
-              </label>
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "12px 16px",
-                  border: "2px solid #ECF2E3",
-                  borderRadius: "12px",
-                  fontSize: "14px",
-                  color: "#2D3E2B",
-                  fontWeight: "500",
-                  outline: "none",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease"
-                }}
-                onFocus={(e) => e.target.style.borderColor = "#5A8F48"}
-                onBlur={(e) => e.target.style.borderColor = "#ECF2E3"}
-              >
-                <option value="all">Todos</option>
-                <option value="info">Información</option>
-                <option value="warning">Advertencia</option>
-                <option value="error">Error</option>
-                <option value="success">Éxito</option>
-              </select>
+            <div style={styles.statContent}>
+              <h3 style={styles.statNumber}>{stats.info}</h3>
+              <p style={styles.statLabel}>INFORMACIÓN</p>
+              <span style={styles.statTrend}>
+                <TrendingUp size={14} /> Eventos informativos
+              </span>
             </div>
           </div>
-
-          {/* Contador */}
-          <div style={{
-            padding: "16px 20px",
-            background: "#FAFCF8",
-            borderRadius: "12px",
-            border: "2px solid #ECF2E3",
-            fontSize: "14px",
-            color: "#6B7F69",
-            fontWeight: "500"
-          }}>
-            Mostrando <strong style={{ color: "#5A8F48", fontSize: "15px" }}>{filteredLogs.length}</strong> de <strong style={{ color: "#5A8F48", fontSize: "15px" }}>{logs.length}</strong> registros
+          
+          <div style={{...styles.statCard, borderTopColor: colorPalette.warning}}>
+            <div style={{...styles.statIcon, backgroundColor: `${colorPalette.warning}20`, color: colorPalette.warning}}>
+              <AlertTriangle size={22} />
+            </div>
+            <div style={styles.statContent}>
+              <h3 style={styles.statNumber}>{stats.warning}</h3>
+              <p style={styles.statLabel}>ADVERTENCIAS</p>
+              <span style={styles.statTrend}>
+                <TrendingUp size={14} /> Atención requerida
+              </span>
+            </div>
+          </div>
+          
+          <div style={{...styles.statCard, borderTopColor: colorPalette.danger}}>
+            <div style={{...styles.statIcon, backgroundColor: `${colorPalette.danger}20`, color: colorPalette.danger}}>
+              <AlertOctagon size={22} />
+            </div>
+            <div style={styles.statContent}>
+              <h3 style={styles.statNumber}>{stats.error}</h3>
+              <p style={styles.statLabel}>ERRORES</p>
+              <span style={styles.statTrend}>
+                <TrendingUp size={14} /> Requieren acción inmediata
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Error State */}
-        {error && (
-          <div style={{
-            background: "#FFF0F2",
-            border: "2px solid #DA3E52",
-            borderRadius: "16px",
-            padding: "24px",
-            marginBottom: "32px",
-            display: "flex",
-            alignItems: "start",
-            gap: "16px"
-          }}>
-            <AlertCircle style={{ color: "#DA3E52", flexShrink: 0, marginTop: "2px" }} size={24} />
-            <div style={{ flex: 1 }}>
-              <h3 style={{ 
-                fontSize: "18px",
-                fontWeight: "700",
-                color: "#DA3E52",
-                margin: "0 0 8px 0"
-              }}>
-                Error al cargar logs
-              </h3>
-              <p style={{ 
-                fontSize: "14px",
-                color: "#DA3E52",
-                margin: 0
-              }}>
-                {error}
-              </p>
+        {error ? (
+          <div style={styles.errorState}>
+            <div style={styles.errorIcon}>
+              <AlertCircle size={48} />
             </div>
+            <h4 style={styles.errorTitle}>Error al cargar registros</h4>
+            <p style={styles.errorText}>
+              {error}
+            </p>
+            <button onClick={() => window.location.reload()} style={styles.errorButton}>
+              <RefreshCw size={16} />
+              Reintentar
+            </button>
           </div>
-        )}
-
-        {/* Lista de Logs */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {filteredLogs.length === 0 ? (
-            <div style={{
-              background: "white",
-              borderRadius: "20px",
-              padding: "80px 20px",
-              textAlign: "center",
-              boxShadow: "0 4px 20px rgba(90, 143, 72, 0.1)"
-            }}>
-              <div style={{ fontSize: "64px", marginBottom: "20px" }}>📋</div>
-              <p style={{ 
-                color: "#2D3E2B", 
-                fontSize: "18px",
-                fontWeight: "600",
-                margin: 0
-              }}>
-                No hay registros disponibles
-              </p>
-              <p style={{ 
-                color: "#9AAA98", 
-                fontSize: "15px",
-                marginTop: "8px"
-              }}>
-                {filter || filterType !== "all" 
-                  ? "Intenta ajustar los filtros de búsqueda"
-                  : "Los logs aparecerán aquí cuando se generen eventos"}
-              </p>
-            </div>
-          ) : (
-            filteredLogs.map((log, index) => {
-              const typeColors = getLogTypeColor(log.tipo);
-              return (
-                <div
-                  key={log.id || index}
-                  style={{
-                    background: "white",
-                    borderRadius: "16px",
-                    padding: "20px",
-                    boxShadow: "0 2px 12px rgba(90, 143, 72, 0.08)",
-                    border: "2px solid #F0F4ED",
-                    transition: "all 0.3s ease"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.boxShadow = "0 6px 20px rgba(90, 143, 72, 0.15)";
-                    e.currentTarget.style.borderColor = "#5A8F48";
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.boxShadow = "0 2px 12px rgba(90, 143, 72, 0.08)";
-                    e.currentTarget.style.borderColor = "#F0F4ED";
-                    e.currentTarget.style.transform = "translateY(0)";
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "start", gap: "16px", flexWrap: "wrap" }}>
-                    
-                    {/* Badge de tipo */}
-                    {log.tipo && (
-                      <div style={{
-                        background: typeColors.bg,
-                        color: typeColors.color,
-                        border: `2px solid ${typeColors.border}`,
-                        padding: "6px 16px",
-                        borderRadius: "20px",
-                        fontSize: "12px",
-                        fontWeight: "700",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.5px",
-                        flexShrink: 0
-                      }}>
-                        {log.tipo}
-                      </div>
-                    )}
-
-                    {/* Contenido */}
-                    <div style={{ flex: 1, minWidth: "200px" }}>
-                      <p style={{
-                        fontSize: "16px",
-                        fontWeight: "600",
-                        color: "#2D3E2B",
-                        margin: "0 0 12px 0",
-                        lineHeight: "1.5"
-                      }}>
-                        {log.accion}
-                      </p>
-                      
-                      <div style={{ 
-                        display: "flex", 
-                        alignItems: "center", 
-                        gap: "16px",
-                        fontSize: "14px",
-                        color: "#6B7F69",
-                        flexWrap: "wrap"
-                      }}>
-                        <span style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px"
-                        }}>
-                          <User style={{ width: "16px", height: "16px", color: "#9AAA98" }} />
-                          <strong>{log.usuario || 'Sistema'}</strong>
-                        </span>
-                        
-                        <span style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px"
-                        }}>
-                          <Clock style={{ width: "16px", height: "16px", color: "#9AAA98" }} />
-                          {formatDate(log.fecha)}
-                        </span>
-                        
-                        {log.ip && (
-                          <span style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "6px"
-                          }}>
-                            <Activity style={{ width: "16px", height: "16px", color: "#9AAA98" }} />
-                            {log.ip}
-                          </span>
-                        )}
-                      </div>
-                      
-                      {log.detalles && (
-                        <p style={{ 
-                          fontSize: "13px",
-                          color: "#9AAA98",
-                          margin: "12px 0 0 0",
-                          fontStyle: "italic",
-                          lineHeight: "1.5"
-                        }}>
-                          {log.detalles}
-                        </p>
-                      )}
-                    </div>
-                  </div>
+        ) : (
+          <>
+            {/* Control Panel */}
+            <div style={styles.tableContainer}>
+              <div style={styles.tableHeader}>
+                <h3 style={styles.tableTitle}>
+                  Registros de Actividad
+                  <span style={styles.tableCount}>
+                    ({filteredLogs.length} resultados de {logs.length})
+                  </span>
+                </h3>
+                <div style={styles.tableActions}>
+                  <button 
+                    onClick={exportLogs}
+                    disabled={filteredLogs.length === 0}
+                    style={{
+                      ...styles.exportButton,
+                      opacity: filteredLogs.length === 0 ? 0.5 : 1,
+                      cursor: filteredLogs.length === 0 ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    <Download size={16} />
+                    Exportar JSON
+                  </button>
                 </div>
-              );
-            })
-          )}
-        </div>
+              </div>
+
+              {/* Filtros */}
+              <div style={styles.filtrosContainer}>
+                <FilterSelector />
+                
+                {(filter || filterType !== "all") && (
+                  <button
+                    onClick={limpiarFiltros}
+                    style={styles.limpiarFiltrosButton}
+                  >
+                    <X size={14} />
+                    Limpiar filtros
+                  </button>
+                )}
+              </div>
+
+              {/* Logs List */}
+              <div style={styles.logsContent}>
+                {filteredLogs.length === 0 ? (
+                  <div style={styles.emptyState}>
+                    <div style={styles.emptyIcon}>
+                      <FileSearch size={48} />
+                    </div>
+                    <h4 style={styles.emptyTitle}>No se encontraron registros</h4>
+                    <p style={styles.emptyText}>
+                      {filter || filterType !== "all" 
+                        ? "Intenta ajustar los filtros de búsqueda"
+                        : "Los registros aparecerán aquí cuando ocurran eventos en el sistema"}
+                    </p>
+                  </div>
+                ) : (
+                  <div style={styles.logsList}>
+                    {filteredLogs.map((log, index) => {
+                      const typeConfig = getLogTypeColor(log.tipo);
+                      return (
+                        <div
+                          key={log.id || index}
+                          style={styles.logCard}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.boxShadow = "0 8px 32px rgba(0, 0, 0, 0.12)";
+                            e.currentTarget.style.transform = "translateY(-2px)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.boxShadow = "0 2px 12px rgba(0, 0, 0, 0.05)";
+                            e.currentTarget.style.transform = "translateY(0)";
+                          }}
+                        >
+                          <div style={styles.logHeader}>
+                            <div style={{
+                              ...styles.logTypeBadge,
+                              background: typeConfig.bg,
+                              color: typeConfig.color,
+                              border: `2px solid ${typeConfig.border}`
+                            }}>
+                              {typeConfig.icon}
+                              <span>{log.tipo}</span>
+                            </div>
+                            
+                            <div style={styles.logTimestamp}>
+                              <Clock size={14} />
+                              {formatDate(log.fecha)}
+                            </div>
+                          </div>
+                          
+                          <div style={styles.logBody}>
+                            <h4 style={styles.logAction}>
+                              {log.accion}
+                            </h4>
+                            
+                            <div style={styles.logMeta}>
+                              <span style={styles.logUser}>
+                                <User size={14} />
+                                <strong>{log.usuario || 'Sistema'}</strong>
+                              </span>
+                              
+                              {log.ip && (
+                                <span style={styles.logIp}>
+                                  <Activity size={14} />
+                                  {log.ip}
+                                </span>
+                              )}
+                            </div>
+                            
+                            {log.detalles && (
+                              <div style={styles.logDetails}>
+                                <p style={styles.detailsText}>
+                                  {log.detalles}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Información del Sistema */}
+              <div style={styles.systemInfo}>
+                <div style={styles.systemInfoContent}>
+                  <Terminal size={16} />
+                  <span>
+                    Panel de Auditoría • Sistema MercadoLocal-IA • 
+                    {stats.total} registros • {stats.error} errores • {stats.warning} advertencias • 
+                    {new Date().toLocaleDateString('es-ES', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* Estilos globales */}
+      <style>{`
+        @keyframes floatCircle {
+          0%, 100% { 
+            transform: translate(0, 0) scale(1); 
+          }
+          20% { 
+            transform: translate(20px, -25px) scale(1.08); 
+          }
+          40% { 
+            transform: translate(-15px, 20px) scale(0.92); 
+          }
+          60% { 
+            transform: translate(10px, 15px) scale(1.05); 
+          }
+          80% { 
+            transform: translate(-20px, -15px) scale(0.98); 
+          }
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
+
+// =================== ESTILOS ===================
+const styles = {
+  container: {
+    padding: '24px',
+    maxWidth: '1400px',
+    margin: '0 auto',
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+  },
+  
+  floatingCircle: {
+    position: 'fixed',
+    borderRadius: '50%',
+    opacity: 0.6,
+    zIndex: 1,
+    pointerEvents: 'none'
+  },
+  
+  floatingCircleHeader: {
+    position: 'absolute',
+    borderRadius: '50%',
+    opacity: 0.3,
+    zIndex: 1,
+    pointerEvents: 'none'
+  },
+  
+  mainContent: {
+    position: 'relative',
+    zIndex: 10
+  },
+  
+  // Header con efecto de círculos
+  headerContainer: {
+    background: 'white',
+    borderRadius: '12px',
+    padding: '30px',
+    textAlign: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+    marginBottom: '24px',
+    boxShadow: '0 2px 10px rgba(0, 0, 0, 0.05)',
+    border: '1px solid #e5e7eb'
+  },
+  
+  headerContent: {
+    position: 'relative',
+    zIndex: 10,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '20px'
+  },
+  
+  headerIconLarge: {
+    width: '80px',
+    height: '80px',
+    borderRadius: '50%',
+    background: 'linear-gradient(135deg, #FF6B35, #FF8E53)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'white',
+    boxShadow: '0 8px 25px rgba(255, 107, 53, 0.3)',
+    marginBottom: '10px',
+    margin: '0 auto'
+  },
+  
+  headerTitleContainer: {
+    textAlign: 'center',
+    width: '100%'
+  },
+  
+  dashboardHeaderTitle: {
+    fontSize: '32px',
+    fontWeight: '700',
+    color: '#111827',
+    margin: '0 0 8px 0',
+    lineHeight: '1.2'
+  },
+  
+  headerDescription: {
+    color: '#6b7280',
+    fontSize: '14px',
+    margin: '0 0 20px 0',
+    lineHeight: '1.5'
+  },
+  
+  refreshButtonContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '12px',
+    width: '100%'
+  },
+  
+  refreshButton: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    padding: '12px 24px',
+    background: '#FF6B35',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    minWidth: '140px'
+  },
+  
+  timeInfo: {
+    padding: '8px 16px',
+    background: '#f3f4f6',
+    borderRadius: '6px',
+    fontSize: '12px',
+    fontWeight: '500',
+    color: '#6b7280',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px'
+  },
+  
+  // Stats Cards
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '20px',
+    marginBottom: '24px'
+  },
+  
+  statCard: {
+    background: '#FFFFFF',
+    borderRadius: '12px',
+    padding: '20px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+    border: '1px solid #e5e7eb',
+    borderTopWidth: '4px',
+    borderTopStyle: 'solid',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    transition: 'all 0.3s ease'
+  },
+  
+  statIcon: {
+    width: '48px',
+    height: '48px',
+    borderRadius: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  
+  statContent: {
+    flex: 1
+  },
+  
+  statNumber: {
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#111827',
+    margin: '0 0 4px 0'
+  },
+  
+  statLabel: {
+    fontSize: '13px',
+    color: '#6b7280',
+    margin: '0 0 6px 0',
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+  
+  statTrend: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#6b7280'
+  },
+  
+  // Filtros
+  filtrosContainer: {
+    padding: '16px 24px',
+    borderBottom: '1px solid #e5e7eb',
+    display: 'flex',
+    gap: '16px',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    background: '#f9fafb'
+  },
+  
+  selectorFiltroContainer: {
+    position: 'relative'
+  },
+  
+  selectorFiltroBoton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '10px 16px',
+    background: 'white',
+    border: '2px solid #e5e7eb',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#374151',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    minWidth: '180px',
+    justifyContent: 'space-between'
+  },
+  
+  selectorFiltroMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    zIndex: 100,
+    background: 'white',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    marginTop: '8px',
+    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+    minWidth: '280px',
+    overflow: 'hidden'
+  },
+  
+  busquedaFiltroContainer: {
+    padding: '12px',
+    borderBottom: '1px solid #e5e7eb',
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  
+  busquedaFiltroIcon: {
+    position: 'absolute',
+    left: '20px',
+    color: '#9ca3af'
+  },
+  
+  busquedaFiltroInput: {
+    width: '100%',
+    padding: '8px 8px 8px 32px',
+    border: '2px solid #e5e7eb',
+    borderRadius: '6px',
+    fontSize: '13px',
+    outline: 'none',
+    background: '#f9fafb'
+  },
+  
+  busquedaFiltroClear: {
+    position: 'absolute',
+    right: '20px',
+    background: 'transparent',
+    border: 'none',
+    color: '#9ca3af',
+    cursor: 'pointer',
+    padding: '2px',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  
+  opcionesContainer: {
+    maxHeight: '200px',
+    overflowY: 'auto'
+  },
+  
+  opcionFiltro: {
+    width: '100%',
+    padding: '12px 16px',
+    border: 'none',
+    borderBottom: '1px solid #f3f4f6',
+    fontSize: '14px',
+    fontWeight: '500',
+    textAlign: 'left',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px'
+  },
+  
+  opcionTexto: {
+    flex: 1
+  },
+  
+  opcionCount: {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#9ca3af',
+    background: '#f3f4f6',
+    padding: '2px 8px',
+    borderRadius: '10px'
+  },
+  
+  limpiarFiltrosButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 16px',
+    background: '#f3f4f6',
+    border: '2px solid #e5e7eb',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#6b7280',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+  
+  // Contenedor de Tabla/Logs
+  tableContainer: {
+    background: 'white',
+    borderRadius: '12px',
+    overflow: 'hidden',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+    border: '1px solid #e5e7eb',
+    marginBottom: '24px'
+  },
+  
+  tableHeader: {
+    padding: '20px 24px',
+    borderBottom: '1px solid #e5e7eb',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  
+  tableTitle: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#111827',
+    margin: 0,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  
+  tableCount: {
+    color: '#6b7280',
+    fontWeight: '500',
+    marginLeft: '8px',
+    fontSize: '14px'
+  },
+  
+  tableActions: {
+    display: 'flex',
+    gap: '12px'
+  },
+  
+  exportButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 16px',
+    background: '#f3f4f6',
+    color: '#374151',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+  
+  // Logs Content
+  logsContent: {
+    minHeight: '400px'
+  },
+  
+  logsList: {
+    padding: '24px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    maxHeight: '600px',
+    overflowY: 'auto'
+  },
+  
+  logCard: {
+    background: '#f9fafb',
+    borderRadius: '12px',
+    padding: '20px',
+    border: '1px solid #e5e7eb',
+    transition: 'all 0.3s ease',
+    animation: 'fadeIn 0.5s ease-out'
+  },
+  
+  logHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '16px',
+    flexWrap: 'wrap',
+    gap: '12px'
+  },
+  
+  logTypeBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '6px 12px',
+    borderRadius: '20px',
+    fontSize: '12px',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+  
+  logTimestamp: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    fontSize: '13px',
+    color: '#6b7280',
+    fontWeight: '500'
+  },
+  
+  logBody: {
+    flex: 1
+  },
+  
+  logAction: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#111827',
+    margin: '0 0 12px 0',
+    lineHeight: '1.5'
+  },
+  
+  logMeta: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    fontSize: '14px',
+    color: '#6b7280',
+    marginBottom: '12px',
+    flexWrap: 'wrap'
+  },
+  
+  logUser: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontWeight: '500'
+  },
+  
+  logIp: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontWeight: '500'
+  },
+  
+  logDetails: {
+    padding: '12px',
+    background: 'white',
+    borderRadius: '8px',
+    borderLeft: '3px solid #FF6B35',
+    marginTop: '12px'
+  },
+  
+  detailsText: {
+    fontSize: '13px',
+    color: '#6b7280',
+    margin: 0,
+    lineHeight: '1.6',
+    fontStyle: 'italic'
+  },
+  
+  // Empty State
+  emptyState: {
+    padding: '80px 20px',
+    textAlign: 'center'
+  },
+  
+  emptyIcon: {
+    color: '#d1d5db',
+    marginBottom: '16px'
+  },
+  
+  emptyTitle: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#6b7280',
+    margin: '0 0 8px 0'
+  },
+  
+  emptyText: {
+    fontSize: '14px',
+    color: '#9ca3af',
+    margin: 0,
+    maxWidth: '400px',
+    marginLeft: 'auto',
+    marginRight: 'auto'
+  },
+  
+  // Loading, Error y SystemInfo
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: '400px',
+    gap: '20px',
+    padding: '60px 20px',
+    background: 'white',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+  },
+  
+  spinner: {
+    width: '50px',
+    height: '50px',
+    border: '4px solid #f1f5f9',
+    borderTop: '4px solid #FF6B35',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
+  },
+  
+  loadingContent: {
+    textAlign: 'center'
+  },
+  
+  loadingTitle: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: '8px'
+  },
+  
+  loadingText: {
+    fontSize: '14px',
+    color: '#6b7280'
+  },
+  
+  errorState: {
+    textAlign: 'center',
+    padding: '60px 20px',
+    background: 'white',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+  },
+  
+  errorIcon: {
+    color: '#EF4444',
+    marginBottom: '16px'
+  },
+  
+  errorTitle: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#111827',
+    margin: '0 0 8px 0'
+  },
+  
+  errorText: {
+    fontSize: '14px',
+    color: '#6b7280',
+    margin: '0 0 20px 0',
+    maxWidth: '400px',
+    marginLeft: 'auto',
+    marginRight: 'auto'
+  },
+  
+  errorButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '10px 20px',
+    background: '#FF6B35',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    margin: '0 auto'
+  },
+  
+  systemInfo: {
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    padding: '12px 16px',
+    color: '#64748b',
+    fontSize: '14px',
+    fontWeight: '500'
+  },
+  
+  systemInfoContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px'
+  }
+};
