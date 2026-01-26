@@ -10,11 +10,18 @@ export default function Home() {
   
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Animación para los badges
@@ -224,6 +231,7 @@ export default function Home() {
     flex: "1",
     position: "relative",
     zIndex: 1,
+    width: "100%",
   };
 
   const gridTitleStyle = {
@@ -250,12 +258,15 @@ export default function Home() {
     marginRight: "auto",
   };
 
+  // CORRECCIÓN PRINCIPAL: Cambiado el grid para mostrar 4 columnas fijas en desktop
   const productGridStyle = {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-    gridAutoRows: "auto",
+    gridTemplateColumns: "repeat(4, 1fr)", // 4 columnas fijas en desktop
     gap: "1.8rem",
     position: "relative",
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "stretch",
   };
 
   const gridItemStyle = (index) => ({
@@ -270,12 +281,16 @@ export default function Home() {
     animation: `cardReveal 0.6s ease-out ${index * 0.08}s forwards`,
     opacity: 0,
     transform: "scale(0.95)",
+    display: "flex",
+    flexDirection: "column",
+    height: "100%",
+    minHeight: "350px",
   });
 
   const gridItemHoverStyle = {
     transform: "translateY(-10px) scale(1.02)",
     boxShadow: "0 20px 40px rgba(255, 107, 53, 0.2)",
-    border: "1px solid #FF6B35", // SOLUCIÓN: usar border completo
+    border: "1px solid #FF6B35",
   };
 
   const imageWrapperStyle = {
@@ -283,6 +298,7 @@ export default function Home() {
     overflow: "hidden",
     background: "linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%)",
     height: "200px",
+    flexShrink: 0,
   };
 
   const imageStyle = {
@@ -315,16 +331,19 @@ export default function Home() {
   const LoadingSkeleton = () => (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+      gridTemplateColumns: windowWidth > 1200 ? "repeat(4, 1fr)" : 
+                          windowWidth > 768 ? "repeat(3, 1fr)" : 
+                          windowWidth > 480 ? "repeat(2, 1fr)" : "1fr",
       gap: "1.8rem",
       padding: "1.5rem 0",
+      width: "100%",
     }}>
-      {[...Array(8)].map((_, i) => (
+      {[...Array(windowWidth > 1200 ? 8 : windowWidth > 768 ? 6 : windowWidth > 480 ? 4 : 2)].map((_, i) => (
         <div key={i} style={{
           borderRadius: "20px",
           overflow: "hidden",
           backgroundColor: "#F1F5F9",
-          height: "300px",
+          height: "350px",
           position: "relative",
         }}>
           <div style={{
@@ -341,6 +360,53 @@ export default function Home() {
       ))}
     </div>
   );
+
+  // Función para obtener el grid responsive
+  const getResponsiveGridStyle = () => {
+    if (windowWidth > 1200) {
+      return {
+        display: "grid",
+        gridTemplateColumns: "repeat(4, 1fr)", // 4 columnas en desktop grande
+        gap: "1.8rem",
+        width: "100%",
+      };
+    } else if (windowWidth > 768) {
+      return {
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)", // 3 columnas en tablet
+        gap: "1.5rem",
+        width: "100%",
+      };
+    } else if (windowWidth > 480) {
+      return {
+        display: "grid",
+        gridTemplateColumns: "repeat(2, 1fr)", // 2 columnas en mobile grande
+        gap: "1.2rem",
+        width: "100%",
+      };
+    } else {
+      return {
+        display: "grid",
+        gridTemplateColumns: "1fr", // 1 columna en mobile pequeño
+        gap: "1rem",
+        width: "100%",
+      };
+    }
+  };
+
+  // Obtener productos para mostrar (reales o demo)
+  const productosAMostrar = productos.length > 0 ? productos : 
+    Array(8).fill(null).map((_, i) => ({
+      idProducto: i,
+      imagenProducto: demoImages[i % demoImages.length],
+      nombreProducto: `Producto Premium ${i + 1}`,
+      precioProducto: (15.99 + i).toFixed(2),
+      stockProducto: Math.floor(Math.random() * 100),
+      descripcionProducto: "Producto de la más alta calidad, cultivado con técnicas sostenibles.",
+      nombreVendedor: "Granja Orgánica Local",
+      nombreCategoria: ["Premium", "Orgánico", "Local", "Fresco"][i % 4],
+      unidadMedida: ["kg", "lb", "unidad", "caja"][i % 4]
+    }));
 
   return (
     <>
@@ -516,7 +582,7 @@ export default function Home() {
 
         .badge:hover {
           transform: translateY(-2px) scale(1.05);
-          boxShadow: 0 6px 15px rgba(255, 107, 53, 0.4) !important;
+          box-shadow: 0 6px 15px rgba(255, 107, 53, 0.4) !important;
         }
 
         /* Scrollbar personalizada */
@@ -534,7 +600,13 @@ export default function Home() {
           border-radius: 4px;
         }
 
-        /* Responsive Styles - ACTUALIZADO */
+        /* Responsive Styles - MEJORADO */
+        @media (min-width: 1400px) {
+          .product-grid {
+            grid-template-columns: repeat(4, 1fr) !important;
+          }
+        }
+
         @media (max-width: 1200px) {
           .hero-section {
             padding: 35px 20px 45px !important;
@@ -551,6 +623,16 @@ export default function Home() {
 
           .grid-container {
             padding: 2.5rem 2rem 2rem !important;
+          }
+
+          .product-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+          }
+        }
+
+        @media (max-width: 900px) {
+          .product-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
           }
         }
 
@@ -604,6 +686,11 @@ export default function Home() {
           .grid-subtitle {
             font-size: 0.85rem !important;
             margin-bottom: 2rem !important;
+          }
+
+          .product-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 1.2rem !important;
           }
         }
 
@@ -660,6 +747,19 @@ export default function Home() {
           .grid-subtitle {
             fontSize: 0.8rem !important;
             margin-bottom: 1.5rem !important;
+          }
+
+          .product-grid {
+            grid-template-columns: 1fr !important;
+            gap: 1rem !important;
+          }
+
+          .grid-item {
+            min-height: 320px !important;
+          }
+
+          .image-wrapper {
+            height: 180px !important;
           }
         }
       `}</style>
@@ -778,7 +878,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* PRODUCT GRID */}
+        {/* PRODUCT GRID - CORREGIDO */}
         <div style={gridContainerStyle} className="grid-container">
           <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
             <h2 style={gridTitleStyle} className="grid-title">
@@ -799,94 +899,9 @@ export default function Home() {
           {loading ? (
             <LoadingSkeleton />
           ) : (
-            <div style={productGridStyle} className="product-grid">
-              {/* Si no hay productos del backend, mostrar demo */}
-              {productos.length === 0 && demoImages.slice(0, 8).map((img, i) => (
-                <div
-                  key={i}
-                  style={
-                    hoveredIndex === i
-                      ? { ...gridItemStyle(i), ...gridItemHoverStyle }
-                      : gridItemStyle(i)
-                  }
-                  className="grid-item"
-                  onMouseEnter={() => setHoveredIndex(i)}
-                  onMouseLeave={() => setHoveredIndex(null)}
-                  onClick={() => setSelectedProduct({
-                    idProducto: i,
-                    imagenProducto: img,
-                    nombreProducto: `Producto Premium ${i + 1}`,
-                    precioProducto: (15.99).toFixed(2),
-                    stockProducto: Math.floor(Math.random() * 100),
-                    descripcionProducto: "Producto de la más alta calidad, cultivado con técnicas sostenibles.",
-                    nombreVendedor: "Granja Orgánica Local",
-                    nombreCategoria: "Premium",
-                    unidadMedida: "kg"
-                  })}
-                >
-                  <div style={imageWrapperStyle}>
-                    <img src={img} style={imageStyle} className="grid-image" alt="demo" />
-                    <div style={imageBadgeStyle} className="image-badge">
-                      🌟 Premium
-                    </div>
-                  </div>
-                  <div style={{ padding: "20px" }}>
-                    <h3 style={{
-                      fontFamily: "'Playfair Display', serif",
-                      fontSize: "1.1rem",
-                      fontWeight: "700",
-                      color: "#1E293B",
-                      marginBottom: "8px",
-                      lineHeight: "1.3",
-                    }}>
-                      Producto Premium {i + 1}
-                    </h3>
-                    <p style={{
-                      fontFamily: "'Inter', sans-serif",
-                      fontSize: "0.9rem",
-                      color: "#64748B",
-                      marginBottom: "12px",
-                      lineHeight: "1.4",
-                      height: "40px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                    }}>
-                      Cultivado con técnicas sostenibles y respetuosas con el medio ambiente.
-                    </p>
-                    <div style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}>
-                      <span style={{
-                        fontSize: "1.2rem",
-                        fontWeight: "800",
-                        color: "#FF6B35",
-                        transition: "all 0.3s ease",
-                      }} className="product-price">
-                        $15.99
-                      </span>
-                      <span style={{
-                        fontSize: "0.8rem",
-                        color: "#94A3B8",
-                        fontWeight: "500",
-                        backgroundColor: "#F1F5F9",
-                        padding: "4px 10px",
-                        borderRadius: "10px",
-                        fontFamily: "'Inter', sans-serif",
-                      }}>
-                        por kg
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* Mostrar productos reales del backend */}
-              {productos.length > 0 && productos.map((p, i) => (
+            <div style={getResponsiveGridStyle()} className="product-grid">
+              {/* Mostrar productos reales o demo */}
+              {productosAMostrar.map((p, i) => (
                 <div
                   key={p.idProducto}
                   style={
@@ -899,7 +914,7 @@ export default function Home() {
                   onMouseLeave={() => setHoveredIndex(null)}
                   onClick={() => setSelectedProduct(p)}
                 >
-                  <div style={imageWrapperStyle}>
+                  <div style={imageWrapperStyle} className="image-wrapper">
                     <img
                       src={p.imagenProducto}
                       alt={p.nombreProducto}
@@ -914,7 +929,12 @@ export default function Home() {
                       {p.stockProducto > 0 ? "🟢 Disponible" : "🔴 Agotado"}
                     </div>
                   </div>
-                  <div style={{ padding: "20px" }}>
+                  <div style={{ 
+                    padding: "20px", 
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                  }}>
                     <h3 style={{
                       fontFamily: "'Playfair Display', serif",
                       fontSize: "1.1rem",
@@ -922,6 +942,7 @@ export default function Home() {
                       color: "#1E293B",
                       marginBottom: "8px",
                       lineHeight: "1.3",
+                      minHeight: "2.6rem",
                     }}>
                       {p.nombreProducto}
                     </h3>
@@ -931,36 +952,50 @@ export default function Home() {
                       color: "#64748B",
                       marginBottom: "12px",
                       lineHeight: "1.4",
-                      height: "40px",
+                      flex: 1,
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       display: "-webkit-box",
                       WebkitLineClamp: 2,
                       WebkitBoxOrient: "vertical",
                     }}>
-                      {p.descripcionProducto || "Producto fresco de calidad local"}
+                      {p.descripcionProducto || "Producto fresco de calidad local, cultivado con técnicas sostenibles."}
                     </p>
                     <div style={{
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
+                      marginTop: "auto",
                     }}>
-                      <span style={{
-                        fontSize: "1.2rem",
-                        fontWeight: "800",
-                        color: "#FF6B35",
-                        transition: "all 0.3s ease",
-                      }} className="product-price">
-                        ${parseFloat(p.precioProducto).toFixed(2)}
-                      </span>
+                      <div style={{
+                        display: "flex",
+                        flexDirection: "column",
+                      }}>
+                        <span style={{
+                          fontSize: "1.2rem",
+                          fontWeight: "800",
+                          color: "#FF6B35",
+                          transition: "all 0.3s ease",
+                        }} className="product-price">
+                          ${parseFloat(p.precioProducto).toFixed(2)}
+                        </span>
+                        <span style={{
+                          fontSize: "0.75rem",
+                          color: "#94A3B8",
+                          fontFamily: "'Inter', sans-serif",
+                        }}>
+                          por {p.unidadMedida || "unidad"}
+                        </span>
+                      </div>
                       <span style={{
                         fontSize: "0.8rem",
                         color: p.stockProducto > 0 ? "#10B981" : "#EF4444",
                         fontWeight: "600",
                         backgroundColor: p.stockProducto > 0 ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
-                        padding: "4px 10px",
+                        padding: "6px 12px",
                         borderRadius: "10px",
                         fontFamily: "'Inter', sans-serif",
+                        whiteSpace: "nowrap",
                       }}>
                         {p.stockProducto > 0 ? `${p.stockProducto} uds` : "Agotado"}
                       </span>
@@ -970,9 +1005,42 @@ export default function Home() {
               ))}
             </div>
           )}
+
+          {/* Botón para cargar más productos si es necesario */}
+          {productos.length > 0 && productos.length % 8 === 0 && (
+            <div style={{ textAlign: "center", marginTop: "3rem" }}>
+              <button
+                style={{
+                  background: "transparent",
+                  color: "#FF6B35",
+                  border: "2px solid #FF6B35",
+                  padding: "12px 28px",
+                  borderRadius: "12px",
+                  fontWeight: "600",
+                  fontSize: "1rem",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                  fontFamily: "'Playfair Display', serif",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = "#FF6B35";
+                  e.target.style.color = "white";
+                  e.target.style.transform = "translateY(-2px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = "transparent";
+                  e.target.style.color = "#FF6B35";
+                  e.target.style.transform = "translateY(0)";
+                }}
+                onClick={irAExplorar}
+              >
+                Ver más productos →
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* MODAL DE PRODUCTO - CORREGIDO (sin conflictos de border) */}
+        {/* MODAL DE PRODUCTO (mantenido igual) */}
         {selectedProduct && (
           <div style={{
             position: "fixed",
@@ -1042,7 +1110,6 @@ export default function Home() {
                 animation: "modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
                 background: "linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)",
                 backdropFilter: "blur(8px)",
-                // SOLUCIÓN: Solo border, sin borderLeft/borderRight
                 border: "1px solid rgba(255, 255, 255, 0.2)",
               }}
               onClick={(e) => e.stopPropagation()}
@@ -1168,13 +1235,17 @@ export default function Home() {
                     position: "absolute",
                     top: "20px",
                     left: "20px",
-                    background: "linear-gradient(135deg, #FF4444, #FF6B35)",
+                    background: selectedProduct.stockProducto > 0 
+                      ? "linear-gradient(135deg, #10B981, #2ECC71)" 
+                      : "linear-gradient(135deg, #FF4444, #FF6B35)",
                     color: "white",
                     padding: "8px 14px",
                     borderRadius: "8px",
                     fontSize: "0.9rem",
                     fontWeight: "700",
-                    boxShadow: "0 4px 16px rgba(255, 68, 68, 0.25)",
+                    boxShadow: selectedProduct.stockProducto > 0 
+                      ? "0 4px 16px rgba(16, 185, 129, 0.25)" 
+                      : "0 4px 16px rgba(255, 68, 68, 0.25)",
                     zIndex: 3,
                     display: "flex",
                     alignItems: "center",
@@ -1194,7 +1265,7 @@ export default function Home() {
                   </div>
                 </div>
                 
-                {/* Sección de información - CORREGIDA (sin conflicto de border) */}
+                {/* Sección de información */}
                 <div style={{
                   flex: "1",
                   padding: "35px 30px",
@@ -1203,7 +1274,6 @@ export default function Home() {
                   overflowY: "auto",
                   maxHeight: "85vh",
                   background: "rgba(255, 255, 255, 0.97)",
-                  // SOLUCIÓN: Condicional para evitar mezclar border con borderLeft/borderTop
                   ...(window.innerWidth > 768 
                     ? { borderLeft: "1px solid rgba(226, 232, 240, 0.3)" }
                     : { borderTop: "1px solid rgba(226, 232, 240, 0.3)" }
@@ -1258,7 +1328,6 @@ export default function Home() {
                       display: "inline-flex",
                       alignItems: "center",
                       gap: "8px",
-                      // SOLUCIÓN: Usar border (shorthand) sin borderColor
                       border: selectedProduct.stockProducto > 0 
                         ? "1px solid rgba(16, 185, 129, 0.2)" 
                         : "1px solid rgba(239, 68, 68, 0.2)",
@@ -1278,7 +1347,6 @@ export default function Home() {
                     <div style={{
                       marginBottom: "25px",
                       paddingBottom: "20px",
-                      // SOLUCIÓN: Usar borderBottom sin border
                       borderBottom: "1px solid rgba(226, 232, 240, 0.4)",
                     }}>
                       <h3 style={{
@@ -1322,7 +1390,6 @@ export default function Home() {
                           background: "rgba(248, 250, 252, 0.8)",
                           padding: "16px",
                           borderRadius: "14px",
-                          // SOLUCIÓN: border sin borderColor/borderWidth separados
                           border: "1px solid rgba(226, 232, 240, 0.4)",
                           boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
                           transition: "all 0.3s ease",
@@ -1356,7 +1423,6 @@ export default function Home() {
                           background: "rgba(248, 250, 252, 0.8)",
                           padding: "16px",
                           borderRadius: "14px",
-                          // SOLUCIÓN: border sin borderColor/borderWidth separados
                           border: "1px solid rgba(226, 232, 240, 0.4)",
                           boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
                           transition: "all 0.3s ease",
