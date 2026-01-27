@@ -5,20 +5,8 @@ export default function GestionarProductos() {
   const API_URL = "http://localhost:8080";
 
   const [productos, setProductos] = useState([]);
-  const [productosFiltrados, setProductosFiltrados] = useState([]);
   const [loading, setLoading] = useState(true);
   const [circlePositions, setCirclePositions] = useState([]);
-  
-  // Estados para filtros simplificados
-  const [filtros, setFiltros] = useState({
-    nombre: "",
-    categoria: "",
-    precioMin: "",
-    precioMax: ""
-  });
-  
-  // Estados para opciones de filtro
-  const [categoriasUnicas, setCategoriasUnicas] = useState([]);
 
   // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
   useEffect(() => {
@@ -67,6 +55,7 @@ export default function GestionarProductos() {
     return () => clearInterval(interval);
   }, []);
 
+  // ==================== CARGA DE PRODUCTOS (FUNCIONALIDAD DEL CÓDIGO VIEJO) ====================
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user"));
 
@@ -97,12 +86,6 @@ export default function GestionarProductos() {
       console.log("📦 Productos cargados:", data);
 
       setProductos(data);
-      setProductosFiltrados(data);
-      
-      // Extraer valores únicos para los filtros
-      const categorias = [...new Set(data.map(p => p.nombreCategoria).filter(Boolean))];
-      setCategoriasUnicas(categorias);
-      
     } catch (e) {
       console.error("❌ Error al cargar productos:", e);
     } finally {
@@ -110,75 +93,14 @@ export default function GestionarProductos() {
     }
   };
 
-  // ==================== FUNCIONES DE FILTRADO ====================
-  const aplicarFiltros = () => {
-    let filtrados = [...productos];
-
-    // Filtrar por nombre (búsqueda parcial)
-    if (filtros.nombre) {
-      filtrados = filtrados.filter(p => 
-        p.nombreProducto.toLowerCase().includes(filtros.nombre.toLowerCase()) ||
-        (p.descripcionProducto && p.descripcionProducto.toLowerCase().includes(filtros.nombre.toLowerCase()))
-      );
-    }
-
-    // Filtrar por categoría
-    if (filtros.categoria) {
-      filtrados = filtrados.filter(p => 
-        p.nombreCategoria === filtros.categoria
-      );
-    }
-
-    // Filtrar por precio mínimo
-    if (filtros.precioMin) {
-      const min = parseFloat(filtros.precioMin);
-      filtrados = filtrados.filter(p => 
-        parseFloat(p.precioProducto) >= min
-      );
-    }
-
-    // Filtrar por precio máximo
-    if (filtros.precioMax) {
-      const max = parseFloat(filtros.precioMax);
-      filtrados = filtrados.filter(p => 
-        parseFloat(p.precioProducto) <= max
-      );
-    }
-
-    setProductosFiltrados(filtrados);
-  };
-
-  const handleFiltroChange = (e) => {
-    const { name, value } = e.target;
-    setFiltros(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const limpiarFiltros = () => {
-    setFiltros({
-      nombre: "",
-      categoria: "",
-      precioMin: "",
-      precioMax: ""
-    });
-    setProductosFiltrados(productos);
-  };
-
-  // Aplicar filtros automáticamente cuando cambien
-  useEffect(() => {
-    aplicarFiltros();
-  }, [filtros, productos]);
-
+  // ==================== ELIMINAR PRODUCTO (FUNCIONALIDAD DEL CÓDIGO VIEJO) ====================
   const eliminarProducto = async (idProducto, nombreProducto) => {
-    // Mostrar confirmación
     const confirmar = window.confirm(
       `¿Estás seguro de eliminar el producto "${nombreProducto}"?\n\nEsta acción no se puede deshacer.`
     );
 
     if (!confirmar) {
-      return; // El usuario canceló
+      return;
     }
 
     try {
@@ -193,14 +115,11 @@ export default function GestionarProductos() {
       });
 
       if (res.ok) {
-        // Eliminar el producto del estado sin recargar
-        const nuevosProductos = productos.filter(p => p.idProducto !== idProducto);
-        setProductos(nuevosProductos);
-        setProductosFiltrados(nuevosProductos);
+        setProductos(prev => prev.filter(p => p.idProducto !== idProducto));
         alert(`🗑️ Producto "${nombreProducto}" eliminado exitosamente`);
         console.log("🗑️ Producto eliminado:", idProducto);
       } else {
-        const text = await res.text(); // para evitar error si no es JSON
+        const text = await res.text();
         alert(`❌ No se pudo eliminar: ${text || 'Error inesperado'}`);
       }
     } catch (e) {
@@ -297,6 +216,38 @@ export default function GestionarProductos() {
             }}>
               Administra y organiza tu catálogo de productos de manera eficiente
             </p>
+
+            {/* Botón Agregar Producto */}
+            <button
+              style={{
+                background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
+                color: "white",
+                padding: "16px 40px",
+                fontWeight: "700",
+                borderRadius: "14px",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "16px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "10px",
+                boxShadow: "0 6px 20px rgba(255, 107, 53, 0.35)",
+                transition: "all 0.3s ease",
+                marginTop: "32px"
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = "translateY(-3px)";
+                e.target.style.boxShadow = "0 8px 24px rgba(255, 107, 53, 0.45)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = "translateY(0)";
+                e.target.style.boxShadow = "0 6px 20px rgba(255, 107, 53, 0.35)";
+              }}
+              onClick={() => window.location.href = "/vendedor/agregar-producto"}
+            >
+              <span style={{ fontSize: "20px", fontWeight: "bold" }}>+</span>
+              Agregar Nuevo Producto
+            </button>
           </div>
         </div>
 
@@ -346,7 +297,7 @@ export default function GestionarProductos() {
                   margin: "0",
                   fontWeight: "500"
                 }}>
-                  {productosFiltrados.length} de {productos.length} productos
+                  {productos.length} productos en total
                 </p>
               </div>
             </div>
@@ -364,258 +315,9 @@ export default function GestionarProductos() {
                 gap: "8px"
               }}>
                 <span>📈</span>
-                <span>Total: ${productosFiltrados.reduce((sum, p) => sum + (p.precioProducto || 0), 0).toFixed(2)}</span>
+                <span>Total: ${productos.reduce((sum, p) => sum + (p.precioProducto || 0), 0).toFixed(2)}</span>
               </div>
             )}
-          </div>
-
-          {/* ==================== PANEL DE FILTROS SIMPLIFICADO ==================== */}
-          <div style={{
-            background: "linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)",
-            borderRadius: "16px",
-            padding: "24px",
-            marginBottom: "30px",
-            border: "1px solid #E2E8F0"
-          }}>
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: "20px"
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <div style={{
-                  fontSize: "20px",
-                  color: "#FF6B35"
-                }}>
-                  🔍
-                </div>
-                <h3 style={{
-                  fontSize: "18px",
-                  fontWeight: "700",
-                  color: "#2C3E50",
-                  margin: "0"
-                }}>
-                  Filtros de Búsqueda
-                </h3>
-              </div>
-              
-              <button
-                onClick={limpiarFiltros}
-                style={{
-                  background: "white",
-                  color: "#64748b",
-                  border: "2px solid #E2E8F0",
-                  padding: "8px 16px",
-                  borderRadius: "10px",
-                  fontSize: "13px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  transition: "all 0.2s ease"
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = "#F1F5F9";
-                  e.target.style.borderColor = "#94A3B8";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = "white";
-                  e.target.style.borderColor = "#E2E8F0";
-                }}
-              >
-                🗑️ Limpiar Filtros
-              </button>
-            </div>
-
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-              gap: "20px"
-            }}>
-              {/* Filtro por nombre */}
-              <div>
-                <label style={{
-                  display: "block",
-                  fontSize: "13px",
-                  fontWeight: "600",
-                  color: "#475569",
-                  marginBottom: "8px"
-                }}>
-                  🔎 Buscar por nombre o descripción
-                </label>
-                <input
-                  type="text"
-                  name="nombre"
-                  value={filtros.nombre}
-                  onChange={handleFiltroChange}
-                  placeholder="Ej: Queso, Manzana, etc."
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    borderRadius: "10px",
-                    border: "2px solid #E2E8F0",
-                    fontSize: "14px",
-                    transition: "all 0.3s ease"
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#FF6B35";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(255, 107, 53, 0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = "#E2E8F0";
-                    e.target.style.boxShadow = "none";
-                  }}
-                />
-              </div>
-
-              {/* Filtro por categoría */}
-              <div>
-                <label style={{
-                  display: "block",
-                  fontSize: "13px",
-                  fontWeight: "600",
-                  color: "#475569",
-                  marginBottom: "8px"
-                }}>
-                  🏷️ Categoría
-                </label>
-                <select
-                  name="categoria"
-                  value={filtros.categoria}
-                  onChange={handleFiltroChange}
-                  style={{
-                    width: "100%",
-                    padding: "12px 16px",
-                    borderRadius: "10px",
-                    border: "2px solid #E2E8F0",
-                    fontSize: "14px",
-                    backgroundColor: "white",
-                    cursor: "pointer"
-                  }}
-                >
-                  <option value="">Todas las categorías</option>
-                  {categoriasUnicas.map((cat, idx) => (
-                    <option key={idx} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Filtro por rango de precio */}
-              <div>
-                <label style={{
-                  display: "block",
-                  fontSize: "13px",
-                  fontWeight: "600",
-                  color: "#475569",
-                  marginBottom: "8px"
-                }}>
-                  💰 Rango de Precio
-                </label>
-                <div style={{ display: "flex", gap: "12px" }}>
-                  <div style={{ flex: 1, position: "relative" }}>
-                    <span style={{
-                      position: "absolute",
-                      left: "12px",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "#94A3B8",
-                      fontWeight: "600"
-                    }}>
-                      $
-                    </span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      name="precioMin"
-                      value={filtros.precioMin}
-                      onChange={handleFiltroChange}
-                      placeholder="Mínimo"
-                      style={{
-                        width: "100%",
-                        padding: "12px 16px 12px 32px",
-                        borderRadius: "10px",
-                        border: "2px solid #E2E8F0",
-                        fontSize: "14px",
-                        transition: "all 0.3s ease"
-                      }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = "#FF6B35";
-                        e.target.style.boxShadow = "0 0 0 3px rgba(255, 107, 53, 0.1)";
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = "#E2E8F0";
-                        e.target.style.boxShadow = "none";
-                      }}
-                    />
-                  </div>
-                  <div style={{ flex: 1, position: "relative" }}>
-                    <span style={{
-                      position: "absolute",
-                      left: "12px",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "#94A3B8",
-                      fontWeight: "600"
-                    }}>
-                      $
-                    </span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      name="precioMax"
-                      value={filtros.precioMax}
-                      onChange={handleFiltroChange}
-                      placeholder="Máximo"
-                      style={{
-                        width: "100%",
-                        padding: "12px 16px 12px 32px",
-                        borderRadius: "10px",
-                        border: "2px solid #E2E8F0",
-                        fontSize: "14px",
-                        transition: "all 0.3s ease"
-                      }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = "#FF6B35";
-                        e.target.style.boxShadow = "0 0 0 3px rgba(255, 107, 53, 0.1)";
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = "#E2E8F0";
-                        e.target.style.boxShadow = "none";
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Indicador de filtros activos */}
-            <div style={{ marginTop: "16px" }}>
-              {Object.values(filtros).some(val => val !== "") && (
-                <div style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  fontSize: "13px",
-                  color: "#FF6B35",
-                  fontWeight: "600"
-                }}>
-                  <div style={{
-                    width: "8px",
-                    height: "8px",
-                    background: "#FF6B35",
-                    borderRadius: "50%",
-                    animation: "pulse 1.5s ease-in-out infinite"
-                  }}></div>
-                  <span>
-                    Filtros activos: {
-                      Object.values(filtros).filter(val => val !== "").length
-                    } de 3
-                  </span>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Loading State */}
@@ -653,7 +355,7 @@ export default function GestionarProductos() {
                 Obteniendo información del catálogo
               </p>
             </div>
-          ) : productosFiltrados.length === 0 ? (
+          ) : productos.length === 0 ? (
             <div style={{ 
               textAlign: "center", 
               padding: "80px 20px",
@@ -661,119 +363,61 @@ export default function GestionarProductos() {
               borderRadius: "16px",
               marginBottom: "20px"
             }}>
-              {productos.length === 0 ? (
-                <>
-                  <div style={{ 
-                    fontSize: "64px", 
-                    marginBottom: "20px",
-                    opacity: 0.5,
-                    animation: "float 3s ease-in-out infinite"
-                  }}>🌿</div>
-                  <p style={{ 
-                    fontWeight: "600",
-                    fontSize: "20px",
-                    marginBottom: "12px",
-                    color: "#2C3E50"
-                  }}>No hay productos registrados</p>
-                  <p style={{ 
-                    fontSize: "16px",
-                    color: "#64748b",
-                    marginBottom: "32px",
-                    maxWidth: "400px",
-                    marginLeft: "auto",
-                    marginRight: "auto"
-                  }}>
-                    Comienza agregando tu primer producto al catálogo
-                  </p>
-                  <button
-                    style={{
-                      background: "white",
-                      color: "#FF6B35",
-                      border: "2px solid #FF6B35",
-                      padding: "16px 40px",
-                      borderRadius: "14px",
-                      fontWeight: "700",
-                      cursor: "pointer",
-                      fontSize: "16px",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      boxShadow: "0 6px 20px rgba(255, 107, 53, 0.15)",
-                      transition: "all 0.3s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = "#FF6B35";
-                      e.target.style.color = "white";
-                      e.target.style.transform = "translateY(-3px)";
-                      e.target.style.boxShadow = "0 8px 25px rgba(255, 107, 53, 0.25)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = "white";
-                      e.target.style.color = "#FF6B35";
-                      e.target.style.transform = "translateY(0)";
-                      e.target.style.boxShadow = "0 6px 20px rgba(255, 107, 53, 0.15)";
-                    }}
-                    onClick={() => window.location.href = "/vendedor/agregar-producto"}
-                  >
-                    <span style={{ fontSize: "18px" }}>+</span>
-                    Agregar Primer Producto
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div style={{ 
-                    fontSize: "64px", 
-                    marginBottom: "20px",
-                    opacity: 0.5
-                  }}>🔍</div>
-                  <p style={{ 
-                    fontWeight: "600",
-                    fontSize: "20px",
-                    marginBottom: "12px",
-                    color: "#2C3E50"
-                  }}>No se encontraron productos</p>
-                  <p style={{ 
-                    fontSize: "16px",
-                    color: "#64748b",
-                    marginBottom: "24px",
-                    maxWidth: "400px",
-                    marginLeft: "auto",
-                    marginRight: "auto"
-                  }}>
-                    No hay productos que coincidan con los filtros aplicados
-                  </p>
-                  <button
-                    onClick={limpiarFiltros}
-                    style={{
-                      background: "white",
-                      color: "#3B82F6",
-                      border: "2px solid #3B82F6",
-                      padding: "12px 32px",
-                      borderRadius: "12px",
-                      fontWeight: "600",
-                      cursor: "pointer",
-                      fontSize: "15px",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      transition: "all 0.3s ease"
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = "#3B82F6";
-                      e.target.style.color = "white";
-                      e.target.style.transform = "translateY(-2px)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = "white";
-                      e.target.style.color = "#3B82F6";
-                      e.target.style.transform = "translateY(0)";
-                    }}
-                  >
-                    <span>🗑️</span>
-                    Limpiar Filtros
-                  </button>
-                </>
-              )}
+              <div style={{ 
+                fontSize: "64px", 
+                marginBottom: "20px",
+                opacity: 0.5,
+                animation: "float 3s ease-in-out infinite"
+              }}>🌿</div>
+              <p style={{ 
+                fontWeight: "600",
+                fontSize: "20px",
+                marginBottom: "12px",
+                color: "#2C3E50"
+              }}>No hay productos registrados</p>
+              <p style={{ 
+                fontSize: "16px",
+                color: "#64748b",
+                marginBottom: "32px",
+                maxWidth: "400px",
+                marginLeft: "auto",
+                marginRight: "auto"
+              }}>
+                Comienza agregando tu primer producto al catálogo
+              </p>
+              <button
+                style={{
+                  background: "white",
+                  color: "#FF6B35",
+                  border: "2px solid #FF6B35",
+                  padding: "16px 40px",
+                  borderRadius: "14px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  boxShadow: "0 6px 20px rgba(255, 107, 53, 0.15)",
+                  transition: "all 0.3s ease"
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = "#FF6B35";
+                  e.target.style.color = "white";
+                  e.target.style.transform = "translateY(-3px)";
+                  e.target.style.boxShadow = "0 8px 25px rgba(255, 107, 53, 0.25)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = "white";
+                  e.target.style.color = "#FF6B35";
+                  e.target.style.transform = "translateY(0)";
+                  e.target.style.boxShadow = "0 6px 20px rgba(255, 107, 53, 0.15)";
+                }}
+                onClick={() => window.location.href = "/vendedor/agregar-producto"}
+              >
+                <span style={{ fontSize: "18px" }}>+</span>
+                Agregar Primer Producto
+              </button>
             </div>
           ) : (
             <>
@@ -876,9 +520,9 @@ export default function GestionarProductos() {
                   </thead>
 
                   <tbody>
-                    {productosFiltrados.map((p, index) => (
+                    {productos.map((p, index) => (
                       <tr key={p.idProducto} style={{ 
-                        borderBottom: index === productosFiltrados.length - 1 ? "none" : "1px solid #f1f5f9",
+                        borderBottom: index === productos.length - 1 ? "none" : "1px solid #f1f5f9",
                         transition: "all 0.3s ease",
                         background: index % 2 === 0 ? "rgba(255, 255, 255, 0.5)" : "rgba(248, 250, 252, 0.5)"
                       }}
@@ -910,7 +554,7 @@ export default function GestionarProductos() {
                             boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)"
                           }}>
                             <img 
-                              src={p.imagenProducto || "https://via.placeholder.com/70x70?text=Sin+Imagen"} 
+                              src={p.imagenProducto} 
                               alt={p.nombreProducto}
                               style={{ 
                                 width: "100%",
@@ -964,13 +608,6 @@ export default function GestionarProductos() {
                             marginBottom: "6px"
                           }}>
                             ${Number(p.precioProducto).toFixed(2)}
-                          </div>
-                          <div style={{
-                            color: "#94A3B8",
-                            fontSize: "13px",
-                            fontWeight: "600"
-                          }}>
-                            por {p.unidad || "unidad"}
                           </div>
                         </td>
                         
@@ -1147,19 +784,19 @@ export default function GestionarProductos() {
                     gap: "8px"
                   }}>
                     <span style={{ 
-                      color: productosFiltrados.length < productos.length ? "#FF6B35" : "#10B981",
+                      color: "#10B981",
                       fontSize: "16px"
                     }}>
-                      {productosFiltrados.length < productos.length ? "🔍" : "✅"}
+                      ✅
                     </span>
                     <div>
                       <div style={{ fontSize: "12px", color: "#64748B" }}>
-                        Mostrando
+                        Total de productos
                       </div>
                       <div>
                         <strong style={{ color: "#2C3E50", fontSize: "15px" }}>
-                          {productosFiltrados.length}
-                        </strong> de {productos.length} productos
+                          {productos.length}
+                        </strong> productos
                       </div>
                     </div>
                   </div>
@@ -1195,7 +832,7 @@ export default function GestionarProductos() {
                     WebkitBackgroundClip: "text",
                     WebkitTextFillColor: "transparent"
                   }}>
-                    ${productosFiltrados.reduce((sum, p) => sum + ((p.precioProducto || 0) * (p.stockProducto || 0)), 0).toFixed(2)}
+                    ${productos.reduce((sum, p) => sum + ((p.precioProducto || 0) * (p.stockProducto || 0)), 0).toFixed(2)}
                   </div>
                 </div>
               </div>
@@ -1237,17 +874,6 @@ export default function GestionarProductos() {
           50% { transform: translateY(-10px); }
         }
         
-        @keyframes pulse {
-          0%, 100% { 
-            opacity: 1;
-            transform: scale(1);
-          }
-          50% { 
-            opacity: 0.7;
-            transform: scale(1.1);
-          }
-        }
-        
         /* Estilos para el scroll */
         ::-webkit-scrollbar {
           width: 8px;
@@ -1266,54 +892,6 @@ export default function GestionarProductos() {
         
         ::-webkit-scrollbar-thumb:hover {
           background: #94a3b8;
-        }
-        
-        /* Responsive */
-        @media (max-width: 1100px) {
-          .grid-container {
-            grid-templateColumns: repeat(auto-fill, minmax(250px, 1fr)) !important;
-          }
-          
-          h1 {
-            font-size: 36px !important;
-          }
-        }
-        
-        @media (max-width: 768px) {
-          .main-container {
-            padding: 20px 16px !important;
-          }
-          
-          h1 {
-            font-size: 32px !important;
-          }
-          
-          .table-header {
-            flex-direction: column !important;
-            gap: 16px !important;
-            align-items: flex-start !important;
-          }
-          
-          .table-footer {
-            flex-direction: column !important;
-            gap: 16px !important;
-            text-align: center !important;
-          }
-          
-          .filters-grid {
-            grid-template-columns: 1fr !important;
-          }
-          
-          .price-range {
-            flex-direction: column !important;
-            gap: 10px !important;
-          }
-        }
-        
-        @media (max-width: 480px) {
-          .buttons-grid {
-            grid-template-columns: 1fr !important;
-          }
         }
         
         * {
