@@ -1094,20 +1094,6 @@ export default function Navbar() {
                   >
                     👤 Perfil
                   </button>
-                  <button
-                    onClick={() => handleNavigate("/configuracion")}
-                    style={styles.dropdownItem}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(255, 107, 53, 0.05)";
-                      e.currentTarget.style.paddingLeft = "1.2rem";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "none";
-                      e.currentTarget.style.paddingLeft = "1rem";
-                    }}
-                  >
-                    ⚙️ Configuración
-                  </button>
 
                   {/* SOLO MOSTRAR "MIS PEDIDOS" PARA CONSUMIDORES */}
                   {user.rol === "CONSUMIDOR" && (
@@ -1266,21 +1252,6 @@ export default function Navbar() {
                 }}
               >
                 👤 Perfil
-              </button>
-              
-              <button
-                onClick={() => handleNavigate("/configuracion")}
-                style={styles.mobileNavLink}
-                onMouseEnter={(e) => {
-                  e.target.style.color = "#FF6B35";
-                  e.target.style.background = "rgba(255, 107, 53, 0.05)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.color = "#1E293B";
-                  e.target.style.background = "none";
-                }}
-              >
-                ⚙️ Configuración
               </button>
               
               <button

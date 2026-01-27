@@ -944,7 +944,7 @@ export default function ProductosAdmin() {
   );
 }
 
-// ESTILOS MODIFICADOS PARA INCLUIR IMÁGENES
+// ESTILOS MODIFICADOS PARA INCLUIR IMÁGENES - ERROR CORREGIDO
 const styles = {
   container: {
     padding: '24px',
@@ -1328,7 +1328,8 @@ const styles = {
     color: '#6b7280',
     margin: 0,
     maxWidth: '300px',
-    margin: '0 auto'
+    marginLeft: 'auto',
+    marginRight: 'auto'
   },
   
   table: {

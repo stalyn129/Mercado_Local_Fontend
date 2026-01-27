@@ -723,7 +723,7 @@ export default function UsuariosAdmin() {
   );
 }
 
-// Estilos mejorados
+// Estilos mejorados - ERROR CORREGIDO
 const styles = {
   container: {
     padding: '24px',
@@ -1266,7 +1266,8 @@ const styles = {
     color: '#6b7280',
     margin: 0,
     maxWidth: '300px',
-    margin: '0 auto'
+    marginLeft: 'auto',
+    marginRight: 'auto'
   },
   
   pagination: {
