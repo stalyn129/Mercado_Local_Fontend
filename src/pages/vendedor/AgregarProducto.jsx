@@ -157,13 +157,72 @@ export default function AgregarProducto() {
   };
 
   const handleSubmit = async () => {
-    if (!form.nombreProducto || !form.precioProducto || !form.stockProducto || !form.idSubcategoria) {
-      alert("Por favor complete todos los campos obligatorios");
+    // Validación de campos obligatorios
+    if (!form.nombreProducto || form.nombreProducto.trim().length === 0) {
+      alert("⚠️ Por favor ingresa el nombre del producto");
+      return;
+    }
+
+    if (form.nombreProducto.length < 3) {
+      alert("⚠️ El nombre del producto debe tener al menos 3 caracteres");
+      return;
+    }
+
+    if (form.nombreProducto.length > 100) {
+      alert("⚠️ El nombre del producto no puede exceder 100 caracteres");
+      return;
+    }
+
+    if (form.descripcionProducto && form.descripcionProducto.length > 1000) {
+      alert("⚠️ La descripción no puede exceder 1000 caracteres");
+      return;
+    }
+
+    if (!form.precioProducto || parseFloat(form.precioProducto) <= 0) {
+      alert("⚠️ Por favor ingresa un precio válido mayor a 0");
+      return;
+    }
+
+    if (parseFloat(form.precioProducto) > 999999.99) {
+      alert("⚠️ El precio no puede exceder $999,999.99");
+      return;
+    }
+
+    if (!form.stockProducto || parseInt(form.stockProducto) < 0) {
+      alert("⚠️ Por favor ingresa un stock válido (mínimo 0)");
+      return;
+    }
+
+    if (parseInt(form.stockProducto) > 999999) {
+      alert("⚠️ El stock no puede exceder 999,999 unidades");
+      return;
+    }
+
+    if (!form.idCategoria) {
+      alert("⚠️ Por favor selecciona una categoría");
+      return;
+    }
+
+    if (!form.idSubcategoria) {
+      alert("⚠️ Por favor selecciona una subcategoría");
       return;
     }
 
     if (!selectedImageFile) {
-      alert("Por favor seleccione una imagen del producto");
+      alert("⚠️ Por favor selecciona una imagen del producto");
+      return;
+    }
+
+    // Validar tamaño de imagen (máximo 5MB)
+    if (selectedImageFile.size > 5 * 1024 * 1024) {
+      alert("⚠️ La imagen no puede exceder 5MB");
+      return;
+    }
+
+    // Validar tipo de imagen
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(selectedImageFile.type)) {
+      alert("⚠️ Solo se permiten imágenes en formato JPG, PNG o WEBP");
       return;
     }
 
@@ -611,7 +670,7 @@ export default function AgregarProducto() {
                   color: "#2C3E50",
                   marginBottom: "8px"
                 }}>
-                  Nombre del Producto <span style={{ color: "#EF4444" }}>*</span>
+                  Nombre del Producto
                 </label>
                 <input
                   type="text"
@@ -619,6 +678,7 @@ export default function AgregarProducto() {
                   value={form.nombreProducto}
                   onChange={handleChange}
                   placeholder="Ej: Queso fresco artesanal"
+                  maxLength={100}
                   style={{
                     width: "100%",
                     padding: "14px 16px",
@@ -647,7 +707,8 @@ export default function AgregarProducto() {
                   fontSize: "14px",
                   fontWeight: "600",
                   color: "#2C3E50",
-                  marginBottom: "8px"
+                  marginBottom: "8px",
+                  fontFamily: "'Inter', sans-serif"
                 }}>
                   Descripción
                 </label>
@@ -656,6 +717,7 @@ export default function AgregarProducto() {
                   value={form.descripcionProducto}
                   onChange={handleChange}
                   placeholder="Describe las características, origen, ingredientes, etc..."
+                  maxLength={1000}
                   style={{
                     width: "100%",
                     padding: "14px 16px",
@@ -677,6 +739,15 @@ export default function AgregarProducto() {
                     e.target.style.boxShadow = "none";
                   }}
                 />
+                <div style={{
+                  fontSize: "12px",
+                  color: form.descripcionProducto.length > 900 ? "#EF4444" : "#94a3b8",
+                  textAlign: "right",
+                  marginTop: "4px",
+                  fontFamily: "'Inter', sans-serif"
+                }}>
+                  {form.descripcionProducto.length}/1000 caracteres
+                </div>
               </div>
 
               {/* Categoría y Subcategoría */}
@@ -693,7 +764,7 @@ export default function AgregarProducto() {
                     color: "#2C3E50",
                     marginBottom: "8px"
                   }}>
-                    Categoría <span style={{ color: "#EF4444" }}>*</span>
+                    Categoría
                   </label>
                   <select
                     name="idCategoria"
@@ -729,7 +800,7 @@ export default function AgregarProducto() {
                     color: "#2C3E50",
                     marginBottom: "8px"
                   }}>
-                    Subcategoría <span style={{ color: "#EF4444" }}>*</span>
+                    Subcategoría
                   </label>
                   <select
                     name="idSubcategoria"
@@ -819,9 +890,10 @@ export default function AgregarProducto() {
                   fontSize: "14px",
                   fontWeight: "600",
                   color: "#2C3E50",
-                  marginBottom: "8px"
+                  marginBottom: "8px",
+                  fontFamily: "'Inter', sans-serif"
                 }}>
-                  Precio <span style={{ color: "#EF4444" }}>*</span>
+                  Precio
                 </label>
                 <div style={{ position: "relative" }}>
                   <span style={{
@@ -871,9 +943,10 @@ export default function AgregarProducto() {
                   fontSize: "14px",
                   fontWeight: "600",
                   color: "#2C3E50",
-                  marginBottom: "8px"
+                  marginBottom: "8px",
+                  fontFamily: "'Inter', sans-serif"
                 }}>
-                  Stock <span style={{ color: "#EF4444" }}>*</span>
+                  Stock
                 </label>
                 <input
                   type="number"
