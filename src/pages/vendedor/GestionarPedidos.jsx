@@ -756,8 +756,6 @@ export default function GestionarPedidos() {
                   <tbody>
                     {pedidos.map((p, index) => {
                       const estadoParaMostrar = obtenerEstadoParaMostrar(p);
-                      const proximosEstados = obtenerProximosEstados(p);
-                      const user = JSON.parse(localStorage.getItem("user"));
                       const colorEstado = obtenerColorEstado(estadoParaMostrar);
 
                       return (
@@ -936,93 +934,48 @@ export default function GestionarPedidos() {
                             </div>
                           </td>
                           
-                          {/* Acciones */}
+                          {/* Acciones - SOLO BOTÓN VER DETALLES */}
                           <td style={{ 
                             padding: "20px",
                             textAlign: "center",
                             verticalAlign: "top"
                           }}>
-                            <div style={{ 
-                              display: "flex", 
-                              flexDirection: "column",
-                              gap: "12px",
-                              alignItems: "center"
-                            }}>
-                              {/* Botón Ver Detalles */}
-                              <button
-                                onClick={() => window.location.href = `/vendedor/pedido/${p.idPedido}`}
-                                style={{
-                                  background: "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)",
-                                  color: "white",
-                                  border: "none",
-                                  padding: "12px 24px",
-                                  borderRadius: "12px",
-                                  cursor: "pointer",
-                                  fontWeight: "700",
-                                  fontSize: "13px",
-                                  transition: "all 0.3s ease",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "8px",
-                                  width: "100%",
-                                  justifyContent: "center",
-                                  boxShadow: "0 4px 15px rgba(139, 92, 246, 0.3)"
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.target.style.transform = "translateY(-3px)";
-                                  e.target.style.boxShadow = "0 8px 25px rgba(139, 92, 246, 0.4)";
-                                  e.target.style.background = "linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)";
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.target.style.transform = "translateY(0)";
-                                  e.target.style.boxShadow = "0 4px 15px rgba(139, 92, 246, 0.3)";
-                                  e.target.style.background = "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)";
-                                }}
-                              >
-                                <span style={{ fontSize: "16px" }}>🔍</span>
-                                Ver Detalles
-                              </button>
-                              
-                              {/* Selector de estado (solo si hay estados disponibles) */}
-                              {proximosEstados.length > 0 && (
-                                <select
-                                  onChange={(e) => {
-                                    if (e.target.value) {
-                                      cambiarEstadoPedido(p.idPedidoVendedor, e.target.value, user.token);
-                                      e.target.value = ""; // Reset select
-                                    }
-                                  }}
-                                  style={{
-                                    padding: "12px 16px",
-                                    borderRadius: "12px",
-                                    border: "2px solid #3B82F6",
-                                    background: "white",
-                                    color: "#1E293B",
-                                    fontWeight: "600",
-                                    fontSize: "13px",
-                                    cursor: "pointer",
-                                    width: "100%",
-                                    transition: "all 0.3s ease"
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.target.style.boxShadow = "0 4px 15px rgba(59, 130, 246, 0.2)";
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.target.style.boxShadow = "none";
-                                  }}
-                                >
-                                  <option value="">🔄 Cambiar estado</option>
-                                  {proximosEstados.map((estado) => (
-                                    <option key={estado} value={estado}>
-                                      {estado === "EN_PROCESO" ? "📦 Marcar como En Proceso" :
-                                       estado === "DESPACHADO" ? "🚚 Marcar como Despachado" :
-                                       estado === "ENTREGADO" ? "✅ Marcar como Entregado" :
-                                       estado === "CANCELADO" ? "❌ Cancelar pedido" : estado}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            </div>
+                            {/* Solo el botón Ver Detalles */}
+                            <button
+                              onClick={() => window.location.href = `/vendedor/pedido/${p.idPedido}`}
+                              style={{
+                                background: "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)",
+                                color: "white",
+                                border: "none",
+                                padding: "14px 28px",
+                                borderRadius: "12px",
+                                cursor: "pointer",
+                                fontWeight: "700",
+                                fontSize: "14px",
+                                transition: "all 0.3s ease",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                width: "100%",
+                                justifyContent: "center",
+                                boxShadow: "0 4px 15px rgba(139, 92, 246, 0.3)",
+                                maxWidth: "180px",
+                                margin: "0 auto"
+                              }}
+                              onMouseEnter={(e) => {
+                                e.target.style.transform = "translateY(-3px)";
+                                e.target.style.boxShadow = "0 8px 25px rgba(139, 92, 246, 0.4)";
+                                e.target.style.background = "linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.target.style.transform = "translateY(0)";
+                                e.target.style.boxShadow = "0 4px 15px rgba(139, 92, 246, 0.3)";
+                                e.target.style.background = "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)";
+                              }}
+                            >
+                              <span style={{ fontSize: "16px" }}>🔍</span>
+                              Ver Detalles
+                            </button>
                           </td>
                         </tr>
                       );

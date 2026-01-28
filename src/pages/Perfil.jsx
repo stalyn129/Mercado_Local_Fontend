@@ -7,6 +7,12 @@ export default function Perfil() {
   const [perfil, setPerfil] = useState(null);
   const [loading, setLoading] = useState(true);
   const [circlePositions, setCirclePositions] = useState([]);
+  const [estadisticas, setEstadisticas] = useState({
+    totalProductos: 0,
+    totalPedidos: 0,
+    totalVentas: 0,
+    calificacionPromedio: 0
+  });
   const navigate = useNavigate();
 
   // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
@@ -14,14 +20,14 @@ export default function Perfil() {
     const generateCircles = () => {
       const circles = [];
       const colors = [
-        "rgba(255, 107, 53, 0.15)",    // Naranja claro
-        "rgba(52, 211, 153, 0.15)",    // Verde esmeralda
-        "rgba(59, 130, 246, 0.15)",    // Azul
-        "rgba(168, 85, 247, 0.15)",    // Morado
-        "rgba(239, 68, 68, 0.15)",     // Rojo
-        "rgba(245, 158, 11, 0.15)",    // Amarillo
-        "rgba(14, 165, 233, 0.15)",    // Azul claro
-        "rgba(236, 72, 153, 0.15)"     // Rosa
+        "rgba(255, 107, 53, 0.15)",
+        "rgba(52, 211, 153, 0.15)",
+        "rgba(59, 130, 246, 0.15)",
+        "rgba(168, 85, 247, 0.15)",
+        "rgba(239, 68, 68, 0.15)",
+        "rgba(245, 158, 11, 0.15)",
+        "rgba(14, 165, 233, 0.15)",
+        "rgba(236, 72, 153, 0.15)"
       ];
       
       for (let i = 0; i < 10; i++) {
@@ -64,10 +70,55 @@ export default function Perfil() {
     }
 
     obtenerPerfil()
-      .then(setPerfil)
+      .then(data => {
+        setPerfil(data);
+        // Si es vendedor, cargar estadísticas adicionales
+        if (data.rol === "VENDEDOR") {
+          cargarEstadisticasVendedor(data.idVendedor || data._id, token);
+        }
+      })
       .catch(() => navigate("/LoginModal"))
       .finally(() => setLoading(false));
   }, [navigate]);
+
+  // Función para cargar estadísticas del vendedor
+  const cargarEstadisticasVendedor = async (idVendedor, token) => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+      
+      // 1. Cargar productos del vendedor
+      const productosRes = await fetch(`${API_URL}/productos/vendedor/${idVendedor}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      const productos = await productosRes.json();
+      
+      // 2. Cargar pedidos del vendedor
+      const pedidosRes = await fetch(`${API_URL}/pedidos/vendedor/${idVendedor}`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
+      });
+      const pedidos = await pedidosRes.json();
+      
+      // Calcular estadísticas
+      const pedidosPagados = pedidos.filter(p => p.estadoPago === "PAGADO");
+      const totalVentas = pedidosPagados.reduce((sum, p) => sum + (p.total || 0), 0);
+      
+      setEstadisticas({
+        totalProductos: productos.length || 0,
+        totalPedidos: pedidos.length || 0,
+        totalVentas: totalVentas || 0,
+        calificacionPromedio: perfil?.calificacionPromedio || 0
+      });
+      
+    } catch (error) {
+      console.error("Error cargando estadísticas del vendedor:", error);
+    }
+  };
 
   if (loading) {
     return (
@@ -98,37 +149,6 @@ export default function Perfil() {
           }}>
             Cargando perfil...
           </p>
-          <div style={{
-            display: "flex",
-            justifyContent: "center",
-            gap: "10px",
-            marginTop: "20px"
-          }}>
-            <div style={{
-              width: "12px",
-              height: "12px",
-              borderRadius: "6px",
-              background: "#FF6B35",
-              opacity: 0.6,
-              animation: "pulse 1.4s ease-in-out infinite"
-            }}></div>
-            <div style={{
-              width: "12px",
-              height: "12px",
-              borderRadius: "6px",
-              background: "#3498DB",
-              opacity: 0.6,
-              animation: "pulse 1.4s ease-in-out infinite 0.2s"
-            }}></div>
-            <div style={{
-              width: "12px",
-              height: "12px",
-              borderRadius: "6px",
-              background: "#9B59B6",
-              opacity: 0.6,
-              animation: "pulse 1.4s ease-in-out infinite 0.4s"
-            }}></div>
-          </div>
         </div>
       </div>
     );
@@ -136,7 +156,7 @@ export default function Perfil() {
 
   if (!perfil) return null;
 
-  // Determinar si el perfil está activo (ajusta esta lógica según tu backend)
+  // Determinar si el perfil está activo
   const estaActivo = perfil.estado === "activo" || perfil.estado === "Activo" || perfil.activo === true;
 
   const InfoItem = ({ label, value }) => (
@@ -180,20 +200,15 @@ export default function Perfil() {
 
   const ActionButton = ({ children, onClick, variant = "primary", icon }) => {
     const isPrimary = variant === "primary";
-    const isGoogle = variant === "google";
 
     return (
       <button
         onClick={onClick}
         style={{
           padding: "14px 20px",
-          background: isGoogle
-            ? "white"
-            : isPrimary
-              ? "#FF6B35"
-              : "white",
-          color: isGoogle ? "#2C3E50" : isPrimary ? "white" : "#FF6B35",
-          border: isGoogle ? "2px solid #e5e7eb" : (isPrimary ? "none" : "2px solid #FF6B35"),
+          background: isPrimary ? "#FF6B35" : "white",
+          color: isPrimary ? "white" : "#FF6B35",
+          border: isPrimary ? "none" : "2px solid #FF6B35",
           borderRadius: "12px",
           fontWeight: "700",
           fontSize: "14px",
@@ -203,20 +218,12 @@ export default function Perfil() {
           alignItems: "center",
           gap: "10px",
           justifyContent: "center",
-          boxShadow: isPrimary
-            ? "0 4px 12px rgba(255, 107, 53, 0.25)"
-            : isGoogle
-              ? "0 2px 8px rgba(0, 0, 0, 0.08)"
-              : "none",
+          boxShadow: isPrimary ? "0 4px 12px rgba(255, 107, 53, 0.25)" : "none",
           fontFamily: "'Inter', sans-serif",
           minWidth: "180px"
         }}
         onMouseEnter={(e) => {
-          if (isGoogle) {
-            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.12)";
-            e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.borderColor = "#d1d5db";
-          } else if (isPrimary) {
+          if (isPrimary) {
             e.currentTarget.style.transform = "translateY(-2px)";
             e.currentTarget.style.boxShadow = "0 6px 16px rgba(255, 107, 53, 0.35)";
             e.currentTarget.style.background = "#FF8E53";
@@ -228,17 +235,8 @@ export default function Perfil() {
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = "translateY(0)";
-          e.currentTarget.style.boxShadow = isPrimary
-            ? "0 4px 12px rgba(255, 107, 53, 0.25)"
-            : isGoogle
-              ? "0 2px 8px rgba(0, 0, 0, 0.08)"
-              : "none";
-          e.currentTarget.style.background = isGoogle
-            ? "white"
-            : isPrimary
-              ? "#FF6B35"
-              : "white";
-          if (isGoogle) e.currentTarget.style.borderColor = "#e5e7eb";
+          e.currentTarget.style.boxShadow = isPrimary ? "0 4px 12px rgba(255, 107, 53, 0.25)" : "none";
+          e.currentTarget.style.background = isPrimary ? "#FF6B35" : "white";
         }}
       >
         {icon && <span style={{ fontSize: "18px" }}>{icon}</span>}
@@ -247,55 +245,121 @@ export default function Perfil() {
     );
   };
 
-  const StatCard = ({ title, value, icon, color }) => (
+  // NUEVA VERSIÓN MEJORADA DE STATCARD
+  const StatCard = ({ title, value, icon, color, description }) => (
     <div style={{
       flex: "1",
-      minWidth: "180px",
-      padding: "20px",
-      borderRadius: "16px",
-      border: `1px solid ${color}30`,
-      background: `${color}15`,
-      alignItems: "center",
-      textAlign: "center",
-      transition: "all 0.3s ease",
-      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.05)",
-      cursor: "pointer"
+      minWidth: "220px",
+      padding: "28px 24px",
+      borderRadius: "20px",
+      background: `linear-gradient(145deg, ${color}08 0%, ${color}15 100%)`,
+      border: `1.5px solid ${color}20`,
+      position: "relative",
+      overflow: "hidden",
+      transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+      cursor: "pointer",
+      boxShadow: "0 4px 20px rgba(0, 0, 0, 0.05)"
     }}
     onMouseEnter={(e) => {
-      e.currentTarget.style.transform = "translateY(-4px)";
-      e.currentTarget.style.boxShadow = "0 8px 16px rgba(0, 0, 0, 0.1)";
+      e.currentTarget.style.transform = "translateY(-8px) scale(1.02)";
+      e.currentTarget.style.boxShadow = `0 15px 35px ${color}30, 0 5px 15px rgba(0, 0, 0, 0.1)`;
+      e.currentTarget.style.borderColor = `${color}40`;
     }}
     onMouseLeave={(e) => {
-      e.currentTarget.style.transform = "translateY(0)";
-      e.currentTarget.style.boxShadow = "0 2px 4px rgba(0, 0, 0, 0.05)";
+      e.currentTarget.style.transform = "translateY(0) scale(1)";
+      e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.05)";
+      e.currentTarget.style.borderColor = `${color}20`;
     }}>
+      
+      {/* Elemento decorativo en esquina */}
       <div style={{
-        width: "48px",
-        height: "48px",
-        borderRadius: "24px",
-        background: `${color}30`,
+        position: "absolute",
+        top: "-25px",
+        right: "-25px",
+        width: "80px",
+        height: "80px",
+        borderRadius: "50%",
+        background: `${color}08`,
+        zIndex: "0"
+      }} />
+      
+      {/* Icono con fondo circular */}
+      <div style={{
+        position: "relative",
+        zIndex: "2",
+        width: "64px",
+        height: "64px",
+        borderRadius: "18px",
+        background: `linear-gradient(135deg, ${color} 0%, ${color}80 100%)`,
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        marginBottom: "12px"
+        marginBottom: "20px",
+        boxShadow: `0 8px 20px ${color}40`,
+        transition: "all 0.3s ease"
       }}>
-        <span style={{ fontSize: "20px", color: color }}>{icon}</span>
+        <span style={{ 
+          fontSize: "28px",
+          color: "white",
+          filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
+        }}>{icon}</span>
       </div>
+      
+      {/* Valor principal con efecto de gradiente */}
       <div style={{
-        fontSize: "24px",
+        fontFamily: "'Playfair Display', serif",
+        fontSize: "42px",
         fontWeight: "800",
-        color: "#2C3E50",
+        background: `linear-gradient(135deg, ${color} 0%, ${color}90 100%)`,
+        WebkitBackgroundClip: "text",
+        WebkitTextFillColor: "transparent",
+        backgroundClip: "text",
+        marginBottom: "8px",
+        lineHeight: "1",
+        textShadow: `0 2px 10px ${color}20`
+      }}>
+        {value}
+      </div>
+      
+      {/* Título con mejor tipografía */}
+      <div style={{
+        fontSize: "13px",
+        color: "#64748b",
+        fontWeight: "700",
+        textTransform: "uppercase",
+        letterSpacing: "1.5px",
         marginBottom: "6px",
         fontFamily: "'Inter', sans-serif"
-      }}>{value}</div>
+      }}>
+        {title}
+      </div>
+      
+      {/* Descripción (opcional) */}
+      {description && (
+        <div style={{
+          fontSize: "12px",
+          color: "#94a3b8",
+          fontWeight: "500",
+          marginTop: "8px",
+          fontFamily: "'Inter', sans-serif",
+          lineHeight: "1.4"
+        }}>
+          {description}
+        </div>
+      )}
+      
+      {/* Línea decorativa en la parte inferior */}
       <div style={{
-        fontSize: "12px",
-        color: "#64748b",
-        fontWeight: "600",
-        textTransform: "uppercase",
-        letterSpacing: "1px",
-        fontFamily: "'Inter', sans-serif"
-      }}>{title}</div>
+        position: "absolute",
+        bottom: "0",
+        left: "24px",
+        right: "24px",
+        height: "3px",
+        background: `linear-gradient(90deg, ${color} 0%, ${color}40 100%)`,
+        borderRadius: "3px",
+        opacity: "0.6",
+        transition: "all 0.3s ease"
+      }} />
     </div>
   );
 
@@ -341,9 +405,14 @@ export default function Perfil() {
           0%, 100% { box-shadow: 0 0 10px rgba(52, 211, 153, 0.3); }
           50% { box-shadow: 0 0 20px rgba(52, 211, 153, 0.5); }
         }
+        
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
       `}</style>
 
-      {/* HEADER SECTION - CON ALTURA REDUCIDA */}
+      {/* HEADER SECTION */}
       <div style={{
         background: "white",
         borderRadius: "0 0 30px 30px",
@@ -390,7 +459,6 @@ export default function Perfil() {
             gap: "14px",
             textAlign: "center"
           }}>
-            {/* Subtítulo igual que Carrito y Favoritos */}
             <div style={{
               fontFamily: "'Playfair Display', serif",
               fontSize: "14px",
@@ -403,7 +471,6 @@ export default function Perfil() {
               Mi Perfil
             </div>
             
-            {/* Título principal EXACTAMENTE IGUAL A CARRITO Y FAVORITOS - 56px */}
             <h1 style={{
               fontFamily: "'Playfair Display', serif",
               fontSize: "56px",
@@ -415,7 +482,6 @@ export default function Perfil() {
               textShadow: "0 2px 4px rgba(255, 107, 53, 0.1)"
             }}>👤 {perfil.nombre} {perfil.apellido}</h1>
             
-            {/* SECCIÓN MEJORADA DE ESTADO Y FECHA - MÁS BONITA */}
             <div style={{
               display: "flex",
               alignItems: "center",
@@ -424,7 +490,7 @@ export default function Perfil() {
               marginBottom: "20px",
               flexWrap: "wrap"
             }}>
-              {/* Estado del perfil - DISEÑO MEJORADO */}
+              {/* Estado del perfil */}
               <div style={{
                 display: "flex",
                 alignItems: "center",
@@ -442,7 +508,6 @@ export default function Perfil() {
                 overflow: "hidden",
                 animation: estaActivo ? "glow 2s ease-in-out infinite" : "none"
               }}>
-                {/* Efecto de fondo sutil */}
                 <div style={{
                   position: "absolute",
                   top: "-50%",
@@ -455,7 +520,6 @@ export default function Perfil() {
                   zIndex: "1"
                 }} />
                 
-                {/* Círculo de estado con efecto */}
                 <div style={{
                   position: "relative",
                   zIndex: "2",
@@ -482,7 +546,6 @@ export default function Perfil() {
                   }} />
                 </div>
                 
-                {/* Texto del estado */}
                 <div style={{
                   position: "relative",
                   zIndex: "2",
@@ -514,7 +577,6 @@ export default function Perfil() {
                 </div>
               </div>
               
-              {/* Separador decorativo */}
               <div style={{
                 width: "1px",
                 height: "35px",
@@ -522,7 +584,6 @@ export default function Perfil() {
                 opacity: 0.3
               }} />
               
-              {/* Fecha de registro - DISEÑO MEJORADO */}
               {perfil.fechaRegistro && (
                 <div style={{
                   display: "flex",
@@ -536,7 +597,6 @@ export default function Perfil() {
                   position: "relative",
                   overflow: "hidden"
                 }}>
-                  {/* Efecto de fondo sutil */}
                   <div style={{
                     position: "absolute",
                     top: "-50%",
@@ -547,7 +607,6 @@ export default function Perfil() {
                     zIndex: "1"
                   }} />
                   
-                  {/* Icono */}
                   <div style={{
                     position: "relative",
                     zIndex: "2",
@@ -567,7 +626,6 @@ export default function Perfil() {
                     }}>📅</span>
                   </div>
                   
-                  {/* Texto de la fecha */}
                   <div style={{
                     position: "relative",
                     zIndex: "2",
@@ -599,7 +657,6 @@ export default function Perfil() {
               )}
             </div>
             
-            {/* Subtítulo IGUAL A CARRITO Y FAVORITOS */}
             <p style={{
               color: "#64748b",
               fontSize: "16px",
@@ -625,7 +682,7 @@ export default function Perfil() {
         </div>
       </div>
 
-      {/* CONTENIDO PRINCIPAL - CON ANCHO IGUAL A FAVORITOS Y CARRITO */}
+      {/* CONTENIDO PRINCIPAL */}
       <div style={{
         maxWidth: "1200px",
         margin: "0 auto",
@@ -685,21 +742,21 @@ export default function Perfil() {
           }}>
             {perfil.rol === "CONSUMIDOR" && (
               <>
-                <ActionButton onClick={() => navigate("/editar-perfil")} icon="✏️">
+                <ActionButton onClick={() => navigate("/consumidor/editar-perfil")} icon="✏️">
                   Editar perfil
                 </ActionButton>
-                <ActionButton onClick={() => navigate("/favoritos")} variant="secondary" icon="❤️">
+                <ActionButton onClick={() => navigate("/consumidor/favoritos")} variant="secondary" icon="❤️">
                   Mis favoritos
                 </ActionButton>
                 <ActionButton
-                  onClick={() => navigate("/mis-pedidos", { state: { modo: "perfil" } })}
+                  onClick={() => navigate("/consumidor/mis-pedidos")}
                   variant="secondary"
                   icon="📦"
                 >
                   Mis pedidos
                 </ActionButton>
                 <ActionButton
-                  onClick={() => navigate("/carrito")}
+                  onClick={() => navigate("/consumidor/carrito")}
                   variant="secondary"
                   icon="🛒"
                 >
@@ -710,8 +767,9 @@ export default function Perfil() {
 
             {perfil.rol === "VENDEDOR" && (
               <>
-                <ActionButton onClick={() => navigate("/editar-empresa")} icon="✏️">
-                  Editar empresa
+                {/* SOLO LAS 4 OPCIONES QUE SOLICITASTE */}
+                <ActionButton onClick={() => navigate("/vendedor/editar-perfil")} icon="✏️">
+                  Editar perfil
                 </ActionButton>
                 <ActionButton onClick={() => navigate("/vendedor/pedidos")} variant="secondary" icon="📊">
                   Gestionar pedidos
@@ -719,7 +777,7 @@ export default function Perfil() {
                 <ActionButton onClick={() => navigate("/vendedor/resenas")} variant="secondary" icon="⭐">
                   Ver reseñas
                 </ActionButton>
-                <ActionButton onClick={() => navigate("/vendedor/productos")} variant="secondary" icon="📦">
+                <ActionButton onClick={() => navigate("/vendedor/gestionar-productos")} variant="secondary" icon="📦">
                   Mis productos
                 </ActionButton>
               </>
@@ -727,16 +785,16 @@ export default function Perfil() {
 
             {perfil.rol === "ADMIN" && (
               <>
-                <ActionButton onClick={() => navigate("/admin")} icon="⚙️">
+                <ActionButton onClick={() => navigate("/admin/dashboard")} icon="⚙️">
                   Panel Admin
                 </ActionButton>
-                <ActionButton onClick={() => navigate("/usuarios")} variant="secondary" icon="👥">
+                <ActionButton onClick={() => navigate("/admin/usuarios")} variant="secondary" icon="👥">
                   Gestionar usuarios
                 </ActionButton>
-                <ActionButton onClick={() => navigate("/reportes")} variant="secondary" icon="📈">
+                <ActionButton onClick={() => navigate("/admin/reportes")} variant="secondary" icon="📈">
                   Reportes
                 </ActionButton>
-                <ActionButton onClick={() => navigate("/config")} variant="secondary" icon="⚡">
+                <ActionButton onClick={() => navigate("/admin/configuracion")} variant="secondary" icon="⚡">
                   Configuración
                 </ActionButton>
               </>
@@ -744,84 +802,133 @@ export default function Perfil() {
           </div>
         </div>
 
-        {/* 🔥 ESTADÍSTICAS (Solo para VENDEDOR) */}
+        {/* 🔥 ESTADÍSTICAS (Solo para VENDEDOR) - VERSIÓN MEJORADA */}
         {perfil.rol === "VENDEDOR" && (
           <div style={{
             background: "white",
-            borderRadius: "20px",
-            padding: "28px",
-            marginBottom: "28px",
-            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.08)",
-            border: "1px solid #f1f5f9"
+            borderRadius: "24px",
+            padding: "32px",
+            marginBottom: "32px",
+            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.08)",
+            border: "1px solid #f1f5f9",
+            position: "relative",
+            overflow: "hidden"
           }}>
+            {/* Efecto de fondo sutil */}
+            <div style={{
+              position: "absolute",
+              top: "0",
+              left: "0",
+              right: "0",
+              height: "4px",
+              background: "linear-gradient(90deg, #FF6B35, #3498DB, #2ECC71, #9B59B6)",
+              zIndex: "1"
+            }} />
+            
             <div style={{
               display: "flex",
               alignItems: "center",
               gap: "12px",
-              marginBottom: "20px"
+              marginBottom: "28px",
+              position: "relative",
+              zIndex: "2"
             }}>
               <div style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "20px",
-                background: "rgba(52, 152, 219, 0.1)",
+                width: "48px",
+                height: "48px",
+                borderRadius: "14px",
+                background: "linear-gradient(135deg, #3498DB 0%, #1D4ED8 100%)",
                 display: "flex",
                 justifyContent: "center",
-                alignItems: "center"
+                alignItems: "center",
+                boxShadow: "0 6px 20px rgba(52, 152, 219, 0.3)"
               }}>
-                <span style={{ fontSize: "20px", color: "#3498DB" }}>📊</span>
+                <span style={{ 
+                  fontSize: "24px", 
+                  color: "white",
+                  filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
+                }}>📊</span>
               </div>
               <div>
                 <h2 style={{
                   fontFamily: "'Playfair Display', serif",
-                  fontSize: "22px",
-                  fontWeight: "700",
+                  fontSize: "24px",
+                  fontWeight: "800",
                   color: "#2C3E50",
-                  margin: "0 0 4px 0"
+                  margin: "0 0 6px 0",
+                  letterSpacing: "-0.5px"
                 }}>
-                  Estadísticas de Negocio
+                  Métricas de Desempeño
                 </h2>
                 <p style={{
                   color: "#64748b",
-                  fontSize: "13px",
+                  fontSize: "14px",
                   margin: "0",
                   fontFamily: "'Inter', sans-serif"
                 }}>
-                  Datos en tiempo real de tu actividad
+                  Estadísticas en tiempo real de tu negocio
                 </p>
               </div>
             </div>
 
             <div style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "14px",
-              justifyContent: "center"
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: "24px",
+              position: "relative",
+              zIndex: "2"
             }}>
               <StatCard 
                 title="Productos Activos" 
-                value={perfil.totalProductos || 0} 
+                value={estadisticas.totalProductos || 0} 
                 icon="📦" 
-                color="#3498DB" 
+                color="#3498DB"
+                description="En tu catálogo"
               />
               <StatCard 
                 title="Pedidos Totales" 
-                value={perfil.totalPedidos || 0} 
+                value={estadisticas.totalPedidos || 0} 
                 icon="📋" 
-                color="#2ECC71" 
+                color="#2ECC71"
+                description="Procesados"
               />
               <StatCard 
                 title="Ventas Totales" 
-                value={perfil.totalVentas || 0} 
+                value={`$${estadisticas.totalVentas.toFixed(2) || 0}`} 
                 icon="💰" 
-                color="#9B59B6" 
+                color="#9B59B6"
+                description="Generadas"
               />
               <StatCard 
                 title="Calificación" 
-                value={`${(perfil.calificacionPromedio || 0).toFixed(1)}/5.0`} 
+                value={`${(perfil.calificacionPromedio || estadisticas.calificacionPromedio || 0).toFixed(1)}/5.0`} 
                 icon="⭐" 
-                color="#FFD700" 
+                color="#FFD700"
+                description="Promedio de clientes"
               />
+            </div>
+            
+            {/* Información adicional */}
+            <div style={{
+              marginTop: "28px",
+              paddingTop: "20px",
+              borderTop: "1px solid #f1f5f9",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              fontSize: "13px",
+              color: "#94a3b8",
+              position: "relative",
+              zIndex: "2"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ color: "#10B981" }}>🔄</span>
+                <span>Actualizado en tiempo real</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ color: "#3B82F6" }}>📈</span>
+                <span>Tendencia positiva</span>
+              </div>
             </div>
           </div>
         )}
@@ -894,13 +1001,41 @@ export default function Perfil() {
               <InfoItem label="Estado" value={perfil.estado} />
             </div>
 
-            {/* Vinculación con Google */}
+            {/* Vinculación con Google - OPCIONAL */}
             <div style={{ marginTop: "28px", paddingTop: "20px", borderTop: "2px solid #f1f5f9" }}>
-              <ActionButton
+              <button
                 onClick={() => {
                   console.log("Vincular con Google");
                 }}
-                variant="google"
+                style={{
+                  padding: "14px 20px",
+                  background: "white",
+                  color: "#2C3E50",
+                  border: "2px solid #e5e7eb",
+                  borderRadius: "12px",
+                  fontWeight: "700",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  justifyContent: "center",
+                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+                  fontFamily: "'Inter', sans-serif",
+                  minWidth: "180px",
+                  width: "100%"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.12)";
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.borderColor = "#d1d5db";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.08)";
+                  e.currentTarget.style.borderColor = "#e5e7eb";
+                }}
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
                   <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" />
@@ -909,7 +1044,7 @@ export default function Perfil() {
                   <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" />
                 </svg>
                 Vincular cuenta de Google
-              </ActionButton>
+              </button>
             </div>
           </div>
 
@@ -1087,7 +1222,7 @@ export default function Perfil() {
                       fontWeight: "800",
                       color: "#FF6B35"
                     }}>
-                      {perfil.calificacionPromedio?.toFixed(1)}/5.0
+                      {(perfil.calificacionPromedio || 0).toFixed(1)}/5.0
                     </div>
                   </div>
                 </div>
@@ -1164,7 +1299,7 @@ export default function Perfil() {
         </div>
       </div>
 
-      {/* SOLO EL COMPONENTE FOOTER EXTERNO */}
+      {/* FOOTER */}
       <Footer />
     </div>
   );
