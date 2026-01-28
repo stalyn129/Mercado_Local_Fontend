@@ -745,18 +745,18 @@ export default function Perfil() {
                 <ActionButton onClick={() => navigate("/consumidor/editar-perfil")} icon="✏️">
                   Editar perfil
                 </ActionButton>
-                <ActionButton onClick={() => navigate("/consumidor/favoritos")} variant="secondary" icon="❤️">
+                <ActionButton onClick={() => navigate("/favoritos")} variant="secondary" icon="❤️">
                   Mis favoritos
                 </ActionButton>
                 <ActionButton
-                  onClick={() => navigate("/consumidor/mis-pedidos")}
+                  onClick={() => navigate("/mis-pedidos")}
                   variant="secondary"
                   icon="📦"
                 >
                   Mis pedidos
                 </ActionButton>
                 <ActionButton
-                  onClick={() => navigate("/consumidor/carrito")}
+                  onClick={() => navigate("/carrito")}
                   variant="secondary"
                   icon="🛒"
                 >
