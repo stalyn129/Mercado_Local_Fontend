@@ -61,6 +61,7 @@ import Factura from "./pages/consumidor/Factura.jsx";
 import MisPedidos from "./pages/consumidor/MisPedidos.jsx";
 import CheckoutUnificado from './pages/consumidor/CheckoutUnificado';
 import MiCompraUnificada from './pages/consumidor/MiCompraUnificada.jsx';
+import EditarPerfilConsumidor from './pages/consumidor/EditarPerfilConsumidor.jsx';
 
 // 🎨 Estilos globales
 import "./styles/global.css";
@@ -104,6 +105,7 @@ function LayoutRouter() {
           <Route path="/mis-pedidos" element={<MisPedidos />} />
           <Route path="/checkout" element={<CheckoutUnificado />} />
           <Route path="/mi-compra-unificada/:idCompra" element={<MiCompraUnificada />} />
+          <Route path="/consumidor/EditarPerfilConsumidor" element={<EditarPerfilConsumidor />} />
 
 
           {/* 🧑‍🌾 VENDEDOR PÚBLICO ✅ */}

@@ -742,7 +742,7 @@ export default function Perfil() {
           }}>
             {perfil.rol === "CONSUMIDOR" && (
               <>
-                <ActionButton onClick={() => navigate("/consumidor/editar-perfil")} icon="✏️">
+                <ActionButton onClick={() => navigate("/consumidor/EditarPerfilConsumidor")} icon="✏️">
                   Editar perfil
                 </ActionButton>
                 <ActionButton onClick={() => navigate("/favoritos")} variant="secondary" icon="❤️">
