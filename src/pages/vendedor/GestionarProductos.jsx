@@ -2,11 +2,37 @@ import { useEffect, useState } from "react";
 import Footer from "../../components/Footer.jsx";
 
 export default function GestionarProductos() {
-  const API_URL = "http://localhost:8080";
+  // ✅ CORREGIDO: Usar tu IP para que las imágenes carguen
+  const API_URL = "http://192.168.1.13:8080";
 
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [circlePositions, setCirclePositions] = useState([]);
+
+  // ✅ AÑADIDO: Función para construir URLs de imágenes
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) {
+      return 'https://via.placeholder.com/150x150?text=Sin+Imagen';
+    }
+    
+    // Si ya es una URL completa (http://...)
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    // Si es una ruta relativa (/uploads/productos/...)
+    if (imagePath.startsWith('/uploads/')) {
+      return `${API_URL}${imagePath}`;
+    }
+    
+    // Si solo es un nombre de archivo
+    if (imagePath && !imagePath.includes('/')) {
+      return `${API_URL}/uploads/productos/${imagePath}`;
+    }
+    
+    // Si no reconocemos el formato, usar placeholder
+    return 'https://via.placeholder.com/150x150?text=Error+Imagen';
+  };
 
   // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
   useEffect(() => {
@@ -55,7 +81,7 @@ export default function GestionarProductos() {
     return () => clearInterval(interval);
   }, []);
 
-  // ==================== CARGA DE PRODUCTOS (FUNCIONALIDAD DEL CÓDIGO VIEJO) ====================
+  // ==================== CARGA DE PRODUCTOS ====================
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user"));
 
@@ -84,6 +110,15 @@ export default function GestionarProductos() {
 
       const data = await res.json();
       console.log("📦 Productos cargados:", data);
+      
+      // ✅ DEBUG: Verificar URLs de imágenes
+      data.forEach((producto, index) => {
+        console.log(`🔍 Producto ${index + 1}:`, {
+          nombre: producto.nombreProducto,
+          imagenOriginal: producto.imagenProducto,
+          imagenConvertida: getImageUrl(producto.imagenProducto)
+        });
+      });
 
       setProductos(data);
     } catch (e) {
@@ -93,7 +128,7 @@ export default function GestionarProductos() {
     }
   };
 
-  // ==================== ELIMINAR PRODUCTO (FUNCIONALIDAD DEL CÓDIGO VIEJO) ====================
+  // ==================== ELIMINAR PRODUCTO ====================
   const eliminarProducto = async (idProducto, nombreProducto) => {
     const confirmar = window.confirm(
       `¿Estás seguro de eliminar el producto "${nombreProducto}"?\n\nEsta acción no se puede deshacer.`
@@ -553,8 +588,9 @@ export default function GestionarProductos() {
                             position: "relative",
                             boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)"
                           }}>
+                            {/* ✅ CORREGIDO: Usar getImageUrl para construir URL completa */}
                             <img 
-                              src={p.imagenProducto} 
+                              src={getImageUrl(p.imagenProducto)} 
                               alt={p.nombreProducto}
                               style={{ 
                                 width: "100%",
@@ -564,6 +600,12 @@ export default function GestionarProductos() {
                               }}
                               onMouseEnter={(e) => e.target.style.transform = "scale(1.1)"}
                               onMouseLeave={(e) => e.target.style.transform = "scale(1)"}
+                              onError={(e) => {
+                                console.error('❌ Error cargando imagen:', p.imagenProducto);
+                                e.target.src = 'https://via.placeholder.com/150x150?text=Error+Imagen';
+                                e.target.onerror = null; // Prevenir bucles
+                              }}
+                              onLoad={() => console.log('✅ Imagen cargada exitosamente')}
                             />
                           </div>
                         </td>

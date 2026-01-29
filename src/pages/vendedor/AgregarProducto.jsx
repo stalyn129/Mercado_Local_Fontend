@@ -3,7 +3,9 @@ import Footer from "../../components/Footer.jsx";
 
 export default function AgregarProducto() {
   const fileInputRef = useRef(null);
-  const API_URL = "http://localhost:8080";
+  
+  // ✅ CORREGIDO: Usar tu IP para que móvil pueda acceder
+  const API_URL = "http://192.168.1.13:8080";
 
   const [categorias, setCategorias] = useState([]);
   const [subcategorias, setSubcategorias] = useState([]);
@@ -189,9 +191,9 @@ export default function AgregarProducto() {
         newErrors.imagen = "Formato de imagen no válido. Use JPG, PNG o GIF";
       }
       
-      // Validar tamaño (máximo 5MB)
-      if (selectedImageFile.size > 5 * 1024 * 1024) {
-        newErrors.imagen = "La imagen no puede superar los 5MB";
+      // ✅ CORREGIDO: 10MB (consistente con backend)
+      if (selectedImageFile.size > 10 * 1024 * 1024) {
+        newErrors.imagen = "La imagen no puede superar los 10MB";
       }
     }
     
@@ -259,8 +261,9 @@ export default function AgregarProducto() {
       return;
     }
     
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors(prev => ({ ...prev, imagen: "La imagen no puede superar los 5MB" }));
+    // ✅ CORREGIDO: 10MB
+    if (file.size > 10 * 1024 * 1024) {
+      setErrors(prev => ({ ...prev, imagen: "La imagen no puede superar los 10MB" }));
       return;
     }
 
@@ -278,6 +281,7 @@ export default function AgregarProducto() {
     fileInputRef.current?.click();
   };
 
+  // ✅✅✅ FUNCIÓN CORREGIDA handleSubmit
   const handleSubmit = async () => {
     // Marcar todos los campos como tocados
     const allTouched = {};
@@ -314,12 +318,16 @@ export default function AgregarProducto() {
     setLoading(true);
 
     try {
-      // PASO 1: Subir la imagen y obtener la URL
+      // ✅ CORREGIDO: PASO 1 - Subir la imagen
       console.log("📤 Subiendo imagen...");
+      console.log("🔗 Endpoint:", `${API_URL}/upload/producto`);
+      console.log("📁 Archivo:", selectedImageFile.name, selectedImageFile.type);
+      
       const formData = new FormData();
       formData.append("file", selectedImageFile);
 
-      const uploadResponse = await fetch(`${API_URL}/uploads/producto`, {
+      // ✅ CORREGIDO: SINGULAR "upload" no PLURAL "uploads"
+      const uploadResponse = await fetch(`${API_URL}/upload/producto`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
@@ -327,15 +335,28 @@ export default function AgregarProducto() {
         body: formData
       });
 
+      console.log("📊 Status upload:", uploadResponse.status, uploadResponse.statusText);
+
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
-        throw new Error(`Error al subir imagen: ${errorText}`);
+        console.error("❌ Error al subir imagen:", errorText);
+        throw new Error(`Error al subir imagen: ${uploadResponse.status} - ${errorText}`);
       }
 
-      const imageUrl = await uploadResponse.text();
-      console.log("✅ Imagen subida:", imageUrl);
+      // ✅ CORREGIDO: Recibir como JSON
+      const uploadResult = await uploadResponse.json();
+      console.log("✅ Resultado upload:", uploadResult);
 
-      // PASO 2: Crear el producto con JSON (incluyendo URL de imagen)
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.message || "Error desconocido al subir imagen");
+      }
+
+      // ✅ CORREGIDO: Usar la RUTA RELATIVA (path)
+      const imagePath = uploadResult.path; // "/uploads/productos/uuid.jpg"
+      console.log("🖼️ Ruta para BD:", imagePath);
+      console.log("🔗 URL completa:", uploadResult.url);
+
+      // ✅ CORREGIDO: PASO 2 - Crear el producto
       console.log("📦 Creando producto...");
       const body = {
         idUsuario: user.idUsuario || user.idVendedor || user.id,
@@ -346,7 +367,8 @@ export default function AgregarProducto() {
         precioProducto: parseFloat(form.precioProducto),
         stockProducto: parseInt(form.stockProducto),
         unidad: form.unidad,
-        imagenProducto: imageUrl
+        // ✅ CORREGIDO: Guardar PATH relativo
+        imagenProducto: imagePath
       };
 
       console.log("📦 Payload enviado:", body);
@@ -360,10 +382,12 @@ export default function AgregarProducto() {
         body: JSON.stringify(body)
       });
 
+      console.log("📊 Status creación:", response.status);
+
       if (response.ok) {
         const result = await response.json();
         console.log("✅ Producto creado:", result);
-        alert("Producto creado correctamente");
+        alert("✅ Producto creado correctamente");
 
         // Limpiar formulario
         setForm({
@@ -383,16 +407,19 @@ export default function AgregarProducto() {
         setTouched({});
         setShowValidationSummary(false);
         
-        // Redirigir a gestión de productos
-        window.location.href = "/vendedor/gestionar-productos";
+        // Redirigir después de 1 segundo
+        setTimeout(() => {
+          window.location.href = "/vendedor/gestionar-productos";
+        }, 1000);
+        
       } else {
         const error = await response.text();
         console.error("❌ Error del servidor:", error);
-        alert(`Error al crear producto: ${error}`);
+        alert(`❌ Error al crear producto: ${error}`);
       }
     } catch (error) {
       console.error("❌ Error en la petición:", error);
-      alert(`Error: ${error.message}`);
+      alert(`❌ Error: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -774,7 +801,7 @@ export default function AgregarProducto() {
                         color: errors.imagen ? "#EF4444" : "#94a3b8",
                         fontWeight: "500"
                       }}>
-                        {errors.imagen || "Haz clic o arrastra (Máx. 5MB)"}
+                        {errors.imagen || "Haz clic o arrastra (Máx. 10MB)"}
                       </p>
                     </div>
                   </div>
@@ -1455,7 +1482,7 @@ export default function AgregarProducto() {
                 "0 8px 25px rgba(139, 92, 246, 0.15)",
               minHeight: "500px"
             }}>
-              {/* Contenido de IA (igual que antes, pero acortado para brevedad) */}
+              {/* Contenido de IA */}
               <div style={{ position: "relative", zIndex: "2" }}>
                 {/* Header */}
                 <div style={{

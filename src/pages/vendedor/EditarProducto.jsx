@@ -5,7 +5,8 @@ import Footer from "../../components/Footer.jsx";
 export default function EditarProducto() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+  // ✅ CORREGIDO: Usar tu IP en lugar de localhost
+  const API_URL = "http://192.168.1.13:8080";
 
   const [producto, setProducto] = useState(null);
   const [categorias, setCategorias] = useState([]);
@@ -14,10 +15,37 @@ export default function EditarProducto() {
   const [cargando, setCargando] = useState(true);
   const [screenSize, setScreenSize] = useState("desktop");
   const [circlePositions, setCirclePositions] = useState([]);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const fileInputRef = useRef(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const token = localStorage.getItem("authToken");
   const vendedor = JSON.parse(localStorage.getItem("user"));
+
+  // ✅ FUNCIÓN PARA CONSTRUIR URLS DE IMÁGENES
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) {
+      return 'https://via.placeholder.com/150x150?text=Sin+Imagen';
+    }
+    
+    // Si ya es una URL completa
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    }
+    
+    // Si es una ruta relativa (/uploads/productos/...)
+    if (imagePath.startsWith('/uploads/')) {
+      return `${API_URL}${imagePath}`;
+    }
+    
+    // Si solo es un nombre de archivo
+    if (imagePath && !imagePath.includes('/')) {
+      return `${API_URL}/uploads/productos/${imagePath}`;
+    }
+    
+    return 'https://via.placeholder.com/150x150?text=Error+Imagen';
+  };
 
   // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
   useEffect(() => {
@@ -140,88 +168,149 @@ export default function EditarProducto() {
     }
   };
 
-  const actualizarProducto = async () => {
-    // Validación de campos obligatorios
-    if (!producto.nombreProducto || producto.nombreProducto.trim().length === 0) {
-      alert("⚠️ Por favor ingresa el nombre del producto");
-      return;
+  // ==================== VALIDACIONES ====================
+  const validateField = (name, value) => {
+    let error = "";
+    
+    switch (name) {
+      case "nombreProducto":
+        if (!value || !value.trim()) {
+          error = "El nombre del producto es obligatorio";
+        } else if (value.trim().length < 3) {
+          error = "El nombre debe tener al menos 3 caracteres";
+        } else if (value.trim().length > 100) {
+          error = "El nombre no puede exceder los 100 caracteres";
+        }
+        break;
+        
+      case "descripcionProducto":
+        if (value && value.trim().length > 500) {
+          error = "La descripción no puede exceder los 500 caracteres";
+        }
+        break;
+        
+      case "precioProducto":
+        if (!value) {
+          error = "El precio es obligatorio";
+        } else if (isNaN(parseFloat(value))) {
+          error = "El precio debe ser un número válido";
+        } else if (parseFloat(value) <= 0) {
+          error = "El precio debe ser mayor a 0";
+        } else if (parseFloat(value) > 999999) {
+          error = "El precio no puede exceder $999,999";
+        }
+        break;
+        
+      case "stockProducto":
+        if (!value) {
+          error = "El stock es obligatorio";
+        } else if (!/^\d+$/.test(value)) {
+          error = "El stock debe ser un número entero";
+        } else if (parseInt(value) < 0) {
+          error = "El stock no puede ser negativo";
+        } else if (parseInt(value) > 100000) {
+          error = "El stock no puede exceder 100,000 unidades";
+        }
+        break;
+        
+      case "idCategoria":
+        if (!value) {
+          error = "Debe seleccionar una categoría";
+        }
+        break;
+        
+      case "idSubcategoria":
+        if (!value) {
+          error = "Debe seleccionar una subcategoría";
+        }
+        break;
+        
+      default:
+        break;
     }
+    
+    return error;
+  };
 
-    if (producto.nombreProducto.length < 3) {
-      alert("⚠️ El nombre del producto debe tener al menos 3 caracteres");
-      return;
-    }
-
-    if (producto.nombreProducto.length > 100) {
-      alert("⚠️ El nombre del producto no puede exceder 100 caracteres");
-      return;
-    }
-
-    if (producto.descripcionProducto && producto.descripcionProducto.length > 1000) {
-      alert("⚠️ La descripción no puede exceder 1000 caracteres");
-      return;
-    }
-
-    if (!producto.precioProducto || parseFloat(producto.precioProducto) <= 0) {
-      alert("⚠️ Por favor ingresa un precio válido mayor a 0");
-      return;
-    }
-
-    if (parseFloat(producto.precioProducto) > 999999.99) {
-      alert("⚠️ El precio no puede exceder $999,999.99");
-      return;
-    }
-
-    if (!producto.stockProducto || parseInt(producto.stockProducto) < 0) {
-      alert("⚠️ Por favor ingresa un stock válido (mínimo 0)");
-      return;
-    }
-
-    if (parseInt(producto.stockProducto) > 999999) {
-      alert("⚠️ El stock no puede exceder 999,999 unidades");
-      return;
-    }
-
-    if (!producto.idCategoria) {
-      alert("⚠️ Por favor selecciona una categoría");
-      return;
-    }
-
+  const validateForm = () => {
+    if (!producto) return false;
+    
+    const newErrors = {};
+    
+    // Validar cada campo
+    Object.keys(producto).forEach(key => {
+      if (key !== "estadoProducto" && key !== "imagenProducto") {
+        const error = validateField(key, producto[key]);
+        if (error) newErrors[key] = error;
+      }
+    });
+    
+    // Validar subcategoría
     if (!producto.subcategoria?.idSubcategoria) {
-      alert("⚠️ Por favor selecciona una subcategoría");
-      return;
+      newErrors.idSubcategoria = "Debe seleccionar una subcategoría";
     }
-
+    
     // Validar imagen si se seleccionó una nueva
     if (selectedImage) {
-      // Validar tamaño de imagen (máximo 5MB)
-      if (selectedImage.size > 5 * 1024 * 1024) {
-        alert("⚠️ La imagen no puede exceder 5MB");
-        return;
-      }
-
-      // Validar tipo de imagen
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
       if (!allowedTypes.includes(selectedImage.type)) {
-        alert("⚠️ Solo se permiten imágenes en formato JPG, PNG o WEBP");
-        return;
+        newErrors.imagen = "Formato de imagen no válido. Use JPG, PNG o GIF";
+      }
+      
+      if (selectedImage.size > 10 * 1024 * 1024) {
+        newErrors.imagen = "La imagen no puede superar los 10MB";
       }
     }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const actualizarProducto = async () => {
+    if (isSubmitting || !producto) return;
+    
+    // Marcar todos los campos como tocados
+    const allTouched = {};
+    Object.keys(producto).forEach(key => {
+      allTouched[key] = true;
+    });
+    setTouched(allTouched);
+    
+    // Validar formulario
+    if (!validateForm()) {
+      const errorCount = Object.keys(errors).length;
+      alert(`Hay ${errorCount} error(es) en el formulario. Por favor, corrígelos antes de continuar.`);
+      
+      // Hacer scroll al primer error
+      const firstErrorField = Object.keys(errors)[0];
+      if (firstErrorField) {
+        const element = document.querySelector(`[name="${firstErrorField}"]`) || 
+                       document.querySelector(`[data-field="${firstErrorField}"]`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.focus();
+        }
+      }
+      return;
+    }
+
+    setIsSubmitting(true);
 
     const formData = new FormData();
-    formData.append("nombreProducto", producto.nombreProducto);
-    formData.append("descripcionProducto", producto.descripcionProducto);
+    formData.append("nombreProducto", producto.nombreProducto.trim());
+    formData.append("descripcionProducto", producto.descripcionProducto?.trim() || "");
     formData.append("precioProducto", producto.precioProducto);
     formData.append("stockProducto", producto.stockProducto);
     formData.append("unidad", producto.unidad);
     formData.append("idSubcategoria", producto.subcategoria.idSubcategoria);
-    formData.append("idUsuario", vendedor.idUsuario);
+    formData.append("idUsuario", vendedor.idUsuario || vendedor.idVendedor || vendedor.id);
 
     if (selectedImage) {
       formData.append("imagen", selectedImage);
     }
 
     try {
+      console.log("📤 Enviando datos de actualización...");
       const res = await fetch(`${API_URL}/productos/editar/${id}`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
@@ -229,16 +318,56 @@ export default function EditarProducto() {
       });
 
       if (res.ok) {
+        const result = await res.json();
+        console.log("✅ Producto actualizado:", result);
         alert("✔ Producto actualizado correctamente");
-        navigate("/vendedor/gestionar-productos");
+        
+        // Limpiar errores
+        setErrors({});
+        setTouched({});
+        
+        // Redirigir después de 1 segundo
+        setTimeout(() => {
+          window.location.href = "/vendedor/gestionar-productos";
+        }, 1000);
       } else {
         const errorText = await res.text();
-        console.error("Error del servidor:", errorText);
-        alert("❌ Error al actualizar producto");
+        console.error("❌ Error del servidor:", errorText);
+        alert(`❌ Error al actualizar producto: ${errorText}`);
       }
     } catch (error) {
       console.error("❌ Error:", error);
       alert("❌ Error al conectar con el servidor");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    setProducto(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    
+    // Marcar campo como tocado
+    setTouched(prev => ({ ...prev, [name]: true }));
+    
+    // Limpiar error si existe
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: "" }));
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched(prev => ({ ...prev, [name]: true }));
+    
+    // Validar campo individual
+    const error = validateField(name, value);
+    if (error) {
+      setErrors(prev => ({ ...prev, [name]: error }));
     }
   };
 
@@ -246,38 +375,65 @@ export default function EditarProducto() {
     fileInputRef.current?.click();
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validar antes de establecer
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      setErrors(prev => ({ ...prev, imagen: "Formato de imagen no válido. Use JPG, PNG o GIF" }));
+      return;
+    }
+    
+    if (file.size > 10 * 1024 * 1024) {
+      setErrors(prev => ({ ...prev, imagen: "La imagen no puede superar los 10MB" }));
+      return;
+    }
+
+    setSelectedImage(file);
+    setErrors(prev => ({ ...prev, imagen: "" }));
+  };
+
   if (cargando || !producto) {
     return (
-      <div style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "rgba(0, 0, 0, 0.7)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 9999,
-        gap: "20px"
-      }}>
-        <div style={{
-          width: "60px",
-          height: "60px",
-          border: "5px solid rgba(255, 255, 255, 0.3)",
-          borderTop: "5px solid #FF6B35",
-          borderRadius: "50%",
-          animation: "spin 1s linear infinite"
-        }}></div>
-        <div style={{
-          color: "white",
-          fontSize: "18px",
-          fontWeight: "600"
+      <>
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+        <div style={{ 
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0, 0, 0, 0.7)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          gap: "20px"
         }}>
-          Cargando producto...
+          <div style={{ 
+            width: "60px",
+            height: "60px",
+            border: "5px solid rgba(255, 255, 255, 0.3)",
+            borderTopColor: "white",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite"
+          }}></div>
+          <div style={{ 
+            color: "white",
+            fontSize: "18px",
+            fontWeight: "600"
+          }}>
+            Cargando producto...
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -373,6 +529,60 @@ export default function EditarProducto() {
           </div>
         </div>
 
+        {/* Resumen de validación */}
+        {Object.keys(errors).length > 0 && (
+          <div style={{
+            background: "#FEF2F2",
+            borderRadius: "16px",
+            padding: "20px",
+            marginBottom: "20px",
+            border: "2px solid #FECACA",
+            animation: "fadeIn 0.3s ease"
+          }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              marginBottom: "12px"
+            }}>
+              <div style={{
+                fontSize: "24px",
+                color: "#EF4444"
+              }}>
+                ⚠️
+              </div>
+              <h4 style={{
+                fontSize: "18px",
+                fontWeight: "700",
+                color: "#991B1B",
+                margin: "0",
+                fontFamily: "'Inter', sans-serif"
+              }}>
+                Hay {Object.keys(errors).length} error(es) en el formulario
+              </h4>
+            </div>
+            
+            <ul style={{
+              margin: "0",
+              paddingLeft: "20px",
+              fontSize: "14px",
+              color: "#7F1D1D"
+            }}>
+              {Object.entries(errors).map(([field, error]) => (
+                <li key={field} style={{ marginBottom: "4px", fontFamily: "'Inter', sans-serif" }}>
+                  <strong>{field === 'imagen' ? 'Imagen' : 
+                          field === 'nombreProducto' ? 'Nombre' :
+                          field === 'descripcionProducto' ? 'Descripción' :
+                          field === 'precioProducto' ? 'Precio' :
+                          field === 'stockProducto' ? 'Stock' :
+                          field === 'idCategoria' ? 'Categoría' :
+                          field === 'idSubcategoria' ? 'Subcategoría' : field}:</strong> {error}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Formulario */}
         <div style={{
           display: "flex",
@@ -393,7 +603,7 @@ export default function EditarProducto() {
               borderRadius: "20px",
               padding: "40px",
               boxShadow: "0 8px 30px rgba(0, 0, 0, 0.08)",
-              border: "1px solid #f1f5f9",
+              border: errors.imagen ? "2px solid #FECACA" : "1px solid #f1f5f9",
               display: "flex",
               flexDirection: "column"
             }}>
@@ -415,30 +625,52 @@ export default function EditarProducto() {
                     justifyContent: "center",
                     position: "relative",
                     overflow: "hidden",
-                    border: (selectedImage || producto.imagenProducto) ? "none" : "3px dashed #FF6B35",
+                    border: errors.imagen ? "3px dashed #EF4444" : 
+                           (selectedImage || producto.imagenProducto) ? "none" : "3px dashed #FF6B35",
                     transition: "all 0.3s ease",
                     cursor: "pointer",
                     minHeight: "400px"
                   }}
                   onClick={triggerFileInput}
+                  data-field="imagen"
                 >
                   {selectedImage || producto.imagenProducto ? (
-                    <img 
-                      src={selectedImage ? URL.createObjectURL(selectedImage) : producto.imagenProducto}
-                      alt={producto.nombreProducto}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover"
-                      }}
-                    />
+                    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+                      {/* ✅ CORREGIDO: Usar getImageUrl para mostrar imagen existente */}
+                      <img 
+                        src={selectedImage ? URL.createObjectURL(selectedImage) : getImageUrl(producto.imagenProducto)}
+                        alt={producto.nombreProducto}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover"
+                        }}
+                      />
+                      {selectedImage && (
+                        <div style={{
+                          position: "absolute",
+                          top: "10px",
+                          right: "10px",
+                          background: "rgba(16, 185, 129, 0.9)",
+                          color: "white",
+                          padding: "6px 12px",
+                          borderRadius: "20px",
+                          fontSize: "12px",
+                          fontWeight: "700",
+                          backdropFilter: "blur(4px)",
+                          fontFamily: "'Inter', sans-serif"
+                        }}>
+                          ✓ NUEVA
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <div style={{
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
                       gap: "15px",
-                      color: "#FF6B35",
+                      color: errors.imagen ? "#EF4444" : "#FF6B35",
                       width: "100%",
                       height: "100%",
                       justifyContent: "center",
@@ -448,22 +680,24 @@ export default function EditarProducto() {
                         fontSize: "48px",
                         animation: "float 3s ease-in-out infinite" 
                       }}>
-                        📸
+                        {errors.imagen ? "❌" : "📸"}
                       </div>
                       <div style={{ textAlign: "center" }}>
                         <p style={{
                           fontSize: "16px",
                           fontWeight: "600",
-                          marginBottom: "4px"
+                          marginBottom: "4px",
+                          fontFamily: "'Inter', sans-serif"
                         }}>
-                          Sube una imagen
+                          {errors.imagen ? "Error en imagen" : "Sube una imagen"}
                         </p>
                         <p style={{
                           fontSize: "14px",
-                          color: "#94a3b8",
-                          fontWeight: "500"
+                          color: errors.imagen ? "#EF4444" : "#94a3b8",
+                          fontWeight: "500",
+                          fontFamily: "'Inter', sans-serif"
                         }}>
-                          Haz clic o arrastra
+                          {errors.imagen || "Haz clic o arrastra (Máx. 10MB)"}
                         </p>
                       </div>
                     </div>
@@ -473,8 +707,8 @@ export default function EditarProducto() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
-                  onChange={(e) => setSelectedImage(e.target.files[0])}
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                  onChange={handleImageChange}
                   style={{ display: "none" }}
                 />
                 
@@ -482,9 +716,9 @@ export default function EditarProducto() {
                   type="button"
                   onClick={triggerFileInput}
                   style={{
-                    background: "white",
-                    color: "#FF6B35",
-                    border: "2px solid #FF6B35",
+                    background: errors.imagen ? "#FEF2F2" : "white",
+                    color: errors.imagen ? "#EF4444" : "#FF6B35",
+                    border: `2px solid ${errors.imagen ? "#EF4444" : "#FF6B35"}`,
                     borderRadius: "14px",
                     padding: "16px 24px",
                     fontSize: "15px",
@@ -495,35 +729,43 @@ export default function EditarProducto() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "10px"
+                    gap: "10px",
+                    fontFamily: "'Inter', sans-serif"
                   }}
                   onMouseEnter={(e) => {
                     e.target.style.transform = "translateY(-2px)";
-                    e.target.style.boxShadow = "0 6px 20px rgba(255, 107, 53, 0.2)";
-                    e.target.style.background = "#FF6B35";
+                    e.target.style.boxShadow = errors.imagen ? 
+                      "0 6px 20px rgba(239, 68, 68, 0.2)" : 
+                      "0 6px 20px rgba(255, 107, 53, 0.2)";
+                    e.target.style.background = errors.imagen ? "#EF4444" : "#FF6B35";
                     e.target.style.color = "white";
                   }}
                   onMouseLeave={(e) => {
                     e.target.style.transform = "translateY(0)";
                     e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)";
-                    e.target.style.background = "white";
-                    e.target.style.color = "#FF6B35";
+                    e.target.style.background = errors.imagen ? "#FEF2F2" : "white";
+                    e.target.style.color = errors.imagen ? "#EF4444" : "#FF6B35";
                   }}
                 >
                   {selectedImage || producto.imagenProducto ? "🔄 Cambiar Imagen" : "📤 Seleccionar Imagen"}
                 </button>
 
-                {selectedImage && (
-                  <p style={{
+                {selectedImage && !errors.imagen && (
+                  <div style={{
                     fontSize: "13px",
                     color: "#10B981",
                     fontWeight: "600",
                     textAlign: "center",
                     margin: "0",
-                    fontFamily: "'Inter', sans-serif"
+                    fontFamily: "'Inter', sans-serif",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px"
                   }}>
-                    ✓ Nueva imagen seleccionada
-                  </p>
+                    <span>✅</span>
+                    <span>Nueva imagen seleccionada: {selectedImage.name}</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -540,7 +782,9 @@ export default function EditarProducto() {
               background: "#fafbfd",
               borderRadius: "16px",
               padding: "28px",
-              border: "1px solid #f1f5f9",
+              border: errors.nombreProducto || errors.descripcionProducto || 
+                     errors.idCategoria || errors.idSubcategoria ? 
+                     "2px solid #FECACA" : "1px solid #f1f5f9",
               boxShadow: "0 8px 30px rgba(0, 0, 0, 0.08)",
               transition: "all 0.3s ease"
             }}>
@@ -552,7 +796,9 @@ export default function EditarProducto() {
               }}>
                 <div style={{
                   fontSize: "24px",
-                  color: "#FF6B35"
+                  color: errors.nombreProducto || errors.descripcionProducto || 
+                         errors.idCategoria || errors.idSubcategoria ? 
+                         "#EF4444" : "#FF6B35"
                 }}>
                   ℹ️
                 </div>
@@ -560,14 +806,18 @@ export default function EditarProducto() {
                   <h3 style={{
                     fontSize: "20px",
                     fontWeight: "700",
-                    color: "#2C3E50",
+                    color: errors.nombreProducto || errors.descripcionProducto || 
+                           errors.idCategoria || errors.idSubcategoria ? 
+                           "#7F1D1D" : "#2C3E50",
                     margin: "0 0 4px 0",
                     fontFamily: "'Playfair Display', 'Georgia', serif"
                   }}>
                     Información del Producto
                   </h3>
                   <p style={{
-                    color: "#64748b",
+                    color: errors.nombreProducto || errors.descripcionProducto || 
+                           errors.idCategoria || errors.idSubcategoria ? 
+                           "#EF4444" : "#64748b",
                     fontSize: "14px",
                     margin: "0",
                     fontFamily: "'Inter', sans-serif"
@@ -580,65 +830,115 @@ export default function EditarProducto() {
               <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
                 {/* Nombre */}
                 <div>
-                  <label style={{
-                    display: "block",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    color: "#2C3E50",
-                    marginBottom: "8px",
-                    fontFamily: "'Inter', sans-serif"
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "8px"
                   }}>
-                    Nombre del Producto
-                  </label>
+                    <label style={{
+                      display: "block",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: errors.nombreProducto ? "#EF4444" : "#2C3E50",
+                      marginBottom: "0",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      Nombre del Producto
+                    </label>
+                    <span style={{
+                      fontSize: "12px",
+                      color: (producto.nombreProducto?.length || 0) > 80 ? "#EF4444" : 
+                             (producto.nombreProducto?.length || 0) > 60 ? "#F59E0B" : "#94a3b8",
+                      fontWeight: "500",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      {(producto.nombreProducto?.length || 0)}/100
+                    </span>
+                  </div>
                   <input
                     type="text"
+                    name="nombreProducto"
                     value={producto.nombreProducto || ""} 
-                    onChange={(e) => setProducto({...producto, nombreProducto: e.target.value})}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
                     placeholder="Ej: Queso fresco artesanal"
                     maxLength={100}
                     style={{
                       width: "100%",
                       padding: "14px 16px",
                       borderRadius: "12px",
-                      border: "2px solid #e5e7eb",
+                      border: errors.nombreProducto ? "2px solid #EF4444" : 
+                             touched.nombreProducto ? "2px solid #3B82F6" : "2px solid #e5e7eb",
                       fontSize: "15px",
                       fontFamily: "'Inter', sans-serif",
                       transition: "all 0.3s ease",
                       outline: "none"
                     }}
                     onFocus={(e) => {
-                      e.target.style.borderColor = "#FF6B35";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(255, 107, 53, 0.1)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e5e7eb";
-                      e.target.style.boxShadow = "none";
+                      e.target.style.borderColor = errors.nombreProducto ? "#EF4444" : "#FF6B35";
+                      e.target.style.boxShadow = errors.nombreProducto ? 
+                        "0 0 0 3px rgba(239, 68, 68, 0.1)" : 
+                        "0 0 0 3px rgba(255, 107, 53, 0.1)";
                     }}
                   />
+                  {errors.nombreProducto && (
+                    <div style={{
+                      marginTop: "8px",
+                      fontSize: "13px",
+                      color: "#EF4444",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      <span>❌</span>
+                      {errors.nombreProducto}
+                    </div>
+                  )}
                 </div>
 
                 {/* Descripción */}
                 <div>
-                  <label style={{
-                    display: "block",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    color: "#2C3E50",
-                    marginBottom: "8px",
-                    fontFamily: "'Inter', sans-serif"
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "8px"
                   }}>
-                    Descripción
-                  </label>
+                    <label style={{
+                      display: "block",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: errors.descripcionProducto ? "#EF4444" : "#2C3E50",
+                      marginBottom: "0",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      Descripción
+                    </label>
+                    <span style={{
+                      fontSize: "12px",
+                      color: (producto.descripcionProducto?.length || 0) > 400 ? "#EF4444" : 
+                             (producto.descripcionProducto?.length || 0) > 300 ? "#F59E0B" : "#94a3b8",
+                      fontWeight: "500",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      {(producto.descripcionProducto?.length || 0)}/500
+                    </span>
+                  </div>
                   <textarea
+                    name="descripcionProducto"
                     value={producto.descripcionProducto || ""} 
-                    onChange={(e) => setProducto({...producto, descripcionProducto: e.target.value})}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
                     placeholder="Describe las características, origen, ingredientes, etc..."
-                    maxLength={1000}
+                    maxLength={500}
                     style={{
                       width: "100%",
                       padding: "14px 16px",
                       borderRadius: "12px",
-                      border: "2px solid #e5e7eb",
+                      border: errors.descripcionProducto ? "2px solid #EF4444" : 
+                             touched.descripcionProducto ? "2px solid #3B82F6" : "2px solid #e5e7eb",
                       fontSize: "15px",
                       fontFamily: "'Inter', sans-serif",
                       transition: "all 0.3s ease",
@@ -647,23 +947,26 @@ export default function EditarProducto() {
                       resize: "vertical"
                     }}
                     onFocus={(e) => {
-                      e.target.style.borderColor = "#FF6B35";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(255, 107, 53, 0.1)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e5e7eb";
-                      e.target.style.boxShadow = "none";
+                      e.target.style.borderColor = errors.descripcionProducto ? "#EF4444" : "#FF6B35";
+                      e.target.style.boxShadow = errors.descripcionProducto ? 
+                        "0 0 0 3px rgba(239, 68, 68, 0.1)" : 
+                        "0 0 0 3px rgba(255, 107, 53, 0.1)";
                     }}
                   />
-                  <div style={{
-                    fontSize: "12px",
-                    color: (producto.descripcionProducto?.length || 0) > 900 ? "#EF4444" : "#94a3b8",
-                    textAlign: "right",
-                    marginTop: "4px",
-                    fontFamily: "'Inter', sans-serif"
-                  }}>
-                    {producto.descripcionProducto?.length || 0}/1000 caracteres
-                  </div>
+                  {errors.descripcionProducto && (
+                    <div style={{
+                      marginTop: "8px",
+                      fontSize: "13px",
+                      color: "#EF4444",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      <span>❌</span>
+                      {errors.descripcionProducto}
+                    </div>
+                  )}
                 </div>
 
                 {/* Categoría y Subcategoría */}
@@ -677,34 +980,48 @@ export default function EditarProducto() {
                       display: "block",
                       fontSize: "14px",
                       fontWeight: "600",
-                      color: "#2C3E50",
+                      color: errors.idCategoria ? "#EF4444" : "#2C3E50",
                       marginBottom: "8px",
                       fontFamily: "'Inter', sans-serif"
                     }}>
                       Categoría
                     </label>
                     <select
+                      name="idCategoria"
                       value={producto.idCategoria || ""}
                       onChange={(e) => {
                         const idCategoria = parseInt(e.target.value);
                         
-                        setProducto({
-                          ...producto,
+                        setProducto(prev => ({
+                          ...prev,
                           idCategoria: idCategoria,
                           subcategoria: { idSubcategoria: "" }
-                        });
+                        }));
 
                         if (idCategoria) {
                           cargarSubcategoriasPorCategoria(idCategoria);
                         } else {
                           setSubcategorias([]);
                         }
+                        
+                        // Marcar como tocado y validar
+                        setTouched(prev => ({ ...prev, idCategoria: true }));
+                        if (errors.idCategoria) {
+                          setErrors(prev => ({ ...prev, idCategoria: "" }));
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const error = validateField("idCategoria", e.target.value);
+                        if (error) {
+                          setErrors(prev => ({ ...prev, idCategoria: error }));
+                        }
                       }}
                       style={{
                         width: "100%",
                         padding: "14px 16px",
                         borderRadius: "12px",
-                        border: "2px solid #e5e7eb",
+                        border: errors.idCategoria ? "2px solid #EF4444" : 
+                               touched.idCategoria ? "2px solid #3B82F6" : "2px solid #e5e7eb",
                         fontSize: "15px",
                         fontFamily: "'Inter', sans-serif",
                         transition: "all 0.3s ease",
@@ -720,6 +1037,20 @@ export default function EditarProducto() {
                         </option>
                       ))}
                     </select>
+                    {errors.idCategoria && (
+                      <div style={{
+                        marginTop: "8px",
+                        fontSize: "13px",
+                        color: "#EF4444",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontFamily: "'Inter', sans-serif"
+                      }}>
+                        <span>❌</span>
+                        {errors.idCategoria}
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -727,24 +1058,42 @@ export default function EditarProducto() {
                       display: "block",
                       fontSize: "14px",
                       fontWeight: "600",
-                      color: "#2C3E50",
+                      color: errors.idSubcategoria ? "#EF4444" : "#2C3E50",
                       marginBottom: "8px",
                       fontFamily: "'Inter', sans-serif"
                     }}>
                       Subcategoría
                     </label>
                     <select
+                      name="idSubcategoria"
                       value={producto.subcategoria?.idSubcategoria || ""}
-                      onChange={(e) => setProducto({
-                        ...producto, 
-                        subcategoria: { idSubcategoria: parseInt(e.target.value) }
-                      })}
+                      onChange={(e) => {
+                        const idSubcategoria = parseInt(e.target.value);
+                        setProducto(prev => ({
+                          ...prev,
+                          subcategoria: { idSubcategoria: idSubcategoria }
+                        }));
+                        
+                        // Marcar como tocado y validar
+                        setTouched(prev => ({ ...prev, idSubcategoria: true }));
+                        if (errors.idSubcategoria) {
+                          setErrors(prev => ({ ...prev, idSubcategoria: "" }));
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const error = validateField("idSubcategoria", e.target.value);
+                        if (error) {
+                          setErrors(prev => ({ ...prev, idSubcategoria: error }));
+                        }
+                      }}
                       disabled={!producto.idCategoria}
                       style={{
                         width: "100%",
                         padding: "14px 16px",
                         borderRadius: "12px",
-                        border: "2px solid #e5e7eb",
+                        border: errors.idSubcategoria ? "2px solid #EF4444" : 
+                               (touched.idSubcategoria && !producto.idCategoria) ? "2px solid #F59E0B" :
+                               touched.idSubcategoria ? "2px solid #3B82F6" : "2px solid #e5e7eb",
                         fontSize: "15px",
                         fontFamily: "'Inter', sans-serif",
                         transition: "all 0.3s ease",
@@ -763,6 +1112,34 @@ export default function EditarProducto() {
                         </option>
                       ))}
                     </select>
+                    {errors.idSubcategoria && (
+                      <div style={{
+                        marginTop: "8px",
+                        fontSize: "13px",
+                        color: "#EF4444",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontFamily: "'Inter', sans-serif"
+                      }}>
+                        <span>❌</span>
+                        {errors.idSubcategoria}
+                      </div>
+                    )}
+                    {!producto.idCategoria && touched.idSubcategoria && (
+                      <div style={{
+                        marginTop: "8px",
+                        fontSize: "13px",
+                        color: "#F59E0B",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        fontFamily: "'Inter', sans-serif"
+                      }}>
+                        <span>⚠️</span>
+                        Primero seleccione una categoría
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -773,7 +1150,8 @@ export default function EditarProducto() {
               background: "#fafbfd",
               borderRadius: "16px",
               padding: "28px",
-              border: "1px solid #f1f5f9",
+              border: errors.precioProducto || errors.stockProducto ? 
+                     "2px solid #FECACA" : "1px solid #f1f5f9",
               boxShadow: "0 8px 30px rgba(0, 0, 0, 0.08)",
               transition: "all 0.3s ease"
             }}>
@@ -785,7 +1163,8 @@ export default function EditarProducto() {
               }}>
                 <div style={{
                   fontSize: "24px",
-                  color: "#FF8E53"
+                  color: errors.precioProducto || errors.stockProducto ? 
+                         "#EF4444" : "#FF8E53"
                 }}>
                   💰
                 </div>
@@ -793,14 +1172,16 @@ export default function EditarProducto() {
                   <h3 style={{
                     fontSize: "20px",
                     fontWeight: "700",
-                    color: "#2C3E50",
+                    color: errors.precioProducto || errors.stockProducto ? 
+                           "#7F1D1D" : "#2C3E50",
                     margin: "0 0 4px 0",
                     fontFamily: "'Playfair Display', 'Georgia', serif"
                   }}>
                     Precio y Disponibilidad
                   </h3>
                   <p style={{
-                    color: "#64748b",
+                    color: errors.precioProducto || errors.stockProducto ? 
+                           "#EF4444" : "#64748b",
                     fontSize: "14px",
                     margin: "0",
                     fontFamily: "'Inter', sans-serif"
@@ -822,7 +1203,7 @@ export default function EditarProducto() {
                     display: "block",
                     fontSize: "14px",
                     fontWeight: "600",
-                    color: "#2C3E50",
+                    color: errors.precioProducto ? "#EF4444" : "#2C3E50",
                     marginBottom: "8px",
                     fontFamily: "'Inter', sans-serif"
                   }}>
@@ -835,7 +1216,7 @@ export default function EditarProducto() {
                       top: "50%",
                       transform: "translateY(-50%)",
                       fontWeight: "700",
-                      color: "#FF6B35",
+                      color: errors.precioProducto ? "#EF4444" : "#FF6B35",
                       fontSize: "16px"
                     }}>
                       $
@@ -843,29 +1224,60 @@ export default function EditarProducto() {
                     <input
                       type="number"
                       step="0.01"
+                      min="0.01"
+                      max="999999"
+                      name="precioProducto"
                       value={producto.precioProducto || ""} 
-                      onChange={(e) => setProducto({...producto, precioProducto: e.target.value})}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
                       placeholder="0.00"
                       style={{
                         width: "100%",
                         padding: "14px 16px 14px 36px",
                         borderRadius: "12px",
-                        border: "2px solid #e5e7eb",
+                        border: errors.precioProducto ? "2px solid #EF4444" : 
+                               touched.precioProducto ? "2px solid #3B82F6" : "2px solid #e5e7eb",
                         fontSize: "15px",
                         fontFamily: "'Inter', sans-serif",
                         transition: "all 0.3s ease",
                         outline: "none"
                       }}
                       onFocus={(e) => {
-                        e.target.style.borderColor = "#FF6B35";
-                        e.target.style.boxShadow = "0 0 0 3px rgba(255, 107, 53, 0.1)";
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = "#e5e7eb";
-                        e.target.style.boxShadow = "none";
+                        e.target.style.borderColor = errors.precioProducto ? "#EF4444" : "#FF6B35";
+                        e.target.style.boxShadow = errors.precioProducto ? 
+                          "0 0 0 3px rgba(239, 68, 68, 0.1)" : 
+                          "0 0 0 3px rgba(255, 107, 53, 0.1)";
                       }}
                     />
                   </div>
+                  {errors.precioProducto && (
+                    <div style={{
+                      marginTop: "8px",
+                      fontSize: "13px",
+                      color: "#EF4444",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      <span>❌</span>
+                      {errors.precioProducto}
+                    </div>
+                  )}
+                  {!errors.precioProducto && producto.precioProducto && (
+                    <div style={{
+                      marginTop: "8px",
+                      fontSize: "13px",
+                      color: "#10B981",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      <span>✅</span>
+                      Precio válido: ${parseFloat(producto.precioProducto).toFixed(2)}
+                    </div>
+                  )}
                 </div>
 
                 {/* Stock */}
@@ -874,7 +1286,7 @@ export default function EditarProducto() {
                     display: "block",
                     fontSize: "14px",
                     fontWeight: "600",
-                    color: "#2C3E50",
+                    color: errors.stockProducto ? "#EF4444" : "#2C3E50",
                     marginBottom: "8px",
                     fontFamily: "'Inter', sans-serif"
                   }}>
@@ -882,28 +1294,64 @@ export default function EditarProducto() {
                   </label>
                   <input
                     type="number"
+                    min="0"
+                    max="100000"
+                    name="stockProducto"
                     value={producto.stockProducto || ""} 
-                    onChange={(e) => setProducto({...producto, stockProducto: e.target.value})}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
                     placeholder="100"
                     style={{
                       width: "100%",
                       padding: "14px 16px",
                       borderRadius: "12px",
-                      border: "2px solid #e5e7eb",
+                      border: errors.stockProducto ? "2px solid #EF4444" : 
+                             touched.stockProducto ? "2px solid #3B82F6" : "2px solid #e5e7eb",
                       fontSize: "15px",
                       fontFamily: "'Inter', sans-serif",
                       transition: "all 0.3s ease",
                       outline: "none"
                     }}
                     onFocus={(e) => {
-                      e.target.style.borderColor = "#FF6B35";
-                      e.target.style.boxShadow = "0 0 0 3px rgba(255, 107, 53, 0.1)";
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = "#e5e7eb";
-                      e.target.style.boxShadow = "none";
+                      e.target.style.borderColor = errors.stockProducto ? "#EF4444" : "#FF6B35";
+                      e.target.style.boxShadow = errors.stockProducto ? 
+                        "0 0 0 3px rgba(239, 68, 68, 0.1)" : 
+                        "0 0 0 3px rgba(255, 107, 53, 0.1)";
                     }}
                   />
+                  {errors.stockProducto && (
+                    <div style={{
+                      marginTop: "8px",
+                      fontSize: "13px",
+                      color: "#EF4444",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      <span>❌</span>
+                      {errors.stockProducto}
+                    </div>
+                  )}
+                  {!errors.stockProducto && producto.stockProducto && (
+                    <div style={{
+                      marginTop: "8px",
+                      fontSize: "13px",
+                      color: parseInt(producto.stockProducto) > 50 ? "#10B981" : 
+                             parseInt(producto.stockProducto) > 20 ? "#F59E0B" : "#EF4444",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      <span>
+                        {parseInt(producto.stockProducto) > 50 ? "✅" : 
+                         parseInt(producto.stockProducto) > 20 ? "⚠️" : "🔄"}
+                      </span>
+                      {parseInt(producto.stockProducto) > 50 ? "Stock suficiente" : 
+                       parseInt(producto.stockProducto) > 20 ? "Stock moderado" : "Stock bajo"}
+                    </div>
+                  )}
                 </div>
 
                 {/* Unidad */}
@@ -919,8 +1367,9 @@ export default function EditarProducto() {
                     Unidad
                   </label>
                   <select
+                    name="unidad"
                     value={producto.unidad || "kg"}
-                    onChange={(e) => setProducto({...producto, unidad: e.target.value})}
+                    onChange={handleChange}
                     style={{
                       width: "100%",
                       padding: "14px 16px",
@@ -938,6 +1387,9 @@ export default function EditarProducto() {
                     <option value="lb">Libra (lb)</option>
                     <option value="unidad">Unidad</option>
                     <option value="litro">Litro</option>
+                    <option value="gramo">Gramo (g)</option>
+                    <option value="mililitro">Mililitro (ml)</option>
+                    <option value="docena">Docena</option>
                   </select>
                 </div>
               </div>
@@ -958,6 +1410,7 @@ export default function EditarProducto() {
             <button
               type="button"
               onClick={() => navigate("/vendedor/gestionar-productos")}
+              disabled={isSubmitting}
               style={{
                 background: "white",
                 color: "#64748b",
@@ -966,22 +1419,27 @@ export default function EditarProducto() {
                 padding: "16px 36px",
                 fontSize: "15px",
                 fontWeight: "700",
-                cursor: "pointer",
+                cursor: isSubmitting ? "not-allowed" : "pointer",
                 transition: "all 0.3s ease",
                 display: "flex",
                 alignItems: "center",
                 gap: "10px",
-                fontFamily: "'Inter', sans-serif"
+                fontFamily: "'Inter', sans-serif",
+                opacity: isSubmitting ? 0.5 : 1
               }}
               onMouseEnter={(e) => {
-                e.target.style.transform = "translateY(-2px)";
-                e.target.style.borderColor = "#94a3b8";
-                e.target.style.color = "#475569";
+                if (!isSubmitting) {
+                  e.target.style.transform = "translateY(-2px)";
+                  e.target.style.borderColor = "#94a3b8";
+                  e.target.style.color = "#475569";
+                }
               }}
               onMouseLeave={(e) => {
-                e.target.style.transform = "translateY(0)";
-                e.target.style.borderColor = "#e5e7eb";
-                e.target.style.color = "#64748b";
+                if (!isSubmitting) {
+                  e.target.style.transform = "translateY(0)";
+                  e.target.style.borderColor = "#e5e7eb";
+                  e.target.style.color = "#64748b";
+                }
               }}
             >
               ← Cancelar
@@ -990,15 +1448,16 @@ export default function EditarProducto() {
             <button
               type="button"
               onClick={actualizarProducto}
+              disabled={isSubmitting}
               style={{
-                background: "#FF6B35",
+                background: isSubmitting ? "#94a3b8" : "#FF6B35",
                 color: "white",
                 border: "none",
                 borderRadius: "14px",
                 padding: "16px 48px",
                 fontSize: "15px",
                 fontWeight: "700",
-                cursor: "pointer",
+                cursor: isSubmitting ? "not-allowed" : "pointer",
                 transition: "all 0.3s ease",
                 display: "flex",
                 alignItems: "center",
@@ -1007,17 +1466,35 @@ export default function EditarProducto() {
                 fontFamily: "'Inter', sans-serif"
               }}
               onMouseEnter={(e) => {
-                e.target.style.transform = "translateY(-3px)";
-                e.target.style.boxShadow = "0 8px 20px rgba(255, 107, 53, 0.4)";
-                e.target.style.background = "#FF8E53";
+                if (!isSubmitting) {
+                  e.target.style.transform = "translateY(-3px)";
+                  e.target.style.boxShadow = "0 8px 20px rgba(255, 107, 53, 0.4)";
+                  e.target.style.background = "#FF8E53";
+                }
               }}
               onMouseLeave={(e) => {
-                e.target.style.transform = "translateY(0)";
-                e.target.style.boxShadow = "0 4px 12px rgba(255, 107, 53, 0.3)";
-                e.target.style.background = "#FF6B35";
+                if (!isSubmitting) {
+                  e.target.style.transform = "translateY(0)";
+                  e.target.style.boxShadow = "0 4px 12px rgba(255, 107, 53, 0.3)";
+                  e.target.style.background = "#FF6B35";
+                }
               }}
             >
-              💾 Guardar Cambios
+              {isSubmitting ? (
+                <>
+                  <div style={{
+                    width: "18px",
+                    height: "18px",
+                    border: "3px solid rgba(255, 255, 255, 0.3)",
+                    borderTop: "3px solid white",
+                    borderRadius: "50%",
+                    animation: "spin 1s linear infinite"
+                  }}></div>
+                  Guardando...
+                </>
+              ) : (
+                "💾 Guardar Cambios"
+              )}
             </button>
           </div>
         </div>
@@ -1054,6 +1531,11 @@ export default function EditarProducto() {
         @keyframes float {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         
         * {
