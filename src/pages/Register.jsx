@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
-import { User, Mail, Lock, Calendar, CheckCircle, AlertCircle, Eye, EyeOff, ShoppingBag, Store, CreditCard, Phone, MapPin, Building2, FileText, ArrowRight } from "lucide-react";
+import { 
+  User, Mail, Lock, Calendar, CheckCircle, AlertCircle, Eye, EyeOff, 
+  ShoppingBag, Store, CreditCard, Phone, MapPin, Building2, FileText, ArrowRight,
+  X, LogIn
+} from "lucide-react";
 import Footer from "../components/Footer";
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -29,6 +34,12 @@ export default function Register() {
   const [message, setMessage] = useState({ type: "", text: "" });
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [googleStep, setGoogleStep] = useState(0); // 0: no iniciado, 1: completando datos, 2: completado
+  const [googleUser, setGoogleUser] = useState(null);
+  const [showGoogleForm, setShowGoogleForm] = useState(false);
+
+  // ID de cliente de Google (REEMPLAZA CON TU PROPIO ID)
+  const GOOGLE_CLIENT_ID = "26624785270-ejsqo4grg2kg48tloel1csngp8brp35d.apps.googleusercontent.com";
 
   // Función para calcular edad
   const calcularEdad = (fechaNacimiento) => {
@@ -65,14 +76,14 @@ export default function Register() {
         break;
         
       case 'contrasena':
-        if (!value.trim()) error = "La contraseña es requerida";
-        else if (value.length < 6) error = "La contraseña debe tener al menos 6 caracteres";
-        else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(value)) error = "Debe contener mayúsculas, minúsculas y números";
+        if (googleStep === 0 && !value.trim()) error = "La contraseña es requerida";
+        else if (googleStep === 0 && value.length < 6) error = "La contraseña debe tener al menos 6 caracteres";
+        else if (googleStep === 0 && !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(value)) error = "Debe contener mayúsculas, minúsculas y números";
         break;
         
       case 'confirmarContrasena':
-        if (!value.trim()) error = "Debes confirmar tu contraseña";
-        else if (value !== form.contrasena) error = "Las contraseñas no coinciden";
+        if (googleStep === 0 && !value.trim()) error = "Debes confirmar tu contraseña";
+        else if (googleStep === 0 && value !== form.contrasena) error = "Las contraseñas no coinciden";
         break;
         
       case 'fechaNacimiento':
@@ -165,12 +176,31 @@ export default function Register() {
     const newErrors = {};
     const newTouched = {};
     
-    // Validar todos los campos
-    Object.keys(form).forEach(field => {
+    // Validar todos los campos necesarios
+    const fieldsToValidate = googleStep === 1 
+      ? ['nombre', 'apellido', 'correo', 'fechaNacimiento', 'idRol']
+      : Object.keys(form).filter(key => key !== 'contrasena' && key !== 'confirmarContrasena');
+    
+    fieldsToValidate.forEach(field => {
       newTouched[field] = true;
       const error = validateField(field, form[field]);
       if (error) newErrors[field] = error;
     });
+    
+    // Validar campos específicos de rol
+    if (form.idRol === 3) {
+      ['cedula', 'direccion', 'telefono'].forEach(field => {
+        newTouched[field] = true;
+        const error = validateField(field, form[field]);
+        if (error) newErrors[field] = error;
+      });
+    } else if (form.idRol === 2) {
+      ['nombreEmpresa', 'ruc', 'direccionEmpresa', 'telefonoEmpresa'].forEach(field => {
+        newTouched[field] = true;
+        const error = validateField(field, form[field]);
+        if (error) newErrors[field] = error;
+      });
+    }
     
     setTouched(newTouched);
     setErrors(newErrors);
@@ -178,6 +208,166 @@ export default function Register() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Función para manejar el éxito de Google Login
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      setLoading(true);
+      setMessage({ type: "", text: "" });
+      
+      // Decodificar el token JWT para obtener información del usuario
+      const token = credentialResponse.credential;
+      const userInfo = decodeJWT(token);
+      
+      // Extraer nombre y apellido del nombre completo
+      const nombreCompleto = userInfo.name || "";
+      const nombres = nombreCompleto.split(' ');
+      const nombre = nombres[0] || "";
+      const apellido = nombres.slice(1).join(' ') || "";
+      
+      // Guardar información del usuario de Google
+      setGoogleUser({
+        nombre: nombre,
+        apellido: apellido,
+        correo: userInfo.email,
+        picture: userInfo.picture
+      });
+      
+      // Verificar si el usuario ya existe en el backend
+      const response = await fetch(`http://localhost:8080/auth/check-email?email=${userInfo.email}`);
+      const data = await response.json();
+      
+      if (data.exists) {
+        // Usuario ya existe, redirigir a login
+        setMessage({ 
+          type: "info", 
+          text: "Ya tienes una cuenta. Redirigiendo al login..." 
+        });
+        sessionStorage.setItem("registeredEmail", userInfo.email);
+        setTimeout(() => {
+          window.location.href = "/LoginModal";
+        }, 2000);
+      } else {
+        // Usuario nuevo, actualizar formulario con datos de Google
+        setForm(prev => ({
+          ...prev,
+          nombre: nombre,
+          apellido: apellido,
+          correo: userInfo.email
+        }));
+        
+        setMessage({ 
+          type: "success", 
+          text: "¡Cuenta de Google verificada! Por favor completa los datos adicionales." 
+        });
+        
+        // Mostrar formulario para completar datos
+        setGoogleStep(1);
+        setShowGoogleForm(true);
+      }
+    } catch (error) {
+      console.error("Error en Google Login:", error);
+      setMessage({ 
+        type: "error", 
+        text: "Error al verificar cuenta de Google. Intenta nuevamente." 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Función para manejar error de Google Login
+  const handleGoogleError = () => {
+    setMessage({ 
+      type: "error", 
+      text: "Error al iniciar sesión con Google. Intenta nuevamente." 
+    });
+  };
+
+  // Función para decodificar JWT
+  const decodeJWT = (token) => {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      console.error("Error decodificando JWT:", error);
+      return {};
+    }
+  };
+
+  // Función para registrar usuario con Google
+  const registrarConGoogle = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      setMessage({ type: "error", text: "Por favor corrige los errores del formulario" });
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      // Preparar datos para enviar
+      const dataToSend = { 
+        ...form,
+        googleAuth: true,
+        emailVerified: true,
+        contrasena: "google_oauth_password" // Contraseña dummy para Google Auth
+      };
+      delete dataToSend.confirmarContrasena;
+      
+      const response = await fetch("http://localhost:8080/auth/register-google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dataToSend),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setMessage({ 
+          type: "success", 
+          text: "¡Registro con Google completado! Redirigiendo..." 
+        });
+        
+        // Guardar datos de sesión
+        sessionStorage.setItem("registeredEmail", form.correo);
+        sessionStorage.setItem("registrationSuccess", "true");
+        sessionStorage.setItem("googleAuth", "true");
+        
+        // Resetear formulario
+        setForm({
+          nombre: "", apellido: "", correo: "", contrasena: "", confirmarContrasena: "", fechaNacimiento: "", idRol: 3,
+          cedula: "", direccion: "", telefono: "",
+          nombreEmpresa: "", ruc: "", direccionEmpresa: "", telefonoEmpresa: "", descripcion: ""
+        });
+        
+        setGoogleStep(2);
+        setShowGoogleForm(false);
+        
+        // Redirigir después de 2 segundos
+        setTimeout(() => {
+          window.location.href = "/dashboard";
+        }, 2000);
+        
+      } else {
+        setMessage({ type: "error", text: data.mensaje || "Error en el registro" });
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      setMessage({ type: "error", text: "Error en la conexión con el servidor" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Función para registrar usuario normal
   const registrar = (e) => {
     e.preventDefault();
     
@@ -212,8 +402,6 @@ export default function Register() {
         if (ok) {
           setMessage({ type: "success", text: "¡Registro exitoso! Redirigiendo al login... 🎉" });
           
-          // IMPORTANTE: NO guardamos nada en localStorage aquí
-          // Guardamos el email temporalmente para pre-llenar el login
           sessionStorage.setItem("registeredEmail", form.correo);
           sessionStorage.setItem("registrationSuccess", "true");
           
@@ -246,6 +434,19 @@ export default function Register() {
       });
   };
 
+  // Función para volver al registro normal
+  const cancelarGoogleRegister = () => {
+    setGoogleStep(0);
+    setShowGoogleForm(false);
+    setGoogleUser(null);
+    setForm({
+      nombre: "", apellido: "", correo: "", contrasena: "", confirmarContrasena: "", fechaNacimiento: "", idRol: 3,
+      cedula: "", direccion: "", telefono: "",
+      nombreEmpresa: "", ruc: "", direccionEmpresa: "", telefonoEmpresa: "", descripcion: ""
+    });
+    setMessage({ type: "", text: "" });
+  };
+
   // Determinar si un campo tiene error
   const getFieldStatus = (fieldName) => {
     if (!touched[fieldName]) return "";
@@ -266,8 +467,11 @@ export default function Register() {
 
   const fechasLimite = calcularFechasLimite();
 
+  // Si estamos en modo Google Form, ocultar campos de contraseña
+  const renderPasswordFields = googleStep === 0;
+
   return (
-    <>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
 
@@ -368,10 +572,9 @@ export default function Register() {
           margin-bottom: 40px;
         }
 
-        /* TÍTULO MÁS GRANDE Y CON MEJOR ESPACIADO */
         .form-title {
           font-family: 'Playfair Display', 'Georgia', serif;
-          font-size: 56px; /* MUCHO MÁS GRANDE */
+          font-size: 56px;
           font-weight: 800;
           color: #1a1a1a;
           margin-bottom: 10px;
@@ -649,6 +852,12 @@ export default function Register() {
           border: 2px solid rgba(255, 68, 68, 0.2);
         }
 
+        .alert-info {
+          background: rgba(33, 150, 243, 0.1);
+          color: #1565C0;
+          border: 2px solid rgba(33, 150, 243, 0.2);
+        }
+
         /* BOTÓN */
         .submit-btn {
           width: 100%;
@@ -667,6 +876,7 @@ export default function Register() {
           justify-content: center;
           gap: 10px;
           box-shadow: 0 8px 20px rgba(255, 107, 53, 0.3);
+          margin-top: 20px;
         }
 
         .submit-btn:hover:not(:disabled) {
@@ -681,6 +891,15 @@ export default function Register() {
         .submit-btn:disabled {
           opacity: 0.6;
           cursor: not-allowed;
+        }
+
+        .google-submit-btn {
+          background: linear-gradient(135deg, #4285F4 0%, #34A853 100%) !important;
+          box-shadow: 0 8px 20px rgba(66, 133, 244, 0.3) !important;
+        }
+
+        .google-submit-btn:hover:not(:disabled) {
+          box-shadow: 0 12px 30px rgba(66, 133, 244, 0.4) !important;
         }
 
         .spinner {
@@ -718,39 +937,124 @@ export default function Register() {
           padding: 0 15px;
         }
 
-        /* BOTÓN GOOGLE */
-        .google-btn {
+        /* BOTÓN GOOGLE - Custom */
+        .google-btn-wrapper {
           width: 100%;
-          padding: 16px;
-          background: white;
-          color: #444;
-          border: 2px solid #f0f0f0;
-          border-radius: 16px;
-          font-size: 16px;
+          margin-bottom: 20px;
+        }
+
+        .google-btn-wrapper > div {
+          width: 100% !important;
+          border-radius: 16px !important;
+          overflow: hidden !important;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+          transition: all 0.3s ease !important;
+          border: 2px solid #f0f0f0 !important;
+        }
+
+        .google-btn-wrapper > div:hover {
+          transform: translateY(-2px) !important;
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1) !important;
+          border-color: #FF6B35 !important;
+        }
+
+        /* Google User Info */
+        .google-user-info {
+          background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+          border: 2px solid #e9ecef;
+          border-radius: 20px;
+          padding: 25px;
+          margin-bottom: 25px;
+          animation: fadeIn 0.5s ease;
+        }
+
+        .google-user-header {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+          margin-bottom: 20px;
+          padding-bottom: 20px;
+          border-bottom: 2px solid #f0f0f0;
+        }
+
+        .google-avatar {
+          width: 60px;
+          height: 60px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #4285F4 0%, #34A853 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 24px;
+          font-weight: bold;
+          overflow: hidden;
+        }
+
+        .google-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .google-user-details {
+          flex: 1;
+        }
+
+        .google-user-details h4 {
+          font-size: 18px;
           font-weight: 600;
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          color: #1a1a1a;
+          margin-bottom: 5px;
+        }
+
+        .google-user-details p {
+          color: #666;
+          font-size: 14px;
+          margin-bottom: 8px;
+        }
+
+        .google-verified {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          color: #34A853;
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .google-close-btn {
+          background: none;
+          border: none;
+          color: #999;
           cursor: pointer;
+          padding: 5px;
+          border-radius: 50%;
           transition: all 0.3s ease;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 12px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         }
 
-        .google-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-          border-color: #FF6B35;
-          background: rgba(255, 107, 53, 0.02);
+        .google-close-btn:hover {
+          background: #f0f0f0;
+          color: #ff4444;
         }
 
-        .google-btn:active {
-          transform: translateY(0);
+        .google-instructions {
+          color: #666;
+          font-size: 15px;
+          line-height: 1.5;
+          margin-bottom: 20px;
+          text-align: center;
         }
 
-        .google-icon {
-          flex-shrink: 0;
+        .google-note {
+          font-size: 12px;
+          color: #888;
+          text-align: center;
+          margin-top: 10px;
+          font-style: italic;
         }
 
         /* LOGIN LINK */
@@ -847,17 +1151,29 @@ export default function Register() {
           {/* LADO DERECHO - FORMULARIO */}
           <div className="form-side">
             
-            {/* HEADER SIN LOGO - SOLO TÍTULO Y SUBTÍTULO */}
+            {/* HEADER */}
             <div className="form-header">
-              <h1 className="form-title">Crear Cuenta</h1>
-              <p className="form-subtitle">Únete a nuestra comunidad</p>
+              <h1 className="form-title">
+                {showGoogleForm ? "Completa tu registro" : "Crear Cuenta"}
+              </h1>
+              <p className="form-subtitle">
+                {showGoogleForm 
+                  ? "Termina de llenar tus datos" 
+                  : "Únete a nuestra comunidad"}
+              </p>
             </div>
 
             {/* ALERTA */}
             {message.text && (
-              <div className={`alert ${message.type === "success" ? "alert-success" : "alert-error"}`}>
+              <div className={`alert ${
+                message.type === "success" ? "alert-success" : 
+                message.type === "info" ? "alert-info" : 
+                "alert-error"
+              }`}>
                 {message.type === "success" ? (
                   <CheckCircle className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
+                ) : message.type === "info" ? (
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
                 ) : (
                   <AlertCircle className="w-5 h-5 flex-shrink-0" strokeWidth={2} />
                 )}
@@ -865,35 +1181,70 @@ export default function Register() {
               </div>
             )}
 
-            {/* SELECTOR DE ROL */}
-            <div className="role-selector">
-              <label className="role-label">¿Cómo te gustaría unirte?</label>
-              <div className="role-buttons">
-                <button
-                  type="button"
-                  onClick={() => handleRoleChange(3)}
-                  className={`role-btn ${form.idRol === 3 ? 'active' : ''}`}
-                >
-                  <div className="role-icon">
-                    <ShoppingBag className={`w-6 h-6 ${form.idRol === 3 ? 'text-white' : 'text-gray-400'}`} strokeWidth={1.5} />
+            {/* INFORMACIÓN DE USUARIO GOOGLE */}
+            {showGoogleForm && googleUser && (
+              <div className="google-user-info">
+                <div className="google-user-header">
+                  <div className="google-avatar">
+                    {googleUser.picture ? (
+                      <img src={googleUser.picture} alt={googleUser.nombre} />
+                    ) : (
+                      <span>{googleUser.nombre.charAt(0).toUpperCase()}</span>
+                    )}
                   </div>
-                  <span className="role-name">Consumidor</span>
-                  <span className="role-desc">Compra productos frescos</span>
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={() => handleRoleChange(2)}
-                  className={`role-btn ${form.idRol === 2 ? 'active' : ''}`}
-                >
-                  <div className="role-icon">
-                    <Store className={`w-6 h-6 ${form.idRol === 2 ? 'text-white' : 'text-gray-400'}`} strokeWidth={1.5} />
+                  <div className="google-user-details">
+                    <h4>{googleUser.nombre} {googleUser.apellido}</h4>
+                    <p>{googleUser.correo}</p>
+                    <span className="google-verified">
+                      <CheckCircle className="w-4 h-4" />
+                      Verificado con Google
+                    </span>
                   </div>
-                  <span className="role-name">Vendedor</span>
-                  <span className="role-desc">Vende tus productos</span>
-                </button>
+                  <button 
+                    onClick={cancelarGoogleRegister}
+                    className="google-close-btn"
+                    title="Cancelar registro con Google"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <p className="google-instructions">
+                  Por favor completa los siguientes datos adicionales para crear tu cuenta:
+                </p>
               </div>
-            </div>
+            )}
+
+            {/* SELECTOR DE ROL (solo mostrar si no es Google Form o si es Google Form pero necesitamos rol) */}
+            {(!showGoogleForm || googleStep === 1) && (
+              <div className="role-selector">
+                <label className="role-label">¿Cómo te gustaría unirte?</label>
+                <div className="role-buttons">
+                  <button
+                    type="button"
+                    onClick={() => handleRoleChange(3)}
+                    className={`role-btn ${form.idRol === 3 ? 'active' : ''}`}
+                  >
+                    <div className="role-icon">
+                      <ShoppingBag className={`w-6 h-6 ${form.idRol === 3 ? 'text-white' : 'text-gray-400'}`} strokeWidth={1.5} />
+                    </div>
+                    <span className="role-name">Consumidor</span>
+                    <span className="role-desc">Compra productos frescos</span>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => handleRoleChange(2)}
+                    className={`role-btn ${form.idRol === 2 ? 'active' : ''}`}
+                  >
+                    <div className="role-icon">
+                      <Store className={`w-6 h-6 ${form.idRol === 2 ? 'text-white' : 'text-gray-400'}`} strokeWidth={1.5} />
+                    </div>
+                    <span className="role-name">Vendedor</span>
+                    <span className="role-desc">Vende tus productos</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* INFORMACIÓN PERSONAL */}
             <div className="form-section">
@@ -916,6 +1267,7 @@ export default function Register() {
                       className={`form-input ${getFieldStatus("nombre")}`}
                       placeholder="Juan"
                       required
+                      readOnly={showGoogleForm && googleUser}
                     />
                   </div>
                   {errors.nombre && touched.nombre && (
@@ -945,6 +1297,7 @@ export default function Register() {
                       className={`form-input ${getFieldStatus("apellido")}`}
                       placeholder="Pérez"
                       required
+                      readOnly={showGoogleForm && googleUser}
                     />
                   </div>
                   {errors.apellido && touched.apellido && (
@@ -975,6 +1328,7 @@ export default function Register() {
                     className={`form-input ${getFieldStatus("correo")}`}
                     placeholder="tu@email.com"
                     required
+                    readOnly={showGoogleForm && googleUser}
                   />
                 </div>
                 {errors.correo && touched.correo && (
@@ -991,82 +1345,87 @@ export default function Register() {
                 )}
               </div>
 
-              <div className="input-group">
-                <label className="input-label">Contraseña</label>
-                <div className="input-wrapper">
-                  <Lock className="input-icon w-5 h-5" strokeWidth={1.5} />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    name="contrasena"
-                    value={form.contrasena}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    className={`form-input ${getFieldStatus("contrasena")}`}
-                    placeholder="••••••••"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="password-toggle"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" strokeWidth={1.5} /> : <Eye className="w-5 h-5" strokeWidth={1.5} />}
-                  </button>
-                </div>
-                {errors.contrasena && touched.contrasena && (
-                  <div className="error-message">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.contrasena}
+              {/* CAMPOS DE CONTRASEÑA (solo para registro normal) */}
+              {renderPasswordFields && (
+                <>
+                  <div className="input-group">
+                    <label className="input-label">Contraseña</label>
+                    <div className="input-wrapper">
+                      <Lock className="input-icon w-5 h-5" strokeWidth={1.5} />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="contrasena"
+                        value={form.contrasena}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        className={`form-input ${getFieldStatus("contrasena")}`}
+                        placeholder="••••••••"
+                        required={!showGoogleForm}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="password-toggle"
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" strokeWidth={1.5} /> : <Eye className="w-5 h-5" strokeWidth={1.5} />}
+                      </button>
+                    </div>
+                    {errors.contrasena && touched.contrasena && (
+                      <div className="error-message">
+                        <AlertCircle className="w-4 h-4" />
+                        {errors.contrasena}
+                      </div>
+                    )}
+                    {!errors.contrasena && touched.contrasena && form.contrasena && form.contrasena.length >= 6 && (
+                      <div className="success-message">
+                        <CheckCircle className="w-4 h-4" />
+                        Contraseña segura
+                      </div>
+                    )}
+                    {touched.contrasena && !errors.contrasena && (
+                      <div className="success-message" style={{ fontSize: "11px", color: "#666" }}>
+                        ✓ La contraseña debe tener al menos 6 caracteres, incluyendo mayúsculas, minúsculas y números
+                      </div>
+                    )}
                   </div>
-                )}
-                {!errors.contrasena && touched.contrasena && form.contrasena && form.contrasena.length >= 6 && (
-                  <div className="success-message">
-                    <CheckCircle className="w-4 h-4" />
-                    Contraseña segura
-                  </div>
-                )}
-                {touched.contrasena && !errors.contrasena && (
-                  <div className="success-message" style={{ fontSize: "11px", color: "#666" }}>
-                    ✓ La contraseña debe tener al menos 6 caracteres, incluyendo mayúsculas, minúsculas y números
-                  </div>
-                )}
-              </div>
 
-              <div className="input-group">
-                <label className="input-label">Confirmar Contraseña</label>
-                <div className="input-wrapper">
-                  <Lock className="input-icon w-5 h-5" strokeWidth={1.5} />
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    name="confirmarContrasena"
-                    value={form.confirmarContrasena}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    className={`form-input ${getFieldStatus("confirmarContrasena")}`}
-                    placeholder="••••••••"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="password-toggle"
-                  >
-                    {showConfirmPassword ? <EyeOff className="w-5 h-5" strokeWidth={1.5} /> : <Eye className="w-5 h-5" strokeWidth={1.5} />}
-                  </button>
-                </div>
-                {errors.confirmarContrasena && touched.confirmarContrasena && (
-                  <div className="error-message">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.confirmarContrasena}
+                  <div className="input-group">
+                    <label className="input-label">Confirmar Contraseña</label>
+                    <div className="input-wrapper">
+                      <Lock className="input-icon w-5 h-5" strokeWidth={1.5} />
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        name="confirmarContrasena"
+                        value={form.confirmarContrasena}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        className={`form-input ${getFieldStatus("confirmarContrasena")}`}
+                        placeholder="••••••••"
+                        required={!showGoogleForm}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="password-toggle"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-5 h-5" strokeWidth={1.5} /> : <Eye className="w-5 h-5" strokeWidth={1.5} />}
+                      </button>
+                    </div>
+                    {errors.confirmarContrasena && touched.confirmarContrasena && (
+                      <div className="error-message">
+                        <AlertCircle className="w-4 h-4" />
+                        {errors.confirmarContrasena}
+                      </div>
+                    )}
+                    {!errors.confirmarContrasena && touched.confirmarContrasena && form.confirmarContrasena && form.contrasena === form.confirmarContrasena && (
+                      <div className="success-message">
+                        <CheckCircle className="w-4 h-4" />
+                        Las contraseñas coinciden
+                      </div>
+                    )}
                   </div>
-                )}
-                {!errors.confirmarContrasena && touched.confirmarContrasena && form.confirmarContrasena && form.contrasena === form.confirmarContrasena && (
-                  <div className="success-message">
-                    <CheckCircle className="w-4 h-4" />
-                    Las contraseñas coinciden
-                  </div>
-                )}
-              </div>
+                </>
+              )}
 
               <div className="input-group">
                 <label className="input-label">Fecha de nacimiento</label>
@@ -1338,59 +1697,86 @@ export default function Register() {
             )}
 
             {/* BOTÓN REGISTRARSE */}
-            <button
-              onClick={registrar}
-              disabled={loading}
-              className="submit-btn"
-            >
-              {loading ? (
-                <>
-                  <div className="spinner"></div>
-                  Registrando...
-                </>
-              ) : (
-                <>
-                  Registrarse
-                  <ArrowRight className="w-5 h-5" strokeWidth={1.5} />
-                </>
-              )}
-            </button>
+            {showGoogleForm ? (
+              <button
+                onClick={registrarConGoogle}
+                disabled={loading}
+                className="submit-btn google-submit-btn"
+              >
+                {loading ? (
+                  <>
+                    <div className="spinner"></div>
+                    Completando registro...
+                  </>
+                ) : (
+                  <>
+                    Completar registro con Google
+                    <ArrowRight className="w-5 h-5" strokeWidth={1.5} />
+                  </>
+                )}
+              </button>
+            ) : (
+              <button
+                onClick={registrar}
+                disabled={loading}
+                className="submit-btn"
+              >
+                {loading ? (
+                  <>
+                    <div className="spinner"></div>
+                    Registrando...
+                  </>
+                ) : (
+                  <>
+                    Registrarse
+                    <ArrowRight className="w-5 h-5" strokeWidth={1.5} />
+                  </>
+                )}
+              </button>
+            )}
 
-            {/* DIVIDER */}
-            <div className="divider">
-              <span>o continúa con</span>
-            </div>
+            {/* DIVIDER - Solo mostrar si no estamos en modo Google Form */}
+            {!showGoogleForm && (
+              <>
+                <div className="divider">
+                  <span>o continúa con</span>
+                </div>
 
-            {/* BOTÓN GOOGLE */}
-            <button
-              type="button"
-              className="google-btn"
-              onClick={() => {
-                // Aquí irá la lógica de Google OAuth
-                console.log("Registro con Google");
-              }}
-            >
-              <svg className="google-icon" viewBox="0 0 24 24" width="20" height="20">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-              Continuar con Google
-            </button>
+                {/* BOTÓN GOOGLE */}
+                <div className="google-btn-wrapper">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                    useOneTap={false}
+                    theme="outline"
+                    size="large"
+                    text="continue_with"
+                    shape="rectangular"
+                    width="100%"
+                    locale="es"
+                  />
+                </div>
+
+                <p className="google-note">
+                  Al registrarte con Google, tu email será verificado automáticamente
+                </p>
+              </>
+            )}
 
             {/* LINK LOGIN */}
             <p className="login-link">
               ¿Ya tienes cuenta?{" "}
-              <a href="/LoginModal">Inicia sesión aquí</a>
+              <a href="/LoginModal">
+                <LogIn className="inline w-4 h-4 mb-1" />
+                {" "}Inicia sesión aquí
+              </a>
             </p>
           </div>
-
         </div>
       </div>
 
       {/* FOOTER */}
       <Footer />
-    </>
+    </GoogleOAuthProvider>
   );
 }
