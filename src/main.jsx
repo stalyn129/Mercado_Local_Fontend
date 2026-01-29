@@ -20,6 +20,13 @@ import { CarritoProvider } from "./context/CarritoContext.jsx";
 import { FavoritosProvider } from "./context/FavoritosContext.jsx";
 
 // =====================
+// 📄 NUEVAS PÁGINAS DE INFORMACIÓN
+// =====================
+import Privacidad from "./pages/privacidad.jsx";
+import Terminos from "./pages/términos.jsx";
+import Ayuda from "./pages/ayuda.jsx";
+
+// =====================
 // 🛡️ ADMIN
 // =====================
 import DashboardAdmin from "./pages/admin/DashboardAdmin.jsx";
@@ -41,6 +48,7 @@ import GestionarPedidos from "./pages/vendedor/GestionarPedidos.jsx";
 import AnalisisVentas from "./pages/vendedor/AnalisisVentas.jsx";
 import ResenasVendedor from "./pages/vendedor/ResenasVendedor.jsx";
 import VendedorPedidoDetalle from "./pages/vendedor/VendedorPedidoDetalle.jsx";
+import EditarPerfilVendedor from "./pages/vendedor/EditarPerfilVendedor.jsx"; 
 
 // =====================
 // 🧑‍🌾 VENDEDOR (PÚBLICO) ✅ NUEVO
@@ -93,6 +101,11 @@ function LayoutRouter() {
           <Route path="/LoginModal" element={<LoginModal />} />
           <Route path="/perfil" element={<Perfil />} />
 
+           {/* 📄 NUEVAS PÁGINAS DE INFORMACIÓN */}
+          <Route path="/privacidad" element={<Privacidad />} />
+          <Route path="/terminos" element={<Terminos />} />
+          <Route path="/ayuda" element={<Ayuda />} />
+
           {/* 🛒 CONSUMIDOR */}
           <Route path="/explorar" element={<ExplorarProductos />} />
           <Route path="/producto/:id" element={<ProductoDetalles />} />
@@ -121,6 +134,7 @@ function LayoutRouter() {
           <Route path="/vendedor/analisis" element={<AnalisisVentas />} />
           <Route path="/vendedor/resenas" element={<ResenasVendedor />} />
           <Route path="/vendedor/pedido/:idPedido" element={<VendedorPedidoDetalle />} />
+          <Route path="/vendedor/editar-perfil" element={<EditarPerfilVendedor />} />
 
           {/* 🛡️ ADMIN */}
           <Route path="/admin" element={<DashboardAdmin />} />

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom'; // Importar Link de React Router
 
 const Footer = () => {
   const [currentYear] = useState(new Date().getFullYear());
@@ -210,18 +211,26 @@ const Footer = () => {
     { icon: '👍', label: 'Facebook' },
   ];
 
+  // ACTUALIZADO: Ahora usando rutas de React Router
   const linkSections = [
     {
       title: 'ENLACES RÁPIDOS',
-      links: ['Explorar Productos'],
+      links: [
+        { name: 'Explorar Productos', path: '/explorar' },
+      ],
     },
     {
       title: 'LEGAL',
-      links: ['Privacidad', 'Términos'],
+      links: [
+        { name: 'Privacidad', path: '/privacidad' },
+        { name: 'Términos', path: '/terminos' },
+      ],
     },
     {
       title: 'SOPORTE',
-      links: ['Centro de Ayuda'],
+      links: [
+        { name: 'Centro de Ayuda', path: '/ayuda' },
+      ],
     },
   ];
 
@@ -236,7 +245,7 @@ const Footer = () => {
           transform: translateY(-1px);
         }
         
-        .link:hover {
+        .router-link:hover {
           color: #FF6B35;
         }
         
@@ -331,13 +340,14 @@ const Footer = () => {
                   <ul style={styles.linksList}>
                     {section.links.map((link, linkIndex) => (
                       <li key={linkIndex} style={styles.linkItem}>
-                        <a
-                          href={`#${link.toLowerCase().replace(' ', '-')}`}
+                        {/* ACTUALIZADO: Usando Link de React Router */}
+                        <Link
+                          to={link.path}
                           style={styles.link}
-                          className="link"
+                          className="router-link"
                         >
-                          {link}
-                        </a>
+                          {link.name}
+                        </Link>
                       </li>
                     ))}
                   </ul>
