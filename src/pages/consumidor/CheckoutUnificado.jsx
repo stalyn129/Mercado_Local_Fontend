@@ -130,7 +130,7 @@ export default function CheckoutUnificado() {
     return true;
   };
 
-  // 🔥 FINALIZAR COMPRA - CON REDIRECCIÓN CORREGIDA
+  // 🔥 FINALIZAR COMPRA
   const finalizarCompra = async () => {
     if (!validarFormulario()) return;
 
@@ -228,12 +228,13 @@ export default function CheckoutUnificado() {
         `Redirigiendo a tu compra...`
       );
 
-      // ✅ REDIRECCIÓN CORREGIDA - Ahora va a /pedido/{idPedido}
-      if (pedidos && pedidos.length > 0) {
-        navigate(`/pedido/${pedidos[0].idPedido}`);
-      } else {
-        navigate("/");
-      }
+      navigate(`/mi-compra/${idCompraUnificada}`, {
+        state: {
+          pedidos: pedidos,
+          totalCompra: total,
+          metodoPago: metodoPago
+        }
+      });
 
     } catch (err) {
       console.error("❌ Error:", err);
@@ -529,7 +530,7 @@ export default function CheckoutUnificado() {
             borderRadius: "16px",
             overflow: "hidden",
             boxShadow: "0 8px 30px rgba(0, 0, 0, 0.08)",
-            height: "600px",
+            height: "600px", /* ALTURA FIJA PARA EL SCROLL */
             transition: "all 0.3s ease"
           }}
           onMouseEnter={(e) => {
@@ -552,13 +553,13 @@ export default function CheckoutUnificado() {
                 <div
                   key={i}
                   style={{
-                    padding: "16px",
+                    padding: "16px", /* REDUCIDO DE 20px A 16px */
                     borderRadius: "12px",
-                    marginBottom: "12px",
+                    marginBottom: "12px", /* REDUCIDO DE 15px A 12px */
                     display: "flex",
-                    gap: "15px",
+                    gap: "15px", /* REDUCIDO DE 20px A 15px */
                     alignItems: "center",
-                    background: i % 2 === 0 ? "#ffffff" : "#f8fafc",
+                    background: i % 2 === 0 ? "#ffffff" : "#f8fafc", /* BLANCO/GRIS MUY CLARO */
                     border: "1px solid #e2e8f0",
                     transition: "all 0.2s ease"
                   }}
@@ -576,8 +577,8 @@ export default function CheckoutUnificado() {
                       src={item.producto.imagen}
                       alt={item.producto.nombre}
                       style={{
-                        width: "70px",
-                        height: "70px",
+                        width: "70px", /* REDUCIDO DE 90px A 70px */
+                        height: "70px", /* REDUCIDO DE 90px A 70px */
                         borderRadius: "10px",
                         objectFit: "cover",
                         border: "2px solid #f1f5f9"
@@ -587,23 +588,23 @@ export default function CheckoutUnificado() {
 
                   <div style={{ flex: 1 }}>
                     <strong style={{ 
-                      fontSize: "16px",
+                      fontSize: "16px", /* REDUCIDO DE 18px A 16px */
                       color: "#2C3E50", 
                       display: "block",
-                      marginBottom: "6px"
+                      marginBottom: "6px" /* REDUCIDO DE 8px A 6px */
                     }}>
                       {item.producto.nombre}
                     </strong>
                     <div style={{ 
                       display: "flex", 
                       alignItems: "center", 
-                      gap: "12px",
-                      fontSize: "14px",
+                      gap: "12px", /* REDUCIDO DE 15px A 12px */
+                      fontSize: "14px", /* REDUCIDO DE 15px A 14px */
                       color: "#64748b"
                     }}>
                       <span style={{ 
                         background: i % 2 === 0 ? "#f8fafc" : "#ffffff",
-                        padding: "4px 10px",
+                        padding: "4px 10px", /* REDUCIDO DE 6px 12px A 4px 10px */
                         borderRadius: "8px",
                         fontWeight: "600",
                         border: "1px solid #e2e8f0"
@@ -616,10 +617,10 @@ export default function CheckoutUnificado() {
                   </div>
 
                   <div style={{
-                    fontSize: "20px",
+                    fontSize: "20px", /* REDUCIDO DE 24px A 20px */
                     fontWeight: "800",
                     color: "#FF6B35",
-                    minWidth: "80px",
+                    minWidth: "80px", /* REDUCIDO DE 100px A 80px */
                     textAlign: "right"
                   }}>
                     ${(item.producto.precio * item.cantidad).toFixed(2)}
@@ -703,7 +704,7 @@ export default function CheckoutUnificado() {
             </div>
           </div>
 
-          {/* MÉTODO DE PAGO */}
+          {/* MÉTODO DE PAGO - DISEÑO LIMPIO SIN ICONOS */}
           <div style={{
             background: "white",
             borderRadius: "16px",
@@ -724,7 +725,7 @@ export default function CheckoutUnificado() {
               Método de pago
             </h2>
 
-            {/* SELECTOR DE MÉTODO */}
+            {/* SELECTOR DE MÉTODO - LIMPIO */}
             <div style={{ marginBottom: "25px" }}>
               <select
                 value={metodoPago}
@@ -927,14 +928,14 @@ export default function CheckoutUnificado() {
                   />
                 </div>
 
-                {/* CVV Y FECHA EN FILA */}
+                {/* CVV Y FECHA EN FILA - DISEÑO MÁS SIMÉTRICO */}
                 <div style={{ 
                   display: "grid", 
                   gridTemplateColumns: "1fr 2fr", 
                   gap: "15px",
                   alignItems: "center"
                 }}>
-                  {/* CVV */}
+                  {/* CVV - MÁS COMPACTO */}
                   <div>
                     <input
                       type="text"
@@ -969,12 +970,13 @@ export default function CheckoutUnificado() {
                     />
                   </div>
 
-                  {/* FECHA DE EXPIRACIÓN */}
+                  {/* FECHA DE EXPIRACIÓN - MÁS ESPACIO PARA VER EL TEXTO */}
                   <div style={{ 
                     display: "flex", 
                     gap: "10px",
                     alignItems: "center"
                   }}>
+                    {/* MES - MÁS ANCHO */}
                     <div style={{ flex: 1, minWidth: "80px" }}>
                       <select
                         value={mesExpiracion}
@@ -1021,6 +1023,7 @@ export default function CheckoutUnificado() {
                       /
                     </div>
 
+                    {/* AÑO - MÁS ANCHO PARA VER LOS 4 DÍGITOS */}
                     <div style={{ flex: 1.2, minWidth: "90px" }}>
                       <select
                         value={anioExpiracion}
@@ -1181,6 +1184,7 @@ export default function CheckoutUnificado() {
           }
         }
         
+        /* ESTILO DE SCROLL PERSONALIZADO */
         ::-webkit-scrollbar {
           width: 8px;
         }
@@ -1196,15 +1200,17 @@ export default function CheckoutUnificado() {
           transition: all 0.3s ease;
         }
         
-        ::-webkit-scrollbar-thumb:hover {
+        ::v-scrollbar-thumb:hover {
           background: #94a3b8;
         }
         
+        /* Para Firefox */
         * {
           scrollbar-width: thin;
           scrollbar-color: #cbd5e1 #f1f5f9;
         }
         
+        /* Estilos para selects - flecha personalizada y mejor espaciado */
         select {
           background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2394a3b8"><path d="M7 10l5 5 5-5z"/></svg>');
           background-repeat: no-repeat;
@@ -1215,16 +1221,19 @@ export default function CheckoutUnificado() {
           min-height: 52px;
         }
         
+        /* Asegurar que el texto sea legible */
         option {
           font-size: 14px;
           padding: 8px 12px;
           font-family: 'Inter', sans-serif;
         }
         
+        /* Estilo para cuando hay un valor seleccionado */
         select:not([value=""]) {
           color: #2C3E50 !important;
         }
         
+        /* Responsive */
         @media (max-width: 1024px) {
           .main-container {
             grid-template-columns: 1fr !important;
@@ -1314,6 +1323,7 @@ export default function CheckoutUnificado() {
           height: auto;
         }
         
+        /* Estilos para inputs de archivo */
         input[type="file"]::file-selector-button {
           border: none;
           background: transparent;
