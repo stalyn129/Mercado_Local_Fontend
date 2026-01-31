@@ -8,15 +8,17 @@ const money = (value) =>
     ? value.toFixed(2)
     : "0.00";
 
-// Helper para generar nombres amigables y consistentes
+// Helper para generar nombres amigables y consistentes usando IDs secuenciales reales
 const generarNombreAmigable = (id, esUnificada = false) => {
-  // Acortar ID para mostrar solo últimos 6 caracteres
-  const idCorto = id?.toString()?.slice(-6) || id;
+  // Mostrar solo últimos 6 caracteres del ID para que sea más legible
+  const idCorto = id?.toString();
+  
+  if (!idCorto) return esUnificada ? "Compra múltiple" : "Compra directa";
   
   if (esUnificada) {
-    return `Compra múltiple #${idCorto}`;
+    return `Compra múltiple #${idCorto.slice(-6)}`;
   } else {
-    return `Compra directa #${idCorto}`;
+    return `Compra directa #${idCorto.slice(-6)}`;
   }
 };
 
@@ -654,7 +656,7 @@ export default function MisPedidos({ modo: modoProp }) {
                     }
                   }}
                 >
-                  <span style={{ fontSize: "20px", filter: tabActiva === "todos" ? "brightness(0) invert(1)" : "none" }}>📋</span>
+                  <span style={{ fontSize: "20px" }}>📋</span>
                   Todas las compras
                   <span style={{
                     fontSize: "14px",
@@ -713,7 +715,7 @@ export default function MisPedidos({ modo: modoProp }) {
                       }
                     }}
                   >
-                    <span style={{ fontSize: "20px", filter: tabActiva === "unificadas" ? "brightness(0) invert(1)" : "none" }}>🛍️</span>
+                    <span style={{ fontSize: "20px" }}>🛍️</span>
                     Compras múltiples
                     <span style={{
                       fontSize: "14px",
@@ -773,7 +775,7 @@ export default function MisPedidos({ modo: modoProp }) {
                       }
                     }}
                   >
-                    <span style={{ fontSize: "20px", filter: tabActiva === "individuales" ? "brightness(0) invert(1)" : "none" }}>📦</span>
+                    <span style={{ fontSize: "20px" }}>📦</span>
                     Compras directas
                     <span style={{
                       fontSize: "14px",
@@ -1308,16 +1310,16 @@ export default function MisPedidos({ modo: modoProp }) {
                         Pedidos agrupados de diferentes vendedores en una sola compra
                         {mostrarUnificadas && filtroEstadoUnificadas !== "todos" && (
                           <span style={{ 
-                            color: getEstadoColor(filtroEstadoUnificadas === "procesando" ? "PROCESANDO" : 
-                                              filtroEstadoUnificadas === "pendiente" ? "PENDIENTE" : 
-                                              filtroEstadoUnificadas === "completada" ? "COMPLETADA" : 
-                                              "CANCELADA"),
+                            color: filtroEstadoUnificadas === "procesando" ? "#3B82F6" : 
+                                   filtroEstadoUnificadas === "pendiente" ? "#F59E0B" : 
+                                   filtroEstadoUnificadas === "completada" ? "#10B981" : 
+                                   "#EF4444",
                             fontWeight: "700",
                             marginLeft: "8px",
-                            background: `${getEstadoColor(filtroEstadoUnificadas === "procesando" ? "PROCESANDO" : 
-                                                        filtroEstadoUnificadas === "pendiente" ? "PENDIENTE" : 
-                                                        filtroEstadoUnificadas === "completada" ? "COMPLETADA" : 
-                                                        "CANCELADA")}15`,
+                            background: filtroEstadoUnificadas === "procesando" ? "rgba(59, 130, 246, 0.1)" : 
+                                        filtroEstadoUnificadas === "pendiente" ? "rgba(245, 158, 11, 0.1)" : 
+                                        filtroEstadoUnificadas === "completada" ? "rgba(16, 185, 129, 0.1)" : 
+                                        "rgba(239, 68, 68, 0.1)",
                             padding: "4px 12px",
                             borderRadius: "12px"
                           }}>
@@ -1781,10 +1783,16 @@ export default function MisPedidos({ modo: modoProp }) {
                         Pedidos realizados directamente a un vendedor
                         {mostrarIndividuales && filtroEstadoIndividuales !== "todos" && (
                           <span style={{ 
-                            color: getEstadoColor(filtroEstadoIndividuales.toUpperCase()),
+                            color: filtroEstadoIndividuales === "procesando" ? "#3B82F6" : 
+                                   filtroEstadoIndividuales === "pendiente" ? "#F59E0B" : 
+                                   filtroEstadoIndividuales === "completado" ? "#10B981" : 
+                                   "#EF4444",
                             fontWeight: "700",
                             marginLeft: "8px",
-                            background: `${getEstadoColor(filtroEstadoIndividuales.toUpperCase())}15`,
+                            background: filtroEstadoIndividuales === "procesando" ? "rgba(59, 130, 246, 0.1)" : 
+                                        filtroEstadoIndividuales === "pendiente" ? "rgba(245, 158, 11, 0.1)" : 
+                                        filtroEstadoIndividuales === "completado" ? "rgba(16, 185, 129, 0.1)" : 
+                                        "rgba(239, 68, 68, 0.1)",
                             padding: "4px 12px",
                             borderRadius: "12px"
                           }}>
@@ -2096,7 +2104,7 @@ export default function MisPedidos({ modo: modoProp }) {
                                 lineHeight: 1
                               }}>
                                 ${money(p.total || p.montoTotal || 0)}
-                            </div>
+                              </div>
                             </div>
 
                             {/* Botones de acción - SOLO EN MODO LISTA */}
@@ -2122,8 +2130,7 @@ export default function MisPedidos({ modo: modoProp }) {
                                     alignItems: "center",
                                     justifyContent: "center",
                                     gap: "8px",
-                                    fontFamily: "'Inter', sans-serif",
-                                    width: "100%"
+                                    fontFamily: "'Inter', sans-serif"
                                   }}
                                   onMouseEnter={(e) => {
                                     e.target.style.background = "#FFF5F0";
@@ -2160,8 +2167,7 @@ export default function MisPedidos({ modo: modoProp }) {
                                       alignItems: "center",
                                       justifyContent: "center",
                                       gap: "8px",
-                                      fontFamily: "'Inter', sans-serif",
-                                      width: "100%"
+                                      fontFamily: "'Inter', sans-serif"
                                     }}
                                     onMouseEnter={(e) => {
                                       e.target.style.transform = "translateY(-2px)";
@@ -2309,7 +2315,7 @@ export default function MisPedidos({ modo: modoProp }) {
         
         /* Responsive */
         @media (max-width: 768px) {
-          .grid-container {
+          div[style*="grid-template-columns: repeat(auto-fill, minmax(480px, 1fr))"] {
             grid-template-columns: 1fr !important;
           }
           
@@ -2325,11 +2331,6 @@ export default function MisPedidos({ modo: modoProp }) {
           .tab-button {
             width: 100% !important;
             justify-content: center !important;
-          }
-          
-          /* Grid responsive */
-          div[style*="grid-template-columns: repeat(auto-fill, minmax(480px, 1fr))"] {
-            grid-template-columns: 1fr !important;
           }
           
           /* Header responsive */
@@ -2371,7 +2372,7 @@ export default function MisPedidos({ modo: modoProp }) {
           }
           
           h3 {
-            font-size: 18px !important;
+            fontSize: 18px !important;
           }
         }
         
