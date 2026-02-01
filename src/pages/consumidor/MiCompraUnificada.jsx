@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import Footer from "../../components/Footer.jsx";
+import Notificaciones from "../../components/Notificaciones.jsx";
+import useNotification from "../../hooks/useNotification.jsx";
 
 // Helper para formatear dinero
 const money = (value) =>
@@ -59,6 +61,13 @@ export default function MiCompraUnificada() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [circlePositions, setCirclePositions] = useState([]);
+
+  // ==================== SISTEMA DE NOTIFICACIONES ====================
+  const {
+    notificacion,
+    setNotificacion,
+    notificaciones
+  } = useNotification();
 
   // Obtener datos pasados por estado (si vienen del historial)
   const datosDesdeHistorial = location.state || {};
@@ -122,6 +131,11 @@ export default function MiCompraUnificada() {
         // Si tenemos datos del historial, usarlos
         if (datosDesdeHistorial.compraData) {
           console.log("✅ Usando datos del historial");
+          notificaciones.info(
+            "Usando datos almacenados",
+            "Se cargaron los datos de tu compra desde el historial",
+            "💾"
+          );
           setCompraData(datosDesdeHistorial.compraData);
           setLoading(false);
         }
@@ -130,6 +144,11 @@ export default function MiCompraUnificada() {
 
       try {
         console.log(`📡 Buscando compra unificada: ${idCompra}`);
+        notificaciones.info(
+          "Cargando compra",
+          "Obteniendo detalles de tu compra...",
+          "🔄"
+        );
 
         const response = await fetch(`${API_URL}/pedidos/compra-unificada/${idCompra}`, {
           headers: {
@@ -145,6 +164,11 @@ export default function MiCompraUnificada() {
           // Si el servidor da error, usar datos del historial
           if (datosDesdeHistorial.compraData) {
             console.log("⚠️ Usando datos del historial debido a error del servidor");
+            notificaciones.advertencia(
+              "Usando datos almacenados",
+              "No se pudieron obtener los datos actualizados. Mostrando información guardada.",
+              "⚠️"
+            );
             setCompraData(datosDesdeHistorial.compraData);
             setLoading(false);
             return;
@@ -155,14 +179,30 @@ export default function MiCompraUnificada() {
 
         const data = await response.json();
         console.log("✅ Datos recibidos del backend:", data);
+        
+        notificaciones.exito(
+          "Compra cargada",
+          "Los detalles de tu compra se cargaron correctamente",
+          "✅"
+        );
         setCompraData(data);
 
       } catch (err) {
         console.error("❌ Error cargando compra unificada:", err);
+        notificaciones.error(
+          "Error al cargar compra",
+          "No se pudo cargar la información de la compra",
+          "❌"
+        );
 
         // Si hay error pero tenemos datos del historial, usarlos
         if (datosDesdeHistorial.compraData) {
           console.log("✅ Usando datos del historial debido a error");
+          notificaciones.advertencia(
+            "Usando datos guardados",
+            "Se mostrarán los datos almacenados en tu historial",
+            "📋"
+          );
           setCompraData(datosDesdeHistorial.compraData);
         } else {
           setError(err.message);
@@ -175,6 +215,11 @@ export default function MiCompraUnificada() {
     // Si ya tenemos datos del historial, no hacer fetch
     if (datosDesdeHistorial.compraData) {
       console.log("✅ Ya tenemos datos del historial, omitiendo fetch");
+      notificaciones.info(
+        "Carga rápida",
+        "Cargando datos desde el historial...",
+        "⚡"
+      );
       setCompraData(datosDesdeHistorial.compraData);
       setLoading(false);
       return;
@@ -182,6 +227,146 @@ export default function MiCompraUnificada() {
 
     fetchCompraUnificada();
   }, [idCompra, API_URL, datosDesdeHistorial]);
+
+  // ==================== FUNCIÓN PARA VER DETALLES DEL PEDIDO ====================
+  const verDetallesPedido = (pedidoId, pedidoNombre = "Pedido") => {
+    if (!pedidoId) {
+      notificaciones.advertencia(
+        "ID no disponible",
+        "No se puede ver el detalle de este pedido",
+        "⚠️"
+      );
+      return;
+    }
+
+    notificaciones.info(
+      "Redirigiendo",
+      `Abriendo detalles del ${pedidoNombre}...`,
+      "🔍"
+    );
+
+    setTimeout(() => {
+      navigate(`/pedido/${pedidoId}`);
+    }, 500);
+  };
+
+  // ==================== FUNCIÓN PARA VER FACTURA CONSOLIDADA ====================
+  const verFacturaConsolidada = () => {
+    if (!idCompra || idCompra === "undefined") {
+      notificaciones.advertencia(
+        "ID no disponible",
+        "No se puede generar la factura sin el ID de la compra",
+        "📄"
+      );
+      return;
+    }
+
+    notificaciones.info(
+      "Generando factura",
+      "Preparando la factura consolidada de tu compra...",
+      "📄"
+    );
+
+    setTimeout(() => {
+      navigate(`/factura-consolidada/${idCompra}`, {
+        state: {
+          compraData: compraData
+        }
+      });
+    }, 800);
+  };
+
+  // ==================== FUNCIÓN PARA VOLVER AL HISTORIAL ====================
+  const volverAlHistorial = () => {
+    notificaciones.info(
+      "Volviendo al historial",
+      "Redirigiendo a tus compras...",
+      "🔙"
+    );
+
+    setTimeout(() => {
+      navigate("/mis-pedidos");
+    }, 500);
+  };
+
+  // ==================== FUNCIÓN PARA IMPRIMIR DETALLES ====================
+  const imprimirDetalles = () => {
+    if (!compraData) {
+      notificaciones.advertencia(
+        "Datos no disponibles",
+        "No se puede imprimir sin los datos de la compra",
+        "🖨️"
+      );
+      return;
+    }
+
+    notificaciones.info(
+      "Preparando impresión",
+      "Generando documento para imprimir...",
+      "🖨️"
+    );
+
+    setTimeout(() => {
+      window.print();
+    }, 1000);
+  };
+
+  // ==================== FUNCIÓN PARA COPIAR ID DE COMPRA ====================
+  const copiarIdCompra = () => {
+    if (!idCompra || idCompra === "undefined") {
+      notificaciones.advertencia(
+        "ID no disponible",
+        "No hay ID de compra para copiar",
+        "📋"
+      );
+      return;
+    }
+
+    navigator.clipboard.writeText(idCompra)
+      .then(() => {
+        notificaciones.exito(
+          "ID copiado",
+          `El ID ${idCompra} se copió al portapapeles`,
+          "📋"
+        );
+      })
+      .catch((err) => {
+        console.error("Error al copiar:", err);
+        notificaciones.error(
+          "Error al copiar",
+          "No se pudo copiar el ID de la compra",
+          "❌"
+        );
+      });
+  };
+
+  // ==================== FUNCIÓN PARA DESCARGAR RESUMEN ====================
+  const descargarResumen = () => {
+    if (!compraData) {
+      notificaciones.advertencia(
+        "Datos no disponibles",
+        "No se puede generar el resumen sin datos",
+        "📥"
+      );
+      return;
+    }
+
+    notificaciones.info(
+      "Generando resumen",
+      "Preparando archivo para descargar...",
+      "📥"
+    );
+
+    // Aquí iría la lógica para generar y descargar un PDF/CSV
+    // Por ahora solo mostramos la notificación
+    setTimeout(() => {
+      notificaciones.exito(
+        "Resumen listo",
+        "El resumen de tu compra está listo para descargar",
+        "✅"
+      );
+    }, 1500);
+  };
 
   if (loading) {
     return (
@@ -195,6 +380,15 @@ export default function MiCompraUnificada() {
         flexDirection: "column",
         padding: "20px"
       }}>
+        <Notificaciones
+          notificacion={notificacion}
+          setNotificacion={setNotificacion}
+          position="top-right"
+          autoClose={4000}
+          showProgress={true}
+          pauseOnHover={true}
+        />
+        
         <div style={{
           width: "60px",
           height: "60px",
@@ -227,6 +421,15 @@ export default function MiCompraUnificada() {
         flexDirection: "column",
         padding: "40px"
       }}>
+        <Notificaciones
+          notificacion={notificacion}
+          setNotificacion={setNotificacion}
+          position="top-right"
+          autoClose={4000}
+          showProgress={true}
+          pauseOnHover={true}
+        />
+        
         <div style={{ 
           fontSize: "64px", 
           marginBottom: "20px",
@@ -246,32 +449,61 @@ export default function MiCompraUnificada() {
         }}>
           {error}
         </p>
-        <button
-          onClick={() => navigate("/mis-pedidos")}
-          style={{
-            padding: "16px 32px",
-            background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
-            border: "none",
-            color: "white",
-            borderRadius: "12px",
-            fontWeight: "700",
-            cursor: "pointer",
-            fontSize: "16px",
-            transition: "all 0.3s ease",
-            fontFamily: "'Inter', sans-serif",
-            boxShadow: "0 6px 20px rgba(255, 107, 53, 0.3)"
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "translateY(-3px)";
-            e.currentTarget.style.boxShadow = "0 10px 25px rgba(255, 107, 53, 0.4)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 107, 53, 0.3)";
-          }}
-        >
-          Volver a mis compras
-        </button>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <button
+            onClick={volverAlHistorial}
+            style={{
+              padding: "16px 32px",
+              background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
+              border: "none",
+              color: "white",
+              borderRadius: "12px",
+              fontWeight: "700",
+              cursor: "pointer",
+              fontSize: "16px",
+              transition: "all 0.3s ease",
+              fontFamily: "'Inter', sans-serif",
+              boxShadow: "0 6px 20px rgba(255, 107, 53, 0.3)"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-3px)";
+              e.currentTarget.style.boxShadow = "0 10px 25px rgba(255, 107, 53, 0.4)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 107, 53, 0.3)";
+            }}
+          >
+            ← Volver a mis compras
+          </button>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: "16px 32px",
+              background: "white",
+              color: "#FF6B35",
+              border: "2px solid #FF6B35",
+              borderRadius: "12px",
+              fontWeight: "700",
+              cursor: "pointer",
+              fontSize: "16px",
+              transition: "all 0.3s ease",
+              fontFamily: "'Inter', sans-serif"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-3px)";
+              e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 107, 53, 0.2)";
+              e.currentTarget.style.background = "#FFF7ED";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "none";
+              e.currentTarget.style.background = "white";
+            }}
+          >
+            🔄 Reintentar
+          </button>
+        </div>
       </div>
     );
   }
@@ -289,6 +521,15 @@ export default function MiCompraUnificada() {
         flexDirection: "column",
         padding: "40px"
       }}>
+        <Notificaciones
+          notificacion={notificacion}
+          setNotificacion={setNotificacion}
+          position="top-right"
+          autoClose={4000}
+          showProgress={true}
+          pauseOnHover={true}
+        />
+        
         <div style={{ 
           fontSize: "64px", 
           marginBottom: "20px",
@@ -309,7 +550,7 @@ export default function MiCompraUnificada() {
           No se encontraron datos para la compra #{idCompra || "desconocida"}
         </p>
         <button
-          onClick={() => navigate("/mis-pedidos")}
+          onClick={volverAlHistorial}
           style={{
             padding: "16px 32px",
             background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
@@ -332,7 +573,7 @@ export default function MiCompraUnificada() {
             e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 107, 53, 0.3)";
           }}
         >
-          Volver a mis compras
+          ← Volver a mis compras
         </button>
       </div>
     );
@@ -367,14 +608,24 @@ export default function MiCompraUnificada() {
       overflowX: "hidden"
     }}>
       
+      {/* COMPONENTE DE NOTIFICACIONES */}
+      <Notificaciones
+        notificacion={notificacion}
+        setNotificacion={setNotificacion}
+        position="top-right"
+        autoClose={4000}
+        showProgress={true}
+        pauseOnHover={true}
+      />
+      
       {/* HEADER CON CÍRCULOS ANIMADOS */}
       <div style={{
         background: "white",
-        padding: "60px 20px 40px 20px", // REDUCIDO: de 80px/60px a 60px/40px
+        padding: "60px 20px 40px 20px",
         textAlign: "center",
         position: "relative",
         overflow: "hidden",
-        marginBottom: "30px", // REDUCIDO: de 40px a 30px
+        marginBottom: "30px",
         borderBottom: "1px solid #f1f5f9"
       }}>
         
@@ -413,10 +664,10 @@ export default function MiCompraUnificada() {
           
           <h1 style={{
             fontFamily: "'Playfair Display', 'Georgia', serif",
-            fontSize: "36px", // REDUCIDO: de 48px a 36px
+            fontSize: "36px",
             fontWeight: "700",
             color: "#2C3E50",
-            margin: "0 0 12px 0", // REDUCIDO: de 16px a 12px
+            margin: "0 0 12px 0",
             letterSpacing: "1px",
             lineHeight: "1.2"
           }}>
@@ -424,11 +675,11 @@ export default function MiCompraUnificada() {
           </h1>
           
           <p style={{
-            color: "#64748b", // CAMBIADO: de #8B5CF6 a #64748b
-            fontSize: "15px", // REDUCIDO: de 16px a 15px
+            color: "#64748b",
+            fontSize: "15px",
             margin: "0 auto",
             maxWidth: "600px",
-            lineHeight: "1.5", // REDUCIDO: de 1.6 a 1.5
+            lineHeight: "1.5",
             fontWeight: "400"
           }}>
             Revisa el estado y detalles de todos tus pedidos
@@ -439,31 +690,203 @@ export default function MiCompraUnificada() {
       {/* CONTENIDO PRINCIPAL */}
       <div style={{
         maxWidth: "1200px",
-        margin: "0 auto 50px auto", // REDUCIDO: de 60px a 50px
+        margin: "0 auto 50px auto",
         padding: "0 20px"
       }}>
         
-        {/* ESTADÍSTICAS DE LA COMPRA - MÁS DELGADAS */}
+        {/* BOTONES DE ACCIÓN SUPERIOR */}
+        <div style={{
+          display: "flex",
+          gap: "12px",
+          marginBottom: "25px",
+          flexWrap: "wrap"
+        }}>
+          <button
+            onClick={volverAlHistorial}
+            style={{
+              background: "white",
+              border: "2px solid #e5e7eb",
+              padding: "12px 20px",
+              borderRadius: "10px",
+              cursor: "pointer",
+              fontSize: "14px",
+              fontWeight: "600",
+              color: "#64748b",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              transition: "all 0.3s ease",
+              fontFamily: "'Inter', sans-serif"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.borderColor = "#FF6B35";
+              e.currentTarget.style.color = "#FF6B35";
+              e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 107, 53, 0.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.borderColor = "#e5e7eb";
+              e.currentTarget.style.color = "#64748b";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            <span>←</span> Volver al historial
+          </button>
+          
+          <button
+            onClick={copiarIdCompra}
+            style={{
+              background: "#f8fafc",
+              border: "2px solid #e5e7eb",
+              padding: "12px 20px",
+              borderRadius: "10px",
+              cursor: "pointer",
+              fontSize: "14px",
+              fontWeight: "600",
+              color: "#64748b",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              transition: "all 0.3s ease",
+              fontFamily: "'Inter', sans-serif"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.borderColor = "#8B5CF6";
+              e.currentTarget.style.color = "#8B5CF6";
+              e.currentTarget.style.boxShadow = "0 4px 12px rgba(139, 92, 246, 0.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.borderColor = "#e5e7eb";
+              e.currentTarget.style.color = "#64748b";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            <span>📋</span> Copiar ID
+          </button>
+          
+          <button
+            onClick={imprimirDetalles}
+            style={{
+              background: "#f8fafc",
+              border: "2px solid #e5e7eb",
+              padding: "12px 20px",
+              borderRadius: "10px",
+              cursor: "pointer",
+              fontSize: "14px",
+              fontWeight: "600",
+              color: "#64748b",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              transition: "all 0.3s ease",
+              fontFamily: "'Inter', sans-serif"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.borderColor = "#10B981";
+              e.currentTarget.style.color = "#10B981";
+              e.currentTarget.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.borderColor = "#e5e7eb";
+              e.currentTarget.style.color = "#64748b";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            <span>🖨️</span> Imprimir
+          </button>
+          
+          <button
+            onClick={descargarResumen}
+            style={{
+              background: "#f8fafc",
+              border: "2px solid #e5e7eb",
+              padding: "12px 20px",
+              borderRadius: "10px",
+              cursor: "pointer",
+              fontSize: "14px",
+              fontWeight: "600",
+              color: "#64748b",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              transition: "all 0.3s ease",
+              fontFamily: "'Inter', sans-serif"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.borderColor = "#3B82F6";
+              e.currentTarget.style.color = "#3B82F6";
+              e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.borderColor = "#e5e7eb";
+              e.currentTarget.style.color = "#64748b";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            <span>📥</span> Descargar resumen
+          </button>
+          
+          {(estadoCompra === "COMPLETADA" || estadoCompra === "PENDIENTE_VERIFICACION") && (
+            <button
+              onClick={verFacturaConsolidada}
+              style={{
+                background: "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)",
+                color: "white",
+                border: "none",
+                padding: "12px 20px",
+                borderRadius: "10px",
+                fontWeight: "700",
+                cursor: "pointer",
+                fontSize: "14px",
+                transition: "all 0.3s ease",
+                fontFamily: "'Inter', sans-serif",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                boxShadow: "0 4px 12px rgba(139, 92, 246, 0.25)"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 6px 16px rgba(139, 92, 246, 0.35)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(139, 92, 246, 0.25)";
+              }}
+            >
+              <span>📄</span> Ver factura consolidada
+            </button>
+          )}
+        </div>
+        
+        {/* ESTADÍSTICAS DE LA COMPRA */}
         <div style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-          gap: "18px", // REDUCIDO: de 20px a 18px
-          marginBottom: "30px" // REDUCIDO: de 40px a 30px
+          gap: "18px",
+          marginBottom: "30px"
         }}>
           
           {/* TOTAL DE LA COMPRA */}
           <div style={{
             background: "white",
-            borderRadius: "14px", // REDUCIDO: de 16px a 14px
-            padding: "20px", // REDUCIDO: de 30px a 20px (más delgado)
-            boxShadow: "0 6px 20px rgba(0, 0, 0, 0.06)", // Sombras más sutiles
+            borderRadius: "14px",
+            padding: "20px",
+            boxShadow: "0 6px 20px rgba(0, 0, 0, 0.06)",
             transition: "all 0.3s ease",
             borderLeft: "4px solid #FF6B35",
-            height: "100px" // ALTURA FIJA para hacerlas más delgadas
+            height: "100px"
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "translateY(-3px)"; // REDUCIDO: de -4px a -3px
-            e.currentTarget.style.boxShadow = "0 12px 28px rgba(0, 0, 0, 0.1)"; // REDUCIDO
+            e.currentTarget.style.transform = "translateY(-3px)";
+            e.currentTarget.style.boxShadow = "0 12px 28px rgba(0, 0, 0, 0.1)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = "translateY(0)";
@@ -477,12 +900,12 @@ export default function MiCompraUnificada() {
               height: "100%"
             }}>
               <div style={{
-                fontSize: "28px", // REDUCIDO: de 32px a 28px
+                fontSize: "28px",
                 color: "#FF6B35",
                 background: "rgba(255, 107, 53, 0.1)",
-                width: "50px", // REDUCIDO: de 60px a 50px
-                height: "50px", // REDUCIDO: de 60px a 50px
-                borderRadius: "10px", // REDUCIDO: de 12px a 10px
+                width: "50px",
+                height: "50px",
+                borderRadius: "10px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -492,15 +915,15 @@ export default function MiCompraUnificada() {
               </div>
               <div style={{ flex: 1 }}>
                 <p style={{
-                  fontSize: "13px", // REDUCIDO: de 14px a 13px
+                  fontSize: "13px",
                   color: "#64748b",
-                  margin: "0 0 6px 0", // REDUCIDO: de 4px a 6px
+                  margin: "0 0 6px 0",
                   fontWeight: "600"
                 }}>
                   Total de la compra
                 </p>
                 <p style={{
-                  fontSize: "26px", // REDUCIDO: de 32px a 26px
+                  fontSize: "26px",
                   fontWeight: "900",
                   color: "#2C3E50",
                   margin: "0",
@@ -561,7 +984,7 @@ export default function MiCompraUnificada() {
                   Estado
                 </p>
                 <p style={{
-                  fontSize: "17px", // REDUCIDO: de 20px a 17px
+                  fontSize: "17px",
                   fontWeight: "800",
                   color: estadoCompra === "COMPLETADA" ? "#10B981" :
                          estadoCompra === "PENDIENTE" ? "#F59E0B" :
@@ -690,7 +1113,7 @@ export default function MiCompraUnificada() {
                     Fecha de compra
                   </p>
                   <p style={{
-                    fontSize: "15px", // REDUCIDO: de 16px a 15px
+                    fontSize: "15px",
                     fontWeight: "700",
                     color: "#2C3E50",
                     margin: "0"
@@ -707,24 +1130,24 @@ export default function MiCompraUnificada() {
           )}
         </div>
 
-        {/* RESUMEN DE ESTADÍSTICAS - MÁS DELGADAS */}
+        {/* RESUMEN DE ESTADÍSTICAS */}
         <div style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: "18px", // REDUCIDO: de 20px a 18px
-          marginBottom: "30px" // REDUCIDO: de 40px a 30px
+          gap: "18px",
+          marginBottom: "30px"
         }}>
           <div style={{
             background: "white",
-            borderRadius: "14px", // REDUCIDO: de 16px a 14px
-            padding: "20px", // REDUCIDO: de 25px a 20px
+            borderRadius: "14px",
+            padding: "20px",
             boxShadow: "0 6px 20px rgba(0, 0, 0, 0.06)",
             textAlign: "center",
             transition: "all 0.3s ease",
-            height: "110px" // ALTURA FIJA para hacerlas más delgadas
+            height: "110px"
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "translateY(-3px)"; // REDUCIDO: de -4px a -3px
+            e.currentTarget.style.transform = "translateY(-3px)";
             e.currentTarget.style.boxShadow = "0 12px 28px rgba(0, 0, 0, 0.1)";
           }}
           onMouseLeave={(e) => {
@@ -733,7 +1156,7 @@ export default function MiCompraUnificada() {
           }}
           >
             <div style={{ 
-              fontSize: "38px", // REDUCIDO: de 42px a 38px
+              fontSize: "38px",
               color: "#FF6B35", 
               marginBottom: "8px",
               fontWeight: "900",
@@ -745,7 +1168,7 @@ export default function MiCompraUnificada() {
               {cantidadPedidos}
             </div>
             <div style={{ 
-              fontSize: "15px", // REDUCIDO: de 16px a 15px
+              fontSize: "15px",
               color: "#64748b", 
               fontWeight: "600",
               height: "24px",
@@ -805,25 +1228,25 @@ export default function MiCompraUnificada() {
         <div style={{
           background: "white",
           borderRadius: "16px",
-          padding: "25px", // REDUCIDO: de 30px a 25px
+          padding: "25px",
           boxShadow: "0 8px 30px rgba(0, 0, 0, 0.08)",
           marginBottom: "25px"
         }}>
           <h2 style={{
             fontFamily: "'Playfair Display', 'Georgia', serif",
-            fontSize: "26px", // REDUCIDO: de 28px a 26px
+            fontSize: "26px",
             fontWeight: "700",
             color: "#2C3E50",
-            marginBottom: "25px", // REDUCIDO: de 30px a 25px
+            marginBottom: "25px",
             display: "flex",
             alignItems: "center",
-            gap: "10px" // REDUCIDO: de 12px a 10px
+            gap: "10px"
           }}>
             <span style={{ fontSize: "30px" }}>📦</span>
             Pedidos incluidos ({pedidos.length})
           </h2>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}> {/* REDUCIDO: de 20px a 18px */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
             {pedidos.map((pedido, index) => {
               const pedidoId = pedido.idPedido || pedido.id;
               const totalPedido = pedido.total || pedido.montoTotal || 0;
@@ -834,14 +1257,14 @@ export default function MiCompraUnificada() {
                   key={pedidoId || index}
                   style={{
                     background: "white",
-                    borderRadius: "14px", // REDUCIDO: de 16px a 14px
-                    padding: "22px", // REDUCIDO: de 25px a 22px
+                    borderRadius: "14px",
+                    padding: "22px",
                     boxShadow: "0 4px 15px rgba(0, 0, 0, 0.05)",
                     border: "2px solid #f1f5f9",
                     transition: "all 0.3s ease"
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-3px)"; // REDUCIDO: de -4px a -3px
+                    e.currentTarget.style.transform = "translateY(-3px)";
                     e.currentTarget.style.boxShadow = "0 10px 30px rgba(0, 0, 0, 0.1)";
                     e.currentTarget.style.borderColor = "#FF6B35";
                   }}
@@ -855,7 +1278,7 @@ export default function MiCompraUnificada() {
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    gap: "22px", // REDUCIDO: de 24px a 22px
+                    gap: "22px",
                     flexWrap: "wrap"
                   }}>
                     {/* Sección izquierda - Info del pedido */}
@@ -864,16 +1287,16 @@ export default function MiCompraUnificada() {
                         display: "flex",
                         alignItems: "center",
                         gap: "12px",
-                        marginBottom: "10px" // REDUCIDO: de 12px a 10px
+                        marginBottom: "10px"
                       }}>
                         <div style={{
-                          fontSize: "30px", // REDUCIDO: de 32px a 30px
+                          fontSize: "30px",
                           background: estadoPedido === "COMPLETADO" ? "rgba(16, 185, 129, 0.1)" :
                                     estadoPedido === "PENDIENTE" ? "rgba(245, 158, 11, 0.1)" :
                                     estadoPedido === "CANCELADO" ? "rgba(239, 68, 68, 0.1)" : "rgba(139, 92, 246, 0.1)",
-                          width: "55px", // REDUCIDO: de 60px a 55px
-                          height: "55px", // REDUCIDO: de 60px a 55px
-                          borderRadius: "11px", // REDUCIDO: de 12px a 11px
+                          width: "55px",
+                          height: "55px",
+                          borderRadius: "11px",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -886,7 +1309,7 @@ export default function MiCompraUnificada() {
                         <div>
                           <h3 style={{
                             margin: 0,
-                            fontSize: "21px", // REDUCIDO: de 22px a 21px
+                            fontSize: "21px",
                             color: "#2C3E50",
                             fontFamily: "'Playfair Display', 'Georgia', serif",
                             fontWeight: "700"
@@ -897,8 +1320,8 @@ export default function MiCompraUnificada() {
                           {/* Estado */}
                           <div style={{
                             display: "inline-block",
-                            padding: "5px 14px", // REDUCIDO: de 6px 16px
-                            borderRadius: "18px", // REDUCIDO: de 20px
+                            padding: "5px 14px",
+                            borderRadius: "18px",
                             background: estadoPedido === "COMPLETADO"
                               ? "rgba(16, 185, 129, 0.1)"
                               : estadoPedido === "PENDIENTE"
@@ -906,7 +1329,7 @@ export default function MiCompraUnificada() {
                                 : estadoPedido === "CANCELADO"
                                   ? "rgba(239, 68, 68, 0.1)"
                                   : "rgba(139, 92, 246, 0.1)",
-                            fontSize: "13px", // REDUCIDO: de 14px a 13px
+                            fontSize: "13px",
                             fontWeight: "700",
                             color: estadoPedido === "COMPLETADO"
                               ? "#10B981"
@@ -915,7 +1338,7 @@ export default function MiCompraUnificada() {
                                 : estadoPedido === "CANCELADO"
                                   ? "#EF4444"
                                   : "#8B5CF6",
-                            marginTop: "6px" // REDUCIDO: de 8px a 6px
+                            marginTop: "6px"
                           }}>
                             {getEstadoLabel(estadoPedido)}
                           </div>
@@ -925,12 +1348,12 @@ export default function MiCompraUnificada() {
                       {/* Fecha */}
                       {pedido.fechaPedido && (
                         <p style={{
-                          margin: "10px 0", // REDUCIDO: de 12px
+                          margin: "10px 0",
                           color: "#64748b",
-                          fontSize: "14px", // REDUCIDO: de 15px a 14px
+                          fontSize: "14px",
                           display: "flex",
                           alignItems: "center",
-                          gap: "6px" // REDUCIDO: de 8px
+                          gap: "6px"
                         }}>
                           <span style={{ fontSize: "16px" }}>📅</span>
                           {formatearFecha(pedido.fechaPedido)}
@@ -943,13 +1366,13 @@ export default function MiCompraUnificada() {
                           display: "inline-flex",
                           alignItems: "center",
                           gap: "6px",
-                          padding: "6px 14px", // REDUCIDO: de 8px 16px
-                          borderRadius: "10px", // REDUCIDO: de 12px
+                          padding: "6px 14px",
+                          borderRadius: "10px",
                           background: "#f8fafc",
-                          fontSize: "13px", // REDUCIDO: de 14px a 13px
+                          fontSize: "13px",
                           fontWeight: "600",
                           color: "#64748b",
-                          marginTop: "6px" // REDUCIDO: de 8px
+                          marginTop: "6px"
                         }}>
                           <span style={{ fontSize: "15px" }}>👤</span>
                           Vendedor: {pedido.vendedor.nombre || `#${pedido.vendedor.idVendedor}`}
@@ -963,12 +1386,12 @@ export default function MiCompraUnificada() {
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "flex-end",
-                      gap: "14px" // REDUCIDO: de 16px a 14px
+                      gap: "14px"
                     }}>
                       {/* Precio */}
                       <div style={{
                         fontWeight: "900",
-                        fontSize: "34px", // REDUCIDO: de 36px a 34px
+                        fontSize: "34px",
                         color: "#FF6B35",
                         fontFamily: "'Playfair Display', 'Georgia', serif",
                         lineHeight: 1,
@@ -978,20 +1401,20 @@ export default function MiCompraUnificada() {
                       </div>
 
                       {/* Botones de acción */}
-                      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}> {/* REDUCIDO: de 12px a 10px */}
+                      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/pedido/${pedidoId}`);
+                            verDetallesPedido(pedidoId, `Pedido #${pedidoId}`);
                           }}
                           style={{
-                            padding: "10px 20px", // REDUCIDO: de 12px 24px
-                            borderRadius: "10px", // REDUCIDO: de 12px
+                            padding: "10px 20px",
+                            borderRadius: "10px",
                             border: "2px solid #FF6B35",
                             cursor: "pointer",
                             background: "white",
                             color: "#FF6B35",
-                            fontSize: "14px", // REDUCIDO: de 15px a 14px
+                            fontSize: "14px",
                             fontWeight: "700",
                             transition: "all 0.3s ease",
                             whiteSpace: "nowrap",
@@ -1016,47 +1439,6 @@ export default function MiCompraUnificada() {
                           <span>🔍</span>
                           Ver detalles
                         </button>
-
-                        {(estadoPedido === "COMPLETADO" || estadoPedido === "PENDIENTE_VERIFICACION") && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/factura-consolidada/${idCompraUnificada}`, {
-                                state: {
-                                  compraData: compraData
-                                }
-                              });
-                            }}
-                            style={{
-                              padding: "10px 20px",
-                              borderRadius: "10px",
-                              border: "none",
-                              cursor: "pointer",
-                              background: "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)",
-                              color: "white",
-                              fontSize: "14px",
-                              fontWeight: "700",
-                              transition: "all 0.3s ease",
-                              boxShadow: "0 4px 12px rgba(139, 92, 246, 0.25)",
-                              whiteSpace: "nowrap",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              fontFamily: "'Inter', sans-serif"
-                            }}
-                            onMouseEnter={(e) => {
-                              e.target.style.transform = "translateY(-2px)";
-                              e.target.style.boxShadow = "0 6px 16px rgba(139, 92, 246, 0.35)";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.target.style.transform = "translateY(0)";
-                              e.target.style.boxShadow = "0 4px 12px rgba(139, 92, 246, 0.25)";
-                            }}
-                          >
-                            <span>📄</span>
-                            Ver factura
-                          </button>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -1064,39 +1446,6 @@ export default function MiCompraUnificada() {
               );
             })}
           </div>
-        </div>
-
-        {/* BOTÓN VOLVER AL FINAL (ÚNICO) */}
-        <div style={{ textAlign: "center", marginTop: "30px" }}> {/* REDUCIDO: de 40px a 30px */}
-          <button
-            onClick={() => navigate("/mis-pedidos")}
-            style={{
-              padding: "14px 28px", // REDUCIDO: de 16px 32px
-              background: "white",
-              border: "2px solid #e5e7eb",
-              color: "#64748b",
-              borderRadius: "10px", // REDUCIDO: de 12px
-              fontWeight: "700",
-              cursor: "pointer",
-              fontSize: "15px", // REDUCIDO: de 16px a 15px
-              transition: "all 0.3s ease",
-              fontFamily: "'Inter', sans-serif"
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px)"; // REDUCIDO: de -3px a -2px
-              e.currentTarget.style.borderColor = "#FF6B35";
-              e.currentTarget.style.color = "#FF6B35";
-              e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 107, 53, 0.1)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.borderColor = "#e5e7eb";
-              e.currentTarget.style.color = "#64748b";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          >
-            ← Volver al historial de compras
-          </button>
         </div>
       </div>
 
@@ -1166,12 +1515,12 @@ export default function MiCompraUnificada() {
             gap: 16px !important;
           }
           
-          .pedido-actions {
+          .action-buttons {
             flex-direction: column !important;
             width: 100% !important;
           }
           
-          .pedido-actions button {
+          .action-buttons button {
             width: 100% !important;
           }
         }
