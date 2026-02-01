@@ -9,7 +9,6 @@ export default function Carrito() {
     actualizarCantidad,
     eliminarProducto,
     limpiarCarrito
-    // NOTA: NO incluimos cargarCarritoDesdeAPI aquí porque no existe
   } = useCarrito();
 
   const navigate = useNavigate();
@@ -18,22 +17,50 @@ export default function Carrito() {
   const [iva, setIVA] = useState(0);
   const [total, setTotal] = useState(0);
   const [circlePositions, setCirclePositions] = useState([]);
-  // NOTA: No usamos cargandoCarrito para evitar problemas
+  
+  // ==================== SISTEMA DE NOTIFICACIONES ====================
+  const [notificacion, setNotificacion] = useState({
+    mostrar: false,
+    tipo: "success", // success, error, warning, info
+    titulo: "",
+    mensaje: "",
+    icono: ""
+  });
 
   // ==================== CARGAR CARRITO AL INICIAR ====================
   useEffect(() => {
     console.log("🔍 Componente Carrito montado");
     console.log("📦 Carrito actual:", carrito);
     
-    // Verificar usuario
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     console.log("👤 Usuario:", user);
     
-    // Si hay usuario pero no es consumidor, mostrar advertencia
     if (user.rol && user.rol !== "CONSUMIDOR") {
       console.log("⚠️ Usuario no es consumidor, rol:", user.rol);
     }
   }, []);
+
+  // ==================== MOSTRAR NOTIFICACIÓN ====================
+  const mostrarNotificacion = (tipo, titulo, mensaje, icono = null) => {
+    const iconosPorTipo = {
+      success: "✅",
+      error: "❌",
+      warning: "⚠️",
+      info: "ℹ️"
+    };
+
+    setNotificacion({
+      mostrar: true,
+      tipo,
+      titulo,
+      mensaje,
+      icono: icono || iconosPorTipo[tipo]
+    });
+
+    setTimeout(() => {
+      setNotificacion(prev => ({...prev, mostrar: false}));
+    }, 4000);
+  };
 
   // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
   useEffect(() => {
@@ -99,13 +126,26 @@ export default function Carrito() {
     const token = localStorage.getItem("authToken");
 
     if (!token || !user.idConsumidor) {
-      alert("❌ Debes iniciar sesión como consumidor para finalizar la compra");
-      navigate("/LoginModal");
+      mostrarNotificacion(
+        "warning",
+        "Inicia sesión",
+        "Debes iniciar sesión como consumidor para finalizar la compra",
+        "🔒"
+      );
+      
+      setTimeout(() => {
+        navigate("/LoginModal");
+      }, 1500);
       return;
     }
 
     if (!carrito || carrito.length === 0) {
-      alert("❌ Tu carrito está vacío");
+      mostrarNotificacion(
+        "error",
+        "Carrito vacío",
+        "Tu carrito está vacío",
+        "🛒"
+      );
       return;
     }
 
@@ -116,11 +156,52 @@ export default function Carrito() {
   const handleDecrementar = (item) => {
     if (item.cantidad > 1) {
       actualizarCantidad(item.idItem, item.cantidad - 1);
+      mostrarNotificacion(
+        "success",
+        "Cantidad actualizada",
+        `Reduciste la cantidad a ${item.cantidad - 1}`,
+        "➖"
+      );
     } else {
-      if (window.confirm("¿Quieres eliminar este producto del carrito?")) {
-        eliminarProducto(item.idItem);
-      }
+      // Notificación para eliminar directamente
+      eliminarProducto(item.idItem);
+      mostrarNotificacion(
+        "success",
+        "Producto eliminado",
+        "Producto eliminado del carrito",
+        "✅"
+      );
     }
+  };
+
+  const handleIncrementar = (item) => {
+    actualizarCantidad(item.idItem, item.cantidad + 1);
+    mostrarNotificacion(
+      "success",
+      "Cantidad actualizada",
+      `Aumentaste la cantidad a ${item.cantidad + 1}`,
+      "➕"
+    );
+  };
+
+  const handleEliminarProducto = (item) => {
+    eliminarProducto(item.idItem);
+    mostrarNotificacion(
+      "success",
+      "Producto eliminado",
+      "Producto eliminado exitosamente",
+      "✅"
+    );
+  };
+
+  const handleLimpiarCarrito = () => {
+    limpiarCarrito();
+    mostrarNotificacion(
+      "success",
+      "Carrito vaciado",
+      "Todos los productos han sido eliminados",
+      "✅"
+    );
   };
 
   return (
@@ -158,6 +239,17 @@ export default function Carrito() {
           100% { transform: rotate(360deg); }
         }
         
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
         .scroll-container {
           scrollbar-width: thin;
           scrollbar-color: #FF6B35 #f1f5f9;
@@ -174,13 +266,115 @@ export default function Carrito() {
         
         .scroll-container::-webkit-scrollbar-thumb {
           background: #FF6B35;
-          border-radius: 10px;
+          border-radius: "10px";
         }
         
         .scroll-container::-webkit-scrollbar-thumb:hover {
           background: #FF8E53;
         }
       `}</style>
+
+      {/* NOTIFICACIÓN FLOTANTE */}
+      {notificacion.mostrar && (
+        <div 
+          style={{
+            position: "fixed",
+            top: "30px",
+            right: "30px",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            gap: "15px",
+            padding: "20px 25px",
+            borderRadius: "16px",
+            boxShadow: "0 10px 40px rgba(0, 0, 0, 0.15)",
+            border: "2px solid",
+            maxWidth: "400px",
+            minWidth: "350px",
+            animation: "slideIn 0.4s ease-out forwards",
+            fontFamily: "'Inter', sans-serif",
+            backdropFilter: "blur(10px)",
+            transform: "translateX(0)",
+            opacity: 1,
+            transition: "all 0.4s ease",
+            background: notificacion.tipo === "success" ? "linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.08))" :
+                      notificacion.tipo === "error" ? "linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.08))" :
+                      notificacion.tipo === "warning" ? "linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.08))" :
+                      "linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.08))",
+            borderColor: notificacion.tipo === "success" ? "rgba(16, 185, 129, 0.5)" :
+                        notificacion.tipo === "error" ? "rgba(239, 68, 68, 0.5)" :
+                        notificacion.tipo === "warning" ? "rgba(245, 158, 11, 0.5)" :
+                        "rgba(59, 130, 246, 0.5)",
+            color: notificacion.tipo === "success" ? "#10B981" :
+                  notificacion.tipo === "error" ? "#EF4444" :
+                  notificacion.tipo === "warning" ? "#F59E0B" :
+                  "#3B82F6"
+          }}
+        >
+          <div style={{
+            fontSize: "32px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "50px",
+            height: "50px",
+            borderRadius: "12px",
+            background: "rgba(255, 255, 255, 0.9)",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)"
+          }}>
+            {notificacion.icono}
+          </div>
+          
+          <div style={{ flex: 1 }}>
+            <div style={{
+              fontSize: "16px",
+              fontWeight: "800",
+              marginBottom: "5px",
+              letterSpacing: "0.3px"
+            }}>
+              {notificacion.titulo}
+            </div>
+            <div style={{
+              fontSize: "14px",
+              fontWeight: "500",
+              opacity: 0.9,
+              lineHeight: "1.5"
+            }}>
+              {notificacion.mensaje}
+            </div>
+          </div>
+          
+          <button 
+            onClick={() => setNotificacion({...notificacion, mostrar: false})}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: "18px",
+              color: "inherit",
+              opacity: 0.7,
+              cursor: "pointer",
+              padding: "5px",
+              borderRadius: "50%",
+              width: "30px",
+              height: "30px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.2s ease"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = "1";
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = "0.7";
+              e.currentTarget.style.background = "none";
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* HEADER SECTION CON CÍRCULOS */}
       <div style={{
@@ -361,11 +555,7 @@ export default function Carrito() {
                 </div>
 
                 <button
-                  onClick={() => {
-                    if (window.confirm("¿Estás seguro de que quieres vaciar el carrito?")) {
-                      limpiarCarrito();
-                    }
-                  }}
+                  onClick={handleLimpiarCarrito}
                   style={{
                     padding: "12px 24px",
                     background: "#fef2f2",
@@ -487,7 +677,7 @@ export default function Carrito() {
                             </strong>
 
                             <button
-                              onClick={() => actualizarCantidad(item.idItem, cantidad + 1)}
+                              onClick={() => handleIncrementar(item)}
                               style={{
                                 width: "36px",
                                 height: "36px",
@@ -518,11 +708,7 @@ export default function Carrito() {
                         </div>
 
                         <button
-                          onClick={() => {
-                            if (window.confirm("¿Estás seguro de que quieres eliminar este producto?")) {
-                              eliminarProducto(item.idItem);
-                            }
-                          }}
+                          onClick={() => handleEliminarProducto(item)}
                           style={{
                             background: "#dc2626",
                             color: "white",
