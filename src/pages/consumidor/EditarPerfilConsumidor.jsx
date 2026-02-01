@@ -230,13 +230,14 @@ export default function EditarPerfilConsumidor() {
     const hasError = validationErrors[fieldName];
     
     return (
-      <div style={{ marginBottom: "20px" }}>
+      <div style={{ marginBottom: "22px" }}>
         <label style={{
           display: "block",
           fontSize: "12px",
           color: hasError ? "#DC2626" : "#64748b",
           fontWeight: "600",
-          marginBottom: "7px",
+          marginBottom: "8px",
+          marginTop: "4px",
           fontFamily: "'Inter', sans-serif",
           letterSpacing: "0.5px",
           textTransform: "uppercase"
@@ -376,13 +377,14 @@ export default function EditarPerfilConsumidor() {
   };
 
   const LockedField = ({ label, value }) => (
-    <div style={{ marginBottom: "20px" }}>
+    <div style={{ marginBottom: "22px" }}>
       <label style={{
         display: "block",
         fontSize: "12px",
         color: "#64748b",
         fontWeight: "600",
-        marginBottom: "7px",
+        marginBottom: "8px",
+        marginTop: "4px",
         fontFamily: "'Inter', sans-serif",
         letterSpacing: "0.5px",
         textTransform: "uppercase"
@@ -896,13 +898,14 @@ export default function EditarPerfilConsumidor() {
               fieldName="apellido"
             />
 
-            <div style={{ marginBottom: "20px" }}>
+            <div style={{ marginBottom: "22px" }}>
               <label style={{
                 display: "block",
                 fontSize: "12px",
                 color: validationErrors.fecha ? "#DC2626" : "#64748b",
                 fontWeight: "600",
-                marginBottom: "7px",
+                marginBottom: "8px",
+                marginTop: "4px",
                 fontFamily: "'Inter', sans-serif",
                 letterSpacing: "0.5px",
                 textTransform: "uppercase"
