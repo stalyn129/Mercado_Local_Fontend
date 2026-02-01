@@ -18,6 +18,20 @@ export default function CheckoutUnificado() {
   const [titular, setTitular] = useState("");
   const [procesando, setProcesando] = useState(false);
   const [circlePositions, setCirclePositions] = useState([]);
+  
+  // ==================== SISTEMA DE NOTIFICACIONES ====================
+  const [notificacion, setNotificacion] = useState({
+    mostrar: false,
+    titulo: "",
+    mensaje: ""
+  });
+
+  // ==================== CONFIRMACIÓN DE COMPRA ====================
+  const [confirmacionTarjeta, setConfirmacionTarjeta] = useState({
+    mostrar: false,
+    monto: 0,
+    metodo: "TARJETA"
+  });
 
   // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
   useEffect(() => {
@@ -66,6 +80,19 @@ export default function CheckoutUnificado() {
     return () => clearInterval(interval);
   }, []);
 
+  // ==================== MOSTRAR NOTIFICACIÓN SIMPLE ====================
+  const mostrarNotificacion = (titulo, mensaje) => {
+    setNotificacion({
+      mostrar: true,
+      titulo,
+      mensaje
+    });
+
+    setTimeout(() => {
+      setNotificacion(prev => ({...prev, mostrar: false}));
+    }, 4000);
+  };
+
   // Calcular totales
   const subtotal = carrito.reduce(
     (acc, item) => acc + item.producto.precio * item.cantidad,
@@ -78,11 +105,17 @@ export default function CheckoutUnificado() {
   const validarFormulario = () => {
     if (metodoPago === "EFECTIVO") {
       if (!montoEfectivo || montoEfectivo.trim() === "") {
-        alert("❌ Debes ingresar el monto con el que pagarás");
+        mostrarNotificacion(
+          "Monto requerido",
+          "Debes ingresar el monto con el que pagarás"
+        );
         return false;
       }
       if (parseFloat(montoEfectivo) < total) {
-        alert("❌ El monto debe ser mayor o igual al total");
+        mostrarNotificacion(
+          "Monto insuficiente",
+          "El monto debe ser mayor o igual al total"
+        );
         return false;
       }
       return true;
@@ -90,7 +123,10 @@ export default function CheckoutUnificado() {
 
     if (metodoPago === "TRANSFERENCIA") {
       if (!comprobante) {
-        alert("❌ Debes subir el comprobante de transferencia");
+        mostrarNotificacion(
+          "Comprobante requerido",
+          "Debes subir el comprobante de transferencia"
+        );
         return false;
       }
       return true;
@@ -98,15 +134,24 @@ export default function CheckoutUnificado() {
 
     if (metodoPago === "TARJETA") {
       if (!numTarjeta || numTarjeta.replace(/\s/g, "").length < 15) {
-        alert("❌ Número de tarjeta inválido");
+        mostrarNotificacion(
+          "Tarjeta inválida",
+          "Número de tarjeta inválido"
+        );
         return false;
       }
       if (!cvv || cvv.length < 3) {
-        alert("❌ CVV inválido");
+        mostrarNotificacion(
+          "CVV inválido",
+          "CVV inválido"
+        );
         return false;
       }
       if (!mesExpiracion || !anioExpiracion) {
-        alert("❌ Fecha de expiración requerida");
+        mostrarNotificacion(
+          "Fecha requerida",
+          "Fecha de expiración requerida"
+        );
         return false;
       }
 
@@ -116,12 +161,18 @@ export default function CheckoutUnificado() {
 
       if (parseInt(anioExpiracion) < anioActual || 
           (parseInt(anioExpiracion) === anioActual && parseInt(mesExpiracion) < mesActual)) {
-        alert("❌ La tarjeta está vencida");
+        mostrarNotificacion(
+          "Tarjeta vencida",
+          "La tarjeta está vencida"
+        );
         return false;
       }
 
       if (!titular.trim()) {
-        alert("❌ Nombre del titular requerido");
+        mostrarNotificacion(
+          "Titular requerido",
+          "Nombre del titular requerido"
+        );
         return false;
       }
       return true;
@@ -130,25 +181,31 @@ export default function CheckoutUnificado() {
     return true;
   };
 
-  // 🔥 FINALIZAR COMPRA - CON REDIRECCIÓN CORREGIDA
+  // 🔥 FINALIZAR COMPRA - CONFIRMACIÓN SIMPLE
   const finalizarCompra = async () => {
+    // Si es tarjeta y no está en modo confirmación, retornar
+    if (metodoPago === "TARJETA" && !confirmacionTarjeta.mostrar) {
+      return;
+    }
+
     if (!validarFormulario()) return;
 
     const token = localStorage.getItem("authToken");
     const user = JSON.parse(localStorage.getItem("user"));
 
     if (!token || !user?.idConsumidor) {
-      alert("❌ Debes iniciar sesión");
-      navigate("/loginmodal");
+      mostrarNotificacion(
+        "Inicia sesión",
+        "Debes iniciar sesión como consumidor para finalizar la compra"
+      );
+      
+      setTimeout(() => {
+        navigate("/loginmodal");
+      }, 1500);
       return;
     }
 
     const idCompraUnificada = `COMPRA-${Date.now()}-${user.idConsumidor}`;
-
-    const confirmar = window.confirm(
-      `¿Confirmar compra por $${total.toFixed(2)} con ${metodoPago}?\n\n`
-    );
-    if (!confirmar) return;
 
     setProcesando(true);
 
@@ -222,22 +279,32 @@ export default function CheckoutUnificado() {
       await Promise.all(promesasFinalizacion);
       await limpiarCarrito();
 
-      alert(
-        `🎉 ¡Compra realizada con éxito!\n\n` +
-        `Total: $${total.toFixed(2)}\n` +
-        `Redirigiendo a tu compra...`
+      // Cerrar confirmación si está abierta
+      if (confirmacionTarjeta.mostrar) {
+        setConfirmacionTarjeta({...confirmacionTarjeta, mostrar: false});
+      }
+
+      // NOTIFICACIÓN DE ÉXITO
+      mostrarNotificacion(
+        "¡Compra realizada con éxito!",
+        `Total: $${total.toFixed(2)}\nRedirigiendo a tu compra...`
       );
 
-      // ✅ REDIRECCIÓN CORREGIDA - Ahora va a /pedido/{idPedido}
-      if (pedidos && pedidos.length > 0) {
-        navigate(`/pedido/${pedidos[0].idPedido}`);
-      } else {
-        navigate("/");
-      }
+      // ✅ REDIRECCIÓN DESPUÉS DE MOSTRAR LA NOTIFICACIÓN
+      setTimeout(() => {
+        if (pedidos && pedidos.length > 0) {
+          navigate(`/pedido/${pedidos[0].idPedido}`);
+        } else {
+          navigate("/");
+        }
+      }, 2000);
 
     } catch (err) {
       console.error("❌ Error:", err);
-      alert(`❌ Error al procesar la compra: ${err.message}`);
+      mostrarNotificacion(
+        "Error al procesar la compra",
+        err.message
+      );
     } finally {
       setProcesando(false);
     }
@@ -343,6 +410,319 @@ export default function CheckoutUnificado() {
       overflowX: "hidden"
     }}>
       
+      {/* NOTIFICACIÓN FLOTANTE SIMPLE */}
+      {notificacion.mostrar && (
+        <div 
+          style={{
+            position: "fixed",
+            top: "30px",
+            right: "30px",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            gap: "15px",
+            padding: "20px 25px",
+            borderRadius: "16px",
+            boxShadow: "0 10px 40px rgba(0, 0, 0, 0.15)",
+            border: "2px solid #10B9850",
+            maxWidth: "400px",
+            minWidth: "350px",
+            animation: "slideIn 0.4s ease-out forwards",
+            fontFamily: "'Inter', sans-serif",
+            backdropFilter: "blur(10px)",
+            transform: "translateX(0)",
+            opacity: 1,
+            transition: "all 0.4s ease",
+            background: "linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.08))",
+            borderColor: "rgba(16, 185, 129, 0.5)",
+            color: "#10B981"
+          }}
+        >
+          <div style={{
+            fontSize: "32px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "50px",
+            height: "50px",
+            borderRadius: "12px",
+            background: "rgba(255, 255, 255, 0.9)",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)"
+          }}>
+            ✅
+          </div>
+          
+          <div style={{ flex: 1 }}>
+            <div style={{
+              fontSize: "16px",
+              fontWeight: "800",
+              marginBottom: "5px",
+              letterSpacing: "0.3px"
+            }}>
+              {notificacion.titulo}
+            </div>
+            <div style={{
+              fontSize: "14px",
+              fontWeight: "500",
+              opacity: 0.9,
+              lineHeight: "1.5",
+              whiteSpace: "pre-line"
+            }}>
+              {notificacion.mensaje}
+            </div>
+          </div>
+          
+          <button 
+            onClick={() => setNotificacion({...notificacion, mostrar: false})}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: "18px",
+              color: "inherit",
+              opacity: 0.7,
+              cursor: "pointer",
+              padding: "5px",
+              borderRadius: "50%",
+              width: "30px",
+              height: "30px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.2s ease"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = "1";
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = "0.7";
+              e.currentTarget.style.background = "none";
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN PARA TARJETA */}
+      {confirmacionTarjeta.mostrar && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 10000,
+          backdropFilter: "blur(5px)"
+        }}>
+          <div style={{
+            background: "white",
+            borderRadius: "24px",
+            padding: "40px",
+            maxWidth: "450px",
+            width: "90%",
+            boxShadow: "0 20px 60px rgba(0, 0, 0, 0.25)",
+            animation: "slideIn 0.3s ease-out",
+            fontFamily: "'Inter', sans-serif"
+          }}>
+            {/* Icono de tarjeta */}
+            <div style={{
+              fontSize: "48px",
+              textAlign: "center",
+              marginBottom: "20px",
+              color: "#3B82F6"
+            }}>
+              💳
+            </div>
+            
+            {/* Título */}
+            <h2 style={{
+              textAlign: "center",
+              fontSize: "24px",
+              fontWeight: "800",
+              color: "#2C3E50",
+              marginBottom: "10px",
+              fontFamily: "'Playfair Display', serif"
+            }}>
+              Confirmar compra con tarjeta
+            </h2>
+            
+            {/* Mensaje */}
+            <p style={{
+              textAlign: "center",
+              fontSize: "18px",
+              color: "#64748b",
+              marginBottom: "30px",
+              lineHeight: "1.6"
+            }}>
+              ¿Confirmar compra por <strong style={{ color: "#FF6B35" }}>${confirmacionTarjeta.monto.toFixed(2)}</strong> con <strong>TARJETA</strong>?
+            </p>
+            
+            {/* Detalles de pago */}
+            <div style={{
+              background: "#f8fafc",
+              borderRadius: "12px",
+              padding: "20px",
+              marginBottom: "30px",
+              border: "2px solid #e5e7eb"
+            }}>
+              <div style={{ 
+                display: "flex", 
+                justifyContent: "space-between", 
+                marginBottom: "10px",
+                fontSize: "16px"
+              }}>
+                <span style={{ color: "#64748b" }}>Subtotal:</span>
+                <span style={{ fontWeight: "600" }}>${subtotal.toFixed(2)}</span>
+              </div>
+              
+              <div style={{ 
+                display: "flex", 
+                justifyContent: "space-between", 
+                marginBottom: "10px",
+                fontSize: "16px"
+              }}>
+                <span style={{ color: "#64748b" }}>IVA (12%):</span>
+                <span style={{ fontWeight: "600" }}>${iva.toFixed(2)}</span>
+              </div>
+              
+              <div style={{ 
+                display: "flex", 
+                justifyContent: "space-between",
+                paddingTop: "10px",
+                borderTop: "2px solid #e5e7eb",
+                fontSize: "18px",
+                fontWeight: "700"
+              }}>
+                <span style={{ color: "#2C3E50" }}>Total a pagar:</span>
+                <span style={{ color: "#FF6B35" }}>${total.toFixed(2)}</span>
+              </div>
+            </div>
+            
+            {/* Información de la tarjeta */}
+            <div style={{
+              background: "#f0f9ff",
+              borderRadius: "12px",
+              padding: "15px",
+              marginBottom: "30px",
+              border: "2px solid #dbeafe"
+            }}>
+              <h3 style={{
+                fontSize: "14px",
+                fontWeight: "600",
+                color: "#3B82F6",
+                marginBottom: "10px",
+                textTransform: "uppercase",
+                letterSpacing: "1px"
+              }}>
+                Método de pago
+              </h3>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{
+                  fontSize: "24px",
+                  color: "#3B82F6"
+                }}>
+                  💳
+                </div>
+                <div>
+                  <div style={{
+                    fontFamily: "'Courier New', monospace",
+                    fontSize: "16px",
+                    fontWeight: "600",
+                    color: "#2C3E50",
+                    letterSpacing: "1px"
+                  }}>
+                    {numTarjeta || "4111 1111 1111 1111"}
+                  </div>
+                  <div style={{
+                    fontSize: "14px",
+                    color: "#64748b",
+                    marginTop: "2px"
+                  }}>
+                    {mesExpiracion && anioExpiracion 
+                      ? `${mesExpiracion.padStart(2, '0')} / ${anioExpiracion}`
+                      : "MM / AAAA"
+                    } • {titular || "Nombre del titular"}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Botones */}
+            <div style={{
+              display: "flex",
+              gap: "15px"
+            }}>
+              <button
+                onClick={() => {
+                  setConfirmacionTarjeta({...confirmacionTarjeta, mostrar: false});
+                  finalizarCompra();
+                }}
+                style={{
+                  flex: 1,
+                  background: "linear-gradient(135deg, #10B981 0%, #34D399 100%)",
+                  color: "white",
+                  border: "none",
+                  padding: "18px",
+                  borderRadius: "12px",
+                  fontSize: "16px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                  fontFamily: "'Inter', sans-serif"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 8px 20px rgba(16, 185, 129, 0.3)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                Aceptar
+              </button>
+              
+              <button
+                onClick={() => setConfirmacionTarjeta({...confirmacionTarjeta, mostrar: false})}
+                style={{
+                  flex: 1,
+                  background: "white",
+                  color: "#64748b",
+                  border: "2px solid #e5e7eb",
+                  padding: "18px",
+                  borderRadius: "12px",
+                  fontSize: "16px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  transition: "all 0.3s ease",
+                  fontFamily: "'Inter', sans-serif"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.borderColor = "#EF4444";
+                  e.currentTarget.style.color = "#EF4444";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(239, 68, 68, 0.1)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.borderColor = "#e5e7eb";
+                  e.currentTarget.style.color = "#64748b";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* HEADER CON CÍRCULOS ANIMADOS */}
       <div style={{
         background: "white",
@@ -1095,7 +1475,18 @@ export default function CheckoutUnificado() {
 
             {/* BOTÓN FINALIZAR COMPRA */}
             <button
-              onClick={finalizarCompra}
+              onClick={() => {
+                if (metodoPago === "TARJETA") {
+                  // Mostrar confirmación para tarjeta
+                  setConfirmacionTarjeta({
+                    mostrar: true,
+                    monto: total,
+                    metodo: "TARJETA"
+                  });
+                } else {
+                  finalizarCompra();
+                }
+              }}
               disabled={procesando}
               style={{
                 width: "100%",
@@ -1181,6 +1572,17 @@ export default function CheckoutUnificado() {
           }
         }
         
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
         ::-webkit-scrollbar {
           width: 8px;
         }
@@ -1263,7 +1665,7 @@ export default function CheckoutUnificado() {
         
         @media (max-width: 480px) {
           h1 {
-            font-size: 32px !important;
+            fontSize: 32px !important;
           }
           
           .product-item {
