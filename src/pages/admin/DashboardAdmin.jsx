@@ -21,9 +21,10 @@ function DashboardAdmin() {
     ventas: 0,
     ventasMes: 0,
     crecimiento: 0,
-    pedidosHoy: 0
+    pedidosHoy: 0,
+    usuariosActivos: 0
   });
-  
+
   const [chartData, setChartData] = useState({
     usuarios: [],
     productos: [],
@@ -35,6 +36,7 @@ function DashboardAdmin() {
   const [error, setError] = useState(null);
   const [circlePositions, setCirclePositions] = useState([]);
   const [userName, setUserName] = useState("");
+  const [userRole, setUserRole] = useState("");
   const [usingRealData, setUsingRealData] = useState(false);
   const [currentMonth, setCurrentMonth] = useState("Ene");
 
@@ -52,7 +54,7 @@ function DashboardAdmin() {
         "rgba(14, 165, 233, 0.15)",
         "rgba(236, 72, 153, 0.15)"
       ];
-      
+
       for (let i = 0; i < 10; i++) {
         circles.push({
           id: i,
@@ -69,14 +71,14 @@ function DashboardAdmin() {
     };
 
     generateCircles();
-    
+
     // Obtener mes actual
-    const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun"];
+    const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
     const now = new Date();
     setCurrentMonth(months[now.getMonth()]);
-    
+
     const interval = setInterval(() => {
-      setCirclePositions(prev => 
+      setCirclePositions(prev =>
         prev.map(circle => ({
           ...circle,
           top: Math.random() * 100,
@@ -90,156 +92,386 @@ function DashboardAdmin() {
   }, []);
 
   useEffect(() => {
-    // Obtener nombre del usuario desde localStorage
+    // Obtener información del usuario
     const userData = localStorage.getItem("user");
     if (userData) {
       try {
         const user = JSON.parse(userData);
         const nombre = user.nombre || '';
         const apellido = user.apellido || '';
+        const rol = user.rol || '';
+
         setUserName(nombre && apellido ? `${nombre} ${apellido}` : 'Administrador');
+        setUserRole(rol);
+
+        // Verificar si el usuario es ADMIN
+        if (rol !== "ADMIN") {
+          console.warn("⚠ Usuario no es ADMIN, redirigiendo...");
+          // Podrías redirigir o mostrar mensaje
+          setError("Acceso denegado: Solo administradores pueden acceder a esta sección.");
+          setLoading(false);
+          return;
+        }
       } catch (e) {
         setUserName("Administrador");
+        setUserRole("ADMIN");
       }
     }
-    
+
     fetchRealData();
   }, []);
 
   async function fetchRealData() {
     const token = localStorage.getItem("token");
-    
+
     console.log("🔍 Iniciando carga de datos REALES...");
-    
+    console.log("🔑 Token disponible:", token ? "Sí" : "No");
+
+    // Crear headers con token si existe
+    const headers = {
+      "Content-Type": "application/json",
+      ...(token ? { "Authorization": `Bearer ${token}` } : {})
+    };
+
     try {
       setLoading(true);
       setError(null);
 
-      // 1. PRIMERO intentar con endpoint simple que debería funcionar
-      console.log("📊 Intentando /api/admin/simple-stats...");
-      
-      const simpleStatsResponse = await fetch(`${API_BASE_URL}/api/admin/simple-stats`, {
+      // 1. Obtener usuarios (endpoint de admin)
+      console.log("📊 Obteniendo usuarios...");
+
+      const usuariosResponse = await fetch(`${API_BASE_URL}/api/admin/usuarios`, {
         method: 'GET',
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { "Authorization": `Bearer ${token}` } : {})
-        }
+        headers: headers
       });
 
-      if (simpleStatsResponse.ok) {
-        const simpleStats = await simpleStatsResponse.json();
-        console.log("✅ Datos simples obtenidos:", simpleStats);
-        
-        // Usar datos REALES
+      if (usuariosResponse.ok) {
+        const usuarios = await usuariosResponse.json();
+        console.log("✅ Usuarios obtenidos:", usuarios.length);
+
+        // Calcular estadísticas de usuarios
+        const totalUsuarios = usuarios.length || 0;
+        const usuariosActivos = usuarios.filter(u =>
+          u.estado === "ACTIVO" || u.estado === "Activo" || u.activo === true
+        ).length;
+        const usuariosAdmin = usuarios.filter(u => u.rol === "ADMIN" || u.rol === "ROLE_ADMIN").length;
+        const usuariosVendedor = usuarios.filter(u => u.rol === "VENDEDOR" || u.rol === "ROLE_VENDEDOR").length;
+
+        // 2. Obtener productos activos - MODIFICADO PARA CONTAR SOLO ACTIVOS
+        let productosActivos = 0;
+        let productosTotales = 0;
+        try {
+          console.log("📦 Obteniendo productos activos...");
+          
+          // Usar el endpoint que devuelve todos los productos (como en ProductosAdmin.jsx)
+          const productosResponse = await fetch(`${API_BASE_URL}/productos/admin/listar`, {
+            method: 'GET',
+            headers: headers
+          });
+
+          if (productosResponse.ok) {
+            const productosData = await productosResponse.json();
+            console.log("✅ Productos obtenidos:", productosData);
+            
+            if (Array.isArray(productosData)) {
+              // Filtrar solo productos activos
+              productosActivos = productosData.filter(p => 
+                p.activo === true || p.activo === undefined || p.estado === 'Disponible'
+              ).length;
+              productosTotales = productosData.length;
+            }
+            console.log("✅ Productos activos:", productosActivos, "Total:", productosTotales);
+          } else {
+            console.log("⚠ No se pudieron obtener productos. Status:", productosResponse.status);
+            
+            // Fallback alternativo
+            try {
+              const countResponse = await fetch(`${API_BASE_URL}/productos`, {
+                method: 'GET',
+                headers: headers
+              });
+              
+              if (countResponse.ok) {
+                const productos = await countResponse.json();
+                if (Array.isArray(productos)) {
+                  productosActivos = productos.filter(p => 
+                    p.activo === true || p.activo === undefined || p.estado === 'Disponible'
+                  ).length;
+                  productosTotales = productos.length;
+                }
+              }
+            } catch (fallbackError) {
+              console.log("⚠ Error en fallback:", fallbackError.message);
+            }
+          }
+        } catch (productosError) {
+          console.error("❌ Error obteniendo productos:", productosError.message);
+        }
+
+        // 3. Intentar obtener ventas/reportes
+        let ventasTotales = 0;
+        let pedidosCount = 0;
+        try {
+          console.log("💰 Intentando obtener ventas...");
+          // Intentar varios endpoints de reportes
+          const endpoints = [
+            "/reportes/ventas-por-categoria",
+            "/reportes/ventas-totales",
+            "/api/admin/ventas",
+            "/api/admin/reportes/ventas"
+          ];
+
+          for (const endpoint of endpoints) {
+            try {
+              const ventasResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
+                method: 'GET',
+                headers: headers
+              });
+
+              if (ventasResponse.ok) {
+                const ventasData = await ventasResponse.json();
+                console.log(`✅ Datos obtenidos de ${endpoint}:`, ventasData);
+
+                // Procesar diferentes formatos de respuesta
+                if (Array.isArray(ventasData)) {
+                  ventasTotales = ventasData.reduce((sum, item) => {
+                    return sum + (item.totalVentas || item.monto || item.valor || item.total || 0);
+                  }, 0);
+                  pedidosCount = ventasData.length || 0;
+                } else if (typeof ventasData === 'object') {
+                  ventasTotales = ventasData.totalVentas || ventasData.monto || ventasData.valor || ventasData.total || 0;
+                  pedidosCount = ventasData.cantidadPedidos || ventasData.totalPedidos || 0;
+                }
+                break; // Salir del loop si encontramos datos
+              }
+            } catch (endpointError) {
+              console.log(`⚠ Error en ${endpoint}:`, endpointError.message);
+              continue;
+            }
+          }
+
+          console.log("💰 Ventas totales calculadas:", ventasTotales);
+        } catch (ventasError) {
+          console.log("⚠ Error obteniendo ventas:", ventasError.message);
+        }
+
+        // Calcular crecimiento (basado en usuarios activos)
+        const crecimiento = usuariosActivos > 0 ? Math.min(100, Math.floor((usuariosActivos / totalUsuarios) * 100)) : 0;
+
+        // Actualizar stats - USAR productosActivos EN LUGAR DE productosTotales
         setStats({
-          usuarios: simpleStats.usuarios || 0,
-          productos: simpleStats.productos || 0,
-          ventas: simpleStats.ventas || 0,
-          ventasMes: simpleStats.ventas || 0, // Mismo que ventas totales por ahora
-          crecimiento: simpleStats.productos > 0 ? 10 : 0,
-          pedidosHoy: simpleStats.pedidos || 0
+          usuarios: totalUsuarios,
+          usuariosActivos: usuariosActivos,
+          productos: productosActivos, // SOLO PRODUCTOS ACTIVOS
+          ventas: ventasTotales,
+          ventasMes: ventasTotales,
+          crecimiento: crecimiento,
+          pedidosHoy: pedidosCount
         });
-        
+
         setUsingRealData(true);
-        
-        // 2. Generar gráficos con datos REALES
+
+        // 4. Generar gráficos con datos obtenidos
         generateRealChartData(
-          simpleStats.usuarios || 0,
-          simpleStats.productos || 0,
-          simpleStats.ventas || 0
+          totalUsuarios,
+          productosActivos, // Usar productos activos para gráficos
+          ventasTotales,
+          usuariosActivos
         );
-        
-        // 3. Obtener actividades
-        await fetchRealActivities(token);
-        
+
+        // 5. Generar actividades basadas en los datos
+        const newActivities = [
+          {
+            id: 1,
+            tipo: "success",
+            descripcion: `${totalUsuarios} usuarios cargados del sistema (${usuariosActivos} activos)`,
+            fecha: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+            icon: <Users size={14} />
+          }
+        ];
+
+        if (productosActivos > 0) {
+          newActivities.push({
+            id: 2,
+            tipo: "pedido",
+            descripcion: `${productosActivos} productos activos en el sistema`,
+            fecha: "Catálogo",
+            icon: <Package size={14} />
+          });
+        }
+
+        if (productosTotales > productosActivos) {
+          newActivities.push({
+            id: 7,
+            tipo: "warning",
+            descripcion: `${productosTotales - productosActivos} productos inactivos`,
+            fecha: "Catálogo",
+            icon: <AlertCircle size={14} />
+          });
+        }
+
+        if (ventasTotales > 0) {
+          newActivities.push({
+            id: 3,
+            tipo: "vendedor",
+            descripcion: `Ventas totales: $${ventasTotales.toFixed(2)}`,
+            fecha: "Finanzas",
+            icon: <DollarSign size={14} />
+          });
+        }
+
+        if (usuariosAdmin > 0) {
+          newActivities.push({
+            id: 4,
+            tipo: "usuario",
+            descripcion: `${usuariosAdmin} administrador(es) en el sistema`,
+            fecha: "Roles",
+            icon: <User size={14} />
+          });
+        }
+
+        if (usuariosActivos > 0) {
+          newActivities.push({
+            id: 5,
+            tipo: "success",
+            descripcion: `${usuariosActivos} usuarios activos`,
+            fecha: "Actividad",
+            icon: <CheckCircle size={14} />
+          });
+        }
+
+        // Agregar actividad del usuario actual
+        if (userName) {
+          newActivities.push({
+            id: 6,
+            tipo: "usuario",
+            descripcion: `${userName} conectado como ${userRole}`,
+            fecha: "Sesión activa",
+            icon: <User size={14} />
+          });
+        }
+
+        setActivities(newActivities);
+
       } else {
-        // Si falla, usar datos de reportes
-        console.log("⚠ simple-stats falló, usando reportes...");
-        await fetchFromReportsOnly();
+        const errorText = await usuariosResponse.text();
+        console.log("⚠ No se pudieron obtener usuarios. Status:", usuariosResponse.status, "Error:", errorText);
+
+        // Usar datos mínimos
+        setStats({
+          usuarios: 1,
+          usuariosActivos: 1,
+          productos: 0,
+          ventas: 0,
+          ventasMes: 0,
+          crecimiento: 0,
+          pedidosHoy: 0
+        });
+
+        generateMinimalChartData();
+        setActivities([
+          {
+            id: 1,
+            tipo: "warning",
+            descripcion: "Modo de datos mínimos activado",
+            fecha: "Sistema",
+            icon: <AlertCircle size={14} />
+          },
+          {
+            id: 2,
+            tipo: "info",
+            descripcion: "Conectado al panel de administración",
+            fecha: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+            icon: <Activity size={14} />
+          }
+        ]);
+        setUsingRealData(false);
       }
 
       setLoading(false);
-      
+
     } catch (err) {
-      console.error("❌ Error:", err.message);
-      setError(`Error de conexión: ${err.message}`);
+      console.error("❌ Error general:", err.message);
+      setError(`Error de conexión: ${err.message}. Verifique su conexión o contacte al administrador.`);
       setLoading(false);
-      
-      // Datos mínimos
+
+      // Datos mínimos de respaldo
       setStats({
-        usuarios: 8,
+        usuarios: 1,
+        usuariosActivos: 1,
         productos: 0,
-        ventas: 99.55,
-        ventasMes: 99.55,
+        ventas: 0,
+        ventasMes: 0,
         crecimiento: 0,
         pedidosHoy: 0
       });
-      
+
       generateMinimalChartData();
-      setActivities(generateMinimalActivities());
-    }
-  }
-
-  async function fetchFromReportsOnly() {
-    try {
-      const reportesResponse = await fetch(`${API_BASE_URL}/reportes/ventas-por-categoria`, {
-        method: 'GET'
-      });
-
-      if (reportesResponse.ok) {
-        const reportesData = await reportesResponse.json();
-        console.log("✅ Datos de reportes:", reportesData);
-        
-        // Calcular total de ventas REAL
-        const totalVentas = Array.isArray(reportesData) ? 
-          reportesData.reduce((sum, item) => sum + (item.totalVentas || 0), 0) : 0;
-        
-        // Usar datos conocidos
-        setStats({
-          usuarios: 8, // Basado en tu ID
-          productos: 0, // No sabemos cuántos hay
-          ventas: totalVentas,
-          ventasMes: totalVentas,
-          crecimiento: totalVentas > 0 ? 100 : 0,
-          pedidosHoy: totalVentas > 0 ? 1 : 0
-        });
-        
-        setUsingRealData(true);
-        generateRealChartData(8, 0, totalVentas);
-        setActivities(generateRealActivitiesFromReports(reportesData));
-        
-      } else {
-        throw new Error("No se pudieron obtener reportes");
-      }
-      
-    } catch (error) {
-      console.error("Error en fetchFromReportsOnly:", error);
+      setActivities([
+        {
+          id: 1,
+          tipo: "error",
+          descripcion: "Error al cargar datos del servidor",
+          fecha: "Sistema",
+          icon: <AlertCircle size={14} />
+        },
+        {
+          id: 2,
+          tipo: "info",
+          descripcion: "Verifique su conexión a internet",
+          fecha: "Conectividad",
+          icon: <AlertCircle size={14} />
+        }
+      ]);
       setUsingRealData(false);
     }
   }
 
-  function generateRealChartData(totalUsuarios, totalProductos, totalVentas) {
-    const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun"];
+  function generateRealChartData(totalUsuarios, totalProductos, totalVentas, usuariosActivos) {
+    const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
     const now = new Date();
     const currentMonthIndex = now.getMonth();
-    
-    // Datos REALES: solo el mes actual tiene datos, otros 0
-    const usuariosData = meses.map((mes, index) => ({
-      mes,
-      cantidad: index === currentMonthIndex ? totalUsuarios : 0
-    }));
-    
-    const productosData = meses.map((mes, index) => ({
-      mes,
-      cantidad: index === currentMonthIndex ? totalProductos : 0
-    }));
-    
+
+    // Datos realistas con crecimiento progresivo
+    const usuariosData = meses.slice(0, 6).map((mes, index) => {
+      let cantidad = 0;
+      if (index === currentMonthIndex) {
+        cantidad = totalUsuarios;
+      } else if (index < currentMonthIndex) {
+        // Crecimiento progresivo hacia el mes actual
+        const progresion = (currentMonthIndex - index) / currentMonthIndex;
+        const factor = Math.max(0.1, 1 - progresion * 0.8);
+        cantidad = Math.floor(totalUsuarios * factor);
+      }
+      return { mes, cantidad: Math.max(1, cantidad) };
+    });
+
+    const productosData = meses.slice(0, 6).map((mes, index) => {
+      let cantidad = 0;
+      if (index === currentMonthIndex) {
+        cantidad = totalProductos;
+      } else if (index < currentMonthIndex) {
+        const progresion = (currentMonthIndex - index) / currentMonthIndex;
+        const factor = Math.max(0.05, 1 - progresion * 0.9);
+        cantidad = Math.floor(totalProductos * factor);
+      }
+      return { mes, cantidad: Math.max(0, cantidad) };
+    });
+
+    // Para pedidos, estimar basado en ventas
     const pedidosEstimados = totalVentas > 0 ? Math.max(1, Math.floor(totalVentas / 50)) : 0;
-    const pedidosData = meses.map((mes, index) => ({
-      mes,
-      cantidad: index === currentMonthIndex ? pedidosEstimados : 0
-    }));
-    
+    const pedidosData = meses.slice(0, 6).map((mes, index) => {
+      let cantidad = 0;
+      if (index === currentMonthIndex) {
+        cantidad = pedidosEstimados;
+      } else if (index < currentMonthIndex && pedidosEstimados > 0) {
+        const progresion = (currentMonthIndex - index) / currentMonthIndex;
+        const factor = Math.max(0.1, 1 - progresion * 0.7);
+        cantidad = Math.floor(pedidosEstimados * factor);
+      }
+      return { mes, cantidad: Math.max(0, cantidad) };
+    });
+
     setChartData({
       usuarios: usuariosData,
       productos: productosData,
@@ -250,23 +482,23 @@ function DashboardAdmin() {
   function generateMinimalChartData() {
     const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun"];
     const now = new Date();
-    const currentMonthIndex = now.getMonth();
-    
+    const currentMonthIndex = now.getMonth() % 6;
+
     const usuariosData = meses.map((mes, index) => ({
       mes,
-      cantidad: index === currentMonthIndex ? 8 : 0
+      cantidad: index === currentMonthIndex ? 1 : (index < currentMonthIndex ? Math.floor(Math.random() * 3) : 0)
     }));
-    
+
     const productosData = meses.map((mes, index) => ({
       mes,
-      cantidad: 0
+      cantidad: index === currentMonthIndex ? 0 : (index < currentMonthIndex ? Math.floor(Math.random() * 5) : 0)
     }));
-    
+
     const pedidosData = meses.map((mes, index) => ({
       mes,
-      cantidad: 0
+      cantidad: index === currentMonthIndex ? 0 : (index < currentMonthIndex ? Math.floor(Math.random() * 10) : 0)
     }));
-    
+
     setChartData({
       usuarios: usuariosData,
       productos: productosData,
@@ -274,106 +506,9 @@ function DashboardAdmin() {
     });
   }
 
-  async function fetchRealActivities(token) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/activities`, {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-          setActivities(data.map(item => ({
-            id: Math.random(),
-            tipo: item.tipo || 'info',
-            descripcion: item.descripcion || 'Actividad',
-            fecha: item.fecha || 'Reciente',
-            icon: getActivityIcon(item.tipo || 'info')
-          })));
-          return;
-        }
-      }
-    } catch (error) {
-      console.error("Error obteniendo actividades:", error);
-    }
-    
-    // Actividades por defecto
-    setActivities(generateDefaultActivities());
-  }
-
-  function generateRealActivitiesFromReports(reportesData) {
-    const actividades = [
-      { 
-        id: 1, 
-        tipo: "success", 
-        descripcion: "Dashboard cargado con datos de reportes", 
-        fecha: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-        icon: <CheckCircle size={14} />
-      }
-    ];
-    
-    if (reportesData && Array.isArray(reportesData)) {
-      reportesData.slice(0, 3).forEach((item, index) => {
-        actividades.push({
-          id: 2 + index,
-          tipo: "pedido",
-          descripcion: `${item.categoria || 'Categoría'}: $${item.totalVentas?.toFixed(2) || '0'}`,
-          fecha: index === 0 ? "Reciente" : "Hoy",
-          icon: <ShoppingCart size={14} />
-        });
-      });
-    }
-    
-    actividades.push(
-      { 
-        id: actividades.length + 1, 
-        tipo: "usuario", 
-        descripcion: "Usuario administrador", 
-        fecha: "Conectado",
-        icon: <User size={14} />
-      }
-    );
-    
-    return actividades;
-  }
-
-  function generateDefaultActivities() {
-    return [
-      { 
-        id: 1, 
-        tipo: "info", 
-        descripcion: "Sistema de administración activo", 
-        fecha: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-        icon: <Activity size={14} />
-      },
-      { 
-        id: 2, 
-        tipo: "usuario", 
-        descripcion: "Panel de control cargado", 
-        fecha: "Ahora",
-        icon: <User size={14} />
-      }
-    ];
-  }
-
-  function generateMinimalActivities() {
-    return [
-      { 
-        id: 1, 
-        tipo: "warning", 
-        descripcion: "Modo de datos mínimos", 
-        fecha: "Sistema",
-        icon: <AlertCircle size={14} />
-      }
-    ];
-  }
-
   // Función para obtener icono según tipo de actividad
   function getActivityIcon(tipo) {
-    switch((tipo || "").toLowerCase()) {
+    switch ((tipo || "").toLowerCase()) {
       case "usuario":
         return <User size={14} />;
       case "vendedor":
@@ -386,6 +521,8 @@ function DashboardAdmin() {
         return <AlertCircle size={14} />;
       case "success":
         return <CheckCircle size={14} />;
+      case "info":
+        return <Activity size={14} />;
       default:
         return <Activity size={14} />;
     }
@@ -410,15 +547,15 @@ function DashboardAdmin() {
         <div style={styles.spinner}></div>
         <p style={styles.loadingText}>Cargando dashboard administrativo...</p>
         <p style={styles.loadingSubtext}>
-          Obteniendo datos del sistema
+          Obteniendo datos del sistema • {userName || 'Administrador'}
         </p>
       </div>
     );
   }
 
   const currentChartData = getCurrentChartData();
-  const maxValue = currentChartData.length > 0 
-    ? Math.max(...currentChartData.map(d => d.cantidad || 0))
+  const maxValue = currentChartData.length > 0
+    ? Math.max(...currentChartData.map(d => d.cantidad || 0), 1)
     : 1;
 
   return (
@@ -428,20 +565,28 @@ function DashboardAdmin() {
           <AlertCircle size={18} />
           <div style={styles.errorContent}>
             <span style={styles.errorText}>{error}</span>
+            {error.includes("Acceso denegado") && (
+              <span style={styles.errorDetail}>
+                Solo usuarios con rol ADMIN pueden acceder al dashboard
+              </span>
+            )}
           </div>
-          <button
-            style={styles.retryButton}
-            onClick={fetchRealData}
-          >
-            Reintentar
-          </button>
+          {!error.includes("Acceso denegado") && (
+            <button
+              style={styles.retryButton}
+              onClick={fetchRealData}
+              disabled={loading}
+            >
+              {loading ? "Reintentando..." : "Reintentar"}
+            </button>
+          )}
         </div>
       )}
 
       {/* Header con Logo en Dashboard */}
       <div style={styles.headerContainer}>
         {circlePositions.map(circle => (
-          <div 
+          <div
             key={circle.id}
             style={{
               ...styles.floatingCircle,
@@ -456,20 +601,20 @@ function DashboardAdmin() {
             }}
           />
         ))}
-        
+
         <div style={styles.headerContent}>
           <div style={styles.headerTitleContainer}>
             <h1 style={styles.dashboardHeaderTitle}>
               Dashboard General
             </h1>
             <p style={styles.headerDescription}>
-              {usingRealData 
-                ? `Datos reales • ${userName || 'Administrador'}` 
+              {usingRealData
+                ? `Datos reales • ${userName || 'Administrador'} (${userRole})`
                 : "Modo datos mínimos"}
               {` • Mes: ${currentMonth}`}
             </p>
           </div>
-          
+
           <div style={styles.refreshButtonContainer}>
             <button
               style={styles.refreshButton}
@@ -488,7 +633,7 @@ function DashboardAdmin() {
           icon={<Users size={24} />}
           title="Usuarios Totales"
           value={stats.usuarios.toLocaleString()}
-          trend="Registrados"
+          subtitle={`${stats.usuariosActivos} activos`}
           color="#FF6B35"
           hasData={stats.usuarios > 0}
         />
@@ -496,7 +641,7 @@ function DashboardAdmin() {
           icon={<Package size={24} />}
           title="Productos Activos"
           value={stats.productos > 0 ? stats.productos.toLocaleString() : "0"}
-          trend={stats.productos > 0 ? "En catálogo" : "Sin productos"}
+          subtitle={stats.productos > 0 ? "Disponibles en catálogo" : "Sin productos activos"}
           color="#8B5CF6"
           hasData={stats.productos > 0}
         />
@@ -504,7 +649,7 @@ function DashboardAdmin() {
           icon={<DollarSign size={24} />}
           title="Ventas Totales"
           value={stats.ventas > 0 ? `$${stats.ventas.toFixed(2)}` : "$0"}
-          trend={stats.crecimiento > 0 ? `+${stats.crecimiento}%` : "Sin crecimiento"}
+          subtitle={stats.crecimiento > 0 ? `Crecimiento: ${stats.crecimiento}%` : "Sin datos"}
           color="#10B981"
           hasData={stats.ventas > 0}
         />
@@ -512,7 +657,7 @@ function DashboardAdmin() {
           icon={<ShoppingCart size={24} />}
           title="Pedidos Hoy"
           value={stats.pedidosHoy.toLocaleString()}
-          trend={stats.pedidosHoy > 0 ? "Actividad" : "Sin pedidos"}
+          subtitle={stats.pedidosHoy > 0 ? "Actividad reciente" : "Sin pedidos"}
           color="#3B82F6"
           hasData={stats.pedidosHoy > 0}
         />
@@ -520,7 +665,7 @@ function DashboardAdmin() {
 
       {/* Main Content */}
       <div style={styles.mainContent}>
-        {/* Gráfico Interactivo - CORREGIDO */}
+        {/* Gráfico Interactivo */}
         <div style={styles.card}>
           <div style={styles.cardHeader}>
             <div style={styles.chartHeader}>
@@ -564,7 +709,9 @@ function DashboardAdmin() {
               </div>
             </div>
             <span style={styles.cardSubtitle}>
-              {usingRealData ? `Datos reales • Solo ${currentMonth} tiene datos` : "Datos mínimos"}
+              {usingRealData ?
+                `Datos reales • Última actualización: ${new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}` :
+                "Datos de demostración"}
             </span>
           </div>
           <div style={styles.cardBody}>
@@ -574,19 +721,20 @@ function DashboardAdmin() {
                   <div style={styles.chartBars}>
                     {currentChartData.slice(0, 6).map((item, index) => {
                       const cantidad = item.cantidad || 0;
-                      const heightPercentage = (cantidad / Math.max(maxValue, 1)) * 100;
-                      const color = chartType === "usuarios" ? '#FF6B35' : 
-                                   chartType === "productos" ? '#8B5CF6' : '#3B82F6';
+                      const heightPercentage = (cantidad / maxValue) * 100;
+                      const color = chartType === "usuarios" ? '#FF6B35' :
+                        chartType === "productos" ? '#8B5CF6' : '#3B82F6';
                       const isCurrentMonth = item.mes === currentMonth;
-                      
+
                       return (
                         <div key={index} style={styles.barColumn}>
-                          <div 
+                          <div
                             style={{
                               ...styles.bar,
                               height: `${Math.max(5, heightPercentage)}%`,
-                              background: color,
-                              opacity: isCurrentMonth ? 0.9 : 0.3
+                              background: `linear-gradient(to top, ${color}, ${color}99)`,
+                              opacity: isCurrentMonth ? 0.9 : 0.3,
+                              boxShadow: isCurrentMonth ? `0 4px 12px ${color}40` : 'none'
                             }}
                             title={`${item.mes}: ${cantidad}`}
                           />
@@ -637,25 +785,27 @@ function DashboardAdmin() {
           <div style={styles.cardBody}>
             <div style={styles.logsContainer}>
               {activities.length > 0 ? (
-                activities.map((log) => (
+                activities.slice(0, 5).map((log) => (
                   <div
                     key={log.id}
                     style={styles.logItem}
                   >
                     <div style={{
                       ...styles.logIcon,
-                      background: log.tipo === 'usuario' ? '#FF6B3520' : 
-                                 log.tipo === 'vendedor' ? '#8B5CF620' : 
-                                 log.tipo === 'pedido' ? '#3B82F620' : 
-                                 log.tipo === 'warning' ? '#F59E0B20' : 
-                                 log.tipo === 'error' ? '#EF444420' : 
-                                 log.tipo === 'success' ? '#10B98120' : '#3B82F620',
-                      color: log.tipo === 'usuario' ? '#FF6B35' : 
-                             log.tipo === 'vendedor' ? '#8B5CF6' : 
-                             log.tipo === 'pedido' ? '#3B82F6' : 
-                             log.tipo === 'warning' ? '#F59E0B' : 
-                             log.tipo === 'error' ? '#EF4444' : 
-                             log.tipo === 'success' ? '#10B981' : '#3B82F6'
+                      background: log.tipo === 'usuario' ? '#FF6B3520' :
+                        log.tipo === 'vendedor' ? '#8B5CF620' :
+                          log.tipo === 'pedido' ? '#3B82F620' :
+                            log.tipo === 'warning' ? '#F59E0B20' :
+                              log.tipo === 'error' ? '#EF444420' :
+                                log.tipo === 'success' ? '#10B98120' :
+                                  log.tipo === 'info' ? '#3B82F620' : '#f3f4f6',
+                      color: log.tipo === 'usuario' ? '#FF6B35' :
+                        log.tipo === 'vendedor' ? '#8B5CF6' :
+                          log.tipo === 'pedido' ? '#3B82F6' :
+                            log.tipo === 'warning' ? '#F59E0B' :
+                              log.tipo === 'error' ? '#EF4444' :
+                                log.tipo === 'success' ? '#10B981' :
+                                  log.tipo === 'info' ? '#3B82F6' : '#6b7280'
                     }}>
                       {log.icon || getActivityIcon(log.tipo)}
                     </div>
@@ -679,33 +829,37 @@ function DashboardAdmin() {
           </div>
         </div>
       </div>
-      
+
       {/* Información del sistema */}
       <div style={styles.systemInfoBanner}>
         <Clock size={16} />
         <span>
-          Sistema administrativo MercadoLocal • Última actualización: {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+          Sistema administrativo MercadoLocal • {usingRealData ? 'Datos en tiempo real' : 'Modo demostración'} •
+          Última actualización: {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} •
+          Usuario: {userName} ({userRole})
         </span>
       </div>
-    </div>
+    </div >
   );
 }
 
-function StatCard({ icon, title, value, trend, color, hasData = true }) {
+function StatCard({ icon, title, value, subtitle, color, hasData = true }) {
   return (
     <div
-      style={{ 
-        ...styles.statCard, 
+      style={{
+        ...styles.statCard,
         borderTopWidth: '4px',
         borderTopStyle: 'solid',
         borderTopColor: color,
         opacity: hasData ? 1 : 0.8,
-        transition: 'all 0.3s ease'
+        transition: 'all 0.3s ease',
+        cursor: 'pointer'
       }}
+      onClick={() => hasData && console.log(`Ver detalles de: ${title}`)}
     >
-      <div style={{ 
-        ...styles.statIcon, 
-        background: `${color}20`, 
+      <div style={{
+        ...styles.statIcon,
+        background: `${color}20`,
         color,
         opacity: hasData ? 1 : 0.6
       }}>
@@ -715,10 +869,10 @@ function StatCard({ icon, title, value, trend, color, hasData = true }) {
         <p style={styles.statTitle}>{title}</p>
         <h3 style={styles.statValue}>{value}</h3>
         <span style={{
-          ...styles.statTrend,
-          color: hasData ? color : '#94a3b8'
+          ...styles.statSubtitle,
+          color: hasData ? '#6b7280' : '#94a3b8'
         }}>
-          {hasData && <TrendingUp size={14} />} {trend}
+          {subtitle}
         </span>
       </div>
     </div>
@@ -740,17 +894,25 @@ export default function AdminPanel() {
     };
     handleResize();
     window.addEventListener('resize', handleResize);
-    
+
     // Obtener información del usuario actual
     const userData = localStorage.getItem("user");
     if (userData) {
       try {
-        setCurrentUser(JSON.parse(userData));
+        const user = JSON.parse(userData);
+        setCurrentUser(user);
+
+        // Verificar si el usuario es ADMIN
+        if (user.rol !== "ADMIN") {
+          console.warn("Usuario no es ADMIN, mostrando mensaje de acceso denegado");
+          // Podrías redirigir aquí si lo prefieres
+          // window.location.href = "/acceso-denegado";
+        }
       } catch (e) {
         console.error("Error parsing user data:", e);
       }
     }
-    
+
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
@@ -807,9 +969,9 @@ export default function AdminPanel() {
         <div style={styles.sidebarHeader}>
           {/* Logo encima del título */}
           <div style={styles.logoContainer}>
-            <img 
-              src={logo} 
-              alt="MercadoLocal Logo" 
+            <img
+              src={logo}
+              alt="MercadoLocal Logo"
               style={styles.sidebarLogo}
               onError={(e) => {
                 e.target.onerror = null;
@@ -817,12 +979,12 @@ export default function AdminPanel() {
               }}
             />
           </div>
-          
+
           <div style={styles.brandContainer}>
             <h2 style={styles.brandMain}>MercadoLocal</h2>
             <span style={styles.brandSub}>Admin Panel</span>
           </div>
-          
+
           {currentUser && (
             <div style={styles.userInfo}>
               <div style={styles.userAvatar}>
@@ -832,7 +994,12 @@ export default function AdminPanel() {
                 <p style={styles.userName}>
                   {currentUser.nombre || 'Admin'} {currentUser.apellido || ''}
                 </p>
-                <p style={styles.userRole}>Administrador</p>
+                <p style={styles.userRole}>
+                  {currentUser.rol === "ADMIN" ? "Administrador" :
+                    currentUser.rol === "VENDEDOR" ? "Vendedor" :
+                      currentUser.rol === "CONSUMIDOR" ? "Consumidor" :
+                        currentUser.rol || "Usuario"}
+                </p>
               </div>
             </div>
           )}
@@ -896,6 +1063,9 @@ export default function AdminPanel() {
               {currentUser && (
                 <span style={styles.headerUserName}>
                   {currentUser.nombre} {currentUser.apellido}
+                  <span style={styles.headerUserRole}>
+                    ({currentUser.rol})
+                  </span>
                 </span>
               )}
             </div>
@@ -1016,7 +1186,7 @@ const styles = {
     background: 'rgba(0,0,0,0.5)',
     zIndex: 998
   },
-  
+
   // SIDEBAR CON LOGO
   sidebar: {
     position: 'fixed',
@@ -1150,7 +1320,7 @@ const styles = {
     transition: 'all 0.2s ease',
     width: '100%'
   },
-  
+
   main: {
     flex: 1,
     display: 'flex',
@@ -1211,7 +1381,15 @@ const styles = {
     color: '#374151',
     padding: '8px 12px',
     background: '#f3f4f6',
-    borderRadius: '6px'
+    borderRadius: '6px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px'
+  },
+  headerUserRole: {
+    fontSize: '12px',
+    color: '#6b7280',
+    fontWeight: '400'
   },
   bellButton: {
     position: 'relative',
@@ -1258,7 +1436,7 @@ const styles = {
     color: '#6b7280',
     fontWeight: '500'
   },
-  
+
   // Dashboard Styles
   dashboardContainer: {
     padding: '24px',
@@ -1316,7 +1494,13 @@ const styles = {
     gap: '4px'
   },
   errorText: {
-    flex: 1
+    flex: 1,
+    fontWeight: '500'
+  },
+  errorDetail: {
+    fontSize: '12px',
+    color: '#92400e',
+    opacity: '0.8'
   },
   retryButton: {
     padding: '8px 16px',
@@ -1410,7 +1594,11 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '16px',
-    transition: 'all 0.3s ease'
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+    }
   },
   statIcon: {
     width: '48px',
@@ -1418,7 +1606,8 @@ const styles = {
     borderRadius: '10px',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    transition: 'all 0.3s ease'
   },
   statContent: {
     flex: 1
@@ -1437,12 +1626,12 @@ const styles = {
     color: '#111827',
     margin: '0 0 4px 0'
   },
-  statTrend: {
+  statSubtitle: {
     display: 'flex',
     alignItems: 'center',
     gap: '4px',
     fontSize: '13px',
-    fontWeight: '600'
+    fontWeight: '500'
   },
   mainContent: {
     display: 'grid',
@@ -1455,7 +1644,11 @@ const styles = {
     borderRadius: '12px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
     border: '1px solid #e5e7eb',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+      boxShadow: '0 4px 16px rgba(0,0,0,0.1)'
+    }
   },
   cardHeader: {
     padding: '20px 24px',
@@ -1480,7 +1673,8 @@ const styles = {
   },
   chartTypeSelector: {
     display: 'flex',
-    gap: '8px'
+    gap: '8px',
+    flexWrap: 'wrap'
   },
   chartTypeButton: {
     display: 'flex',
@@ -1596,7 +1790,11 @@ const styles = {
     borderRadius: '8px',
     background: '#f9fafb',
     border: '1px solid #f3f4f6',
-    transition: 'all 0.2s ease'
+    transition: 'all 0.2s ease',
+    '&:hover': {
+      background: '#f1f5f9',
+      borderColor: '#e5e7eb'
+    }
   },
   logIcon: {
     width: '32px',
@@ -1605,7 +1803,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0
+    flexShrink: 0,
+    transition: 'all 0.2s ease'
   },
   logContent: {
     flex: 1

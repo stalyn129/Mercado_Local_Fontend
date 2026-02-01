@@ -14,11 +14,8 @@ export default function ExplorarProductos() {
   const [categorias, setCategorias] = useState([]);
   const [subcategorias, setSubcategorias] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isGuestMode, setIsGuestMode] = useState(false);
   const [circlePositions, setCirclePositions] = useState([]);
-  
-  // Nuevo estado para usuario logueado y su rol
-  const [usuarioLogueado, setUsuarioLogueado] = useState(null);
-  const [rolUsuario, setRolUsuario] = useState(null);
 
   const [busqueda, setBusqueda] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("");
@@ -26,6 +23,7 @@ export default function ExplorarProductos() {
 
   // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
   useEffect(() => {
+    // Generar círculos de colores vivos como en móvil
     const generateCircles = () => {
       const circles = [];
       const colors = [
@@ -42,12 +40,12 @@ export default function ExplorarProductos() {
       for (let i = 0; i < 12; i++) {
         circles.push({
           id: i,
-          size: Math.random() * 100 + 50,
+          size: Math.random() * 100 + 50, // Tamaño entre 50px y 150px
           top: Math.random() * 100,
           left: Math.random() * 100,
           color: colors[Math.floor(Math.random() * colors.length)],
           animationDelay: Math.random() * 5 + "s",
-          animationDuration: Math.random() * 25 + 30 + "s",
+          animationDuration: Math.random() * 25 + 30 + "s", // Muy lento
           blur: Math.random() * 4 + 2 + "px",
           zIndex: 0
         });
@@ -57,6 +55,7 @@ export default function ExplorarProductos() {
 
     generateCircles();
     
+    // Animar los círculos muy lentamente
     const interval = setInterval(() => {
       setCirclePositions(prev => 
         prev.map(circle => ({
@@ -66,7 +65,7 @@ export default function ExplorarProductos() {
           animationDelay: Math.random() * 4 + "s"
         }))
       );
-    }, 35000);
+    }, 35000); // Cambia cada 35 segundos (super lento)
 
     return () => clearInterval(interval);
   }, []);
@@ -86,28 +85,18 @@ export default function ExplorarProductos() {
     };
     cargarDatos();
 
-    // Verificar usuario logueado y su rol
-    const verificarUsuario = () => {
-      try {
-        const token = localStorage.getItem("authToken");
-        const userData = localStorage.getItem("user");
-        
-        if (token && userData) {
-          const usuario = JSON.parse(userData);
-          setUsuarioLogueado(usuario);
-          setRolUsuario(usuario.rol || null);
-        } else {
-          setUsuarioLogueado(null);
-          setRolUsuario(null);
-        }
-      } catch (error) {
-        console.error("Error al verificar usuario:", error);
-        setUsuarioLogueado(null);
-        setRolUsuario(null);
+    const checkGuestMode = () => {
+      const token = localStorage.getItem("authToken");
+      const user = localStorage.getItem("user");
+      
+      if (!token && !user) {
+        setIsGuestMode(true);
+      } else {
+        setIsGuestMode(false);
       }
     };
 
-    verificarUsuario();
+    checkGuestMode();
   }, []);
 
   // ==================== FETCH ====================
@@ -154,47 +143,49 @@ export default function ExplorarProductos() {
     return cumpleBusqueda && cumpleCategoria && cumpleSubcategoria;
   });
 
-  // 🔥 FUNCIÓN MODIFICADA PARA AGREGAR AL CARRITO - SOLO CONSUMIDORES
+  // 🔥 FUNCIÓN PARA AGREGAR AL CARRITO
   const handleAgregarCarrito = async (producto) => {
-    // Verificar si está logueado
-    if (!usuarioLogueado) {
-      alert("⚠️ Debes iniciar sesión para agregar productos al carrito");
-      navigate("/login");
-      return;
-    }
-
-    // Verificar si es CONSUMIDOR
-    if (rolUsuario !== "CONSUMIDOR") {
-      alert("❌ Solo los CONSUMIDORES pueden agregar productos al carrito");
-      return;
-    }
-
-    // Verificar stock
     if (producto.stockProducto <= 0) {
       alert("Sin stock: Este producto no está disponible por el momento");
       return;
     }
 
-    const token = localStorage.getItem("authToken");
-    
-    if (!token) {
-      alert("⚠️ Sesión expirada. Por favor, inicia sesión nuevamente");
-      navigate("/login");
-      return;
-    }
+    if (isGuestMode) {
+      let carritoLocal = JSON.parse(localStorage.getItem("guestCart") || "[]");
+      const existingIndex = carritoLocal.findIndex(
+        item => item.producto.idProducto === producto.idProducto
+      );
+      
+      let nuevoCarrito;
+      
+      if (existingIndex >= 0) {
+        nuevoCarrito = [...carritoLocal];
+        nuevoCarrito[existingIndex].cantidad += 1;
+      } else {
+        nuevoCarrito = [...carritoLocal, { producto, cantidad: 1 }];
+      }
+      
+      localStorage.setItem("guestCart", JSON.stringify(nuevoCarrito));
+      alert(`✅ ¡Agregado! ${producto.nombreProducto} agregado al carrito`);
+      
+    } else {
+      const usuario = JSON.parse(localStorage.getItem("user"));
+      const token = localStorage.getItem("authToken");
 
-    try {
-      await agregarCarrito(producto.idProducto, 1);
-      alert("✅ Producto añadido al carrito");
-    } catch (error) {
-      console.error("Error al agregar al carrito:", error);
-      alert("❌ No se pudo agregar el producto al carrito");
-    }
-  };
+      if (!usuario || !token) {
+        alert("⚠️ Debes iniciar sesión para agregar productos al carrito");
+        navigate("/login");
+        return;
+      }
 
-  // Función para verificar si el usuario puede agregar al carrito
-  const puedeAgregarAlCarrito = () => {
-    return usuarioLogueado && rolUsuario === "CONSUMIDOR";
+      try {
+        await agregarCarrito(producto.idProducto, 1);
+        alert("✅ Producto añadido al carrito");
+      } catch (error) {
+        console.error(error);
+        alert("❌ No se pudo agregar el producto al carrito");
+      }
+    }
   };
 
   return (
@@ -205,9 +196,9 @@ export default function ExplorarProductos() {
       overflowX: "hidden"
     }}>
       
-      {/* HEADER BLANCO CON CÍRCULOS DE COLORES */}
+      {/* HEADER BLANCO CON CÍRCULOS DE COLORES - COMO EN MÓVIL */}
       <div style={{
-        background: "white",
+        background: "white", // FONDO BLANCO
         padding: "90px 20px 70px 20px",
         textAlign: "center",
         position: "relative",
@@ -216,7 +207,7 @@ export default function ExplorarProductos() {
         borderBottom: "1px solid #f1f5f9"
       }}>
         
-        {/* CÍRCULOS DE COLORES ANIMADOS */}
+        {/* CÍRCULOS DE COLORES ANIMADOS - DETRÁS DEL CONTENIDO */}
         {circlePositions.map(circle => (
           <div 
             key={circle.id}
@@ -242,12 +233,13 @@ export default function ExplorarProductos() {
           zIndex: "10",
           padding: "0 15px"
         }}>
+          {/* Título principal - NARANJA */}
           <div style={{
             fontFamily: "'Playfair Display', 'Georgia', serif",
             fontSize: "14px",
             letterSpacing: "3px",
             textTransform: "uppercase",
-            color: "#FF6B35",
+            color: "#FF6B35", // NARANJA
             marginBottom: "8px",
             fontWeight: "500"
           }}>
@@ -258,7 +250,7 @@ export default function ExplorarProductos() {
             fontFamily: "'Playfair Display', 'Georgia', serif",
             fontSize: "48px",
             fontWeight: "700",
-            color: "#FF6B35",
+            color: "#FF6B35", // NARANJA
             margin: "0 0 16px 0",
             letterSpacing: "1px",
             lineHeight: "1.2"
@@ -266,64 +258,23 @@ export default function ExplorarProductos() {
             Explorar Productos
           </h1>
           
-          {/* Mostrar información del usuario y su rol */}
-          <div style={{
-            marginTop: "20px",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: "15px"
-          }}>
-            {usuarioLogueado && (
-              <div style={{
-                background: rolUsuario === "CONSUMIDOR" ? "#10B98115" : "#3B82F615",
-                border: `2px solid ${rolUsuario === "CONSUMIDOR" ? "#10B98130" : "#3B82F630"}`,
-                color: rolUsuario === "CONSUMIDOR" ? "#10B981" : "#3B82F6",
-                padding: "10px 20px",
-                borderRadius: "20px",
-                fontSize: "14px",
-                fontWeight: "600",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                fontFamily: "'Inter', sans-serif"
-              }}>
-                <span>{rolUsuario === "CONSUMIDOR" ? "🛒" : "👤"}</span>
-                {usuarioLogueado.nombres} {usuarioLogueado.apellidos}
-                <span style={{
-                  background: rolUsuario === "CONSUMIDOR" ? "#10B981" : "#3B82F6",
-                  color: "white",
-                  padding: "3px 10px",
-                  borderRadius: "12px",
-                  fontSize: "12px",
-                  marginLeft: "8px"
-                }}>
-                  {rolUsuario}
-                </span>
-              </div>
-            )}
-          </div>
-          
+          {/* Subtítulo - MORADO CLARO */}
           <p style={{
-            color: "#8B5CF6",
+            color: "#8B5CF6", // MORADO CLARO
             fontSize: "16px",
-            margin: usuarioLogueado ? "15px auto 0 auto" : "0 auto",
+            margin: "0 auto",
             maxWidth: "600px",
             lineHeight: "1.6",
             fontWeight: "400",
             fontFamily: "'Inter', sans-serif",
             opacity: 0.8
           }}>
-            {usuarioLogueado 
-              ? (rolUsuario === "CONSUMIDOR" 
-                  ? "✅ Puedes agregar productos al carrito" 
-                  : "ℹ️ Solo CONSUMIDORES pueden agregar al carrito")
-              : "👤 Inicia sesión como CONSUMIDOR para comprar"}
+            Encuentra lo que necesitas
           </p>
         </div>
       </div>
 
-      {/* BÚSQUEDA Y FILTROS */}
+      {/* BÚSQUEDA Y FILTROS - MANTENER NARANJA EN BOTONES */}
       <div style={{
         maxWidth: "1200px",
         margin: "0 auto 40px auto",
@@ -538,7 +489,7 @@ export default function ExplorarProductos() {
               </div>
             </div>
 
-            {/* BOTONES DE ACCIÓN */}
+            {/* BOTONES DE ACCIÓN - CON NARANJA */}
             <div style={{ display: "flex", gap: "15px" }}>
               {(busqueda || filtroCategoria || filtroSubcategoria) && (
                 <button
@@ -580,7 +531,7 @@ export default function ExplorarProductos() {
         </div>
       </div>
 
-      {/* GRID DE PRODUCTOS */}
+      {/* GRID DE PRODUCTOS - MANTENER NARANJA */}
       <div style={{
         maxWidth: "1200px",
         margin: "0 auto 60px auto",
@@ -599,7 +550,7 @@ export default function ExplorarProductos() {
               width: "60px",
               height: "60px",
               border: "5px solid #f1f5f9",
-              borderTop: "5px solid #FF6B35",
+              borderTop: "5px solid #FF6B35", // NARANJA
               borderRadius: "50%",
               animation: "spin 1s linear infinite"
             }}></div>
@@ -621,258 +572,191 @@ export default function ExplorarProductos() {
               gap: "25px",
               marginBottom: "50px"
             }}>
-              {productosFiltrados.map(p => {
-                const puedeAgregar = puedeAgregarAlCarrito() && p.stockProducto > 0;
-                
-                return (
-                  <div
-                    key={p.idProducto}
-                    style={{
-                      background: "white",
-                      borderRadius: "16px",
-                      overflow: "hidden",
-                      boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
-                      transition: "all 0.4s ease",
-                      cursor: "pointer",
-                      position: "relative",
-                      border: "1px solid #f1f5f9"
-                    }}
-                    onClick={() => navigate(`/producto/${p.idProducto}`)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = "translateY(-8px)";
-                      e.currentTarget.style.boxShadow = "0 15px 35px rgba(0, 0, 0, 0.15)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.08)";
-                    }}
-                  >
-                    {/* Imagen del producto */}
+              {productosFiltrados.map(p => (
+                <div
+                  key={p.idProducto}
+                  style={{
+                    background: "white",
+                    borderRadius: "16px",
+                    overflow: "hidden",
+                    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
+                    transition: "all 0.4s ease",
+                    cursor: "pointer",
+                    position: "relative",
+                    border: "1px solid #f1f5f9"
+                  }}
+                  onClick={() => navigate(`/producto/${p.idProducto}`)}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-8px)";
+                    e.currentTarget.style.boxShadow = "0 15px 35px rgba(0, 0, 0, 0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.08)";
+                  }}
+                >
+                  {/* Imagen del producto */}
+                  <div style={{
+                    position: "relative",
+                    overflow: "hidden",
+                    height: "200px",
+                    background: "#f8f9fa"
+                  }}>
+                    <img
+                      src={p.imagenProducto}
+                      alt={p.nombreProducto}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        transition: "transform 0.5s ease"
+                      }}
+                    />
+                    
+                    {/* Badge de stock - CON NARANJA */}
                     <div style={{
-                      position: "relative",
-                      overflow: "hidden",
-                      height: "200px",
-                      background: "#f8f9fa"
+                      position: "absolute",
+                      top: "15px",
+                      right: "15px",
+                      background: p.stockProducto <= 0 ? "#EF4444" : (p.stockProducto <= 10 ? "#F59E0B" : "#10B981"),
+                      color: "white",
+                      padding: "6px 14px",
+                      borderRadius: "20px",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+                      zIndex: "2",
+                      fontFamily: "'Inter', sans-serif"
                     }}>
-                      <img
-                        src={p.imagenProducto}
-                        alt={p.nombreProducto}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                          transition: "transform 0.5s ease"
-                        }}
-                      />
-                      
-                      {/* Badge de stock */}
-                      <div style={{
-                        position: "absolute",
-                        top: "15px",
-                        right: "15px",
-                        background: p.stockProducto <= 0 ? "#EF4444" : (p.stockProducto <= 10 ? "#F59E0B" : "#10B981"),
-                        color: "white",
-                        padding: "6px 14px",
-                        borderRadius: "20px",
-                        fontSize: "12px",
-                        fontWeight: "700",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "5px",
-                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
-                        zIndex: "2",
-                        fontFamily: "'Inter', sans-serif"
-                      }}>
-                        {p.stockProducto <= 0 ? (
-                          <>✗ Agotado</>
-                        ) : p.stockProducto <= 10 ? (
-                          <>⚡ {p.stockProducto} disponibles</>
-                        ) : (
-                          <>✓ Disponible</>
-                        )}
-                      </div>
-
-                      {/* Badge de permisos si no es CONSUMIDOR */}
-                      {usuarioLogueado && rolUsuario !== "CONSUMIDOR" && (
-                        <div style={{
-                          position: "absolute",
-                          bottom: "15px",
-                          left: "15px",
-                          right: "15px",
-                          background: "rgba(59, 130, 246, 0.9)",
-                          color: "white",
-                          padding: "8px 12px",
-                          borderRadius: "12px",
-                          fontSize: "12px",
-                          fontWeight: "600",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
-                          zIndex: "2",
-                          fontFamily: "'Inter', sans-serif"
-                        }}>
-                          <span>ℹ️</span>
-                          Solo para CONSUMIDORES
-                        </div>
+                      {p.stockProducto <= 0 ? (
+                        <>✗ Agotado</>
+                      ) : p.stockProducto <= 10 ? (
+                        <>⚡ {p.stockProducto} disponibles</>
+                      ) : (
+                        <>✓ Disponible</>
                       )}
                     </div>
+                  </div>
 
-                    {/* Información del producto */}
-                    <div style={{ padding: "22px" }}>
-                      {/* Nombre del producto */}
-                      <h3 style={{
-                        fontSize: "18px",
-                        fontWeight: "700",
-                        color: "#2C3E50",
-                        margin: "0 0 8px 0",
-                        lineHeight: "1.3",
-                        minHeight: "46px",
+                  {/* Información del producto */}
+                  <div style={{ padding: "22px" }}>
+                    {/* Nombre del producto */}
+                    <h3 style={{
+                      fontSize: "18px",
+                      fontWeight: "700",
+                      color: "#2C3E50",
+                      margin: "0 0 8px 0",
+                      lineHeight: "1.3",
+                      minHeight: "46px",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      {p.nombreProducto}
+                    </h3>
+
+                    {/* Categoría */}
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginBottom: "12px"
+                    }}>
+                      <span style={{
+                        fontSize: "12px",
+                        color: "#64748b",
+                        background: "#f1f5f9",
+                        padding: "4px 10px",
+                        borderRadius: "12px",
+                        fontWeight: "600",
                         fontFamily: "'Inter', sans-serif"
                       }}>
-                        {p.nombreProducto}
-                      </h3>
+                        {p.nombreSubcategoria || p.nombreCategoria || "General"}
+                      </span>
+                    </div>
 
-                      {/* Categoría */}
+                    {/* Valoración */}
+                    {p.promedioValoracion !== undefined && p.promedioValoracion > 0 && (
                       <div style={{
                         display: "flex",
                         alignItems: "center",
                         gap: "8px",
-                        marginBottom: "12px"
+                        marginBottom: "15px"
                       }}>
+                        <StarRating rating={p.promedioValoracion || 0} />
                         <span style={{
-                          fontSize: "12px",
+                          fontSize: "13px",
                           color: "#64748b",
-                          background: "#f1f5f9",
-                          padding: "4px 10px",
-                          borderRadius: "12px",
                           fontWeight: "600",
                           fontFamily: "'Inter', sans-serif"
                         }}>
-                          {p.nombreSubcategoria || p.nombreCategoria || "General"}
+                          {p.promedioValoracion.toFixed(1)}
                         </span>
                       </div>
+                    )}
 
-                      {/* Valoración */}
-                      {p.promedioValoracion !== undefined && p.promedioValoracion > 0 && (
+                    {/* Pie del producto */}
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginTop: "15px"
+                    }}>
+                      {/* Precio - NARANJA */}
+                      <div>
                         <div style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          marginBottom: "15px"
+                          fontSize: "28px",
+                          fontWeight: "800",
+                          color: "#FF6B35", // NARANJA
+                          lineHeight: "1",
+                          fontFamily: "'Inter', sans-serif"
                         }}>
-                          <StarRating rating={p.promedioValoracion || 0} />
-                          <span style={{
-                            fontSize: "13px",
-                            color: "#64748b",
-                            fontWeight: "600",
-                            fontFamily: "'Inter', sans-serif"
-                          }}>
-                            {p.promedioValoracion.toFixed(1)}
-                          </span>
+                          ${p.precioProducto.toFixed(2)}
                         </div>
-                      )}
-
-                      {/* Pie del producto */}
-                      <div style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginTop: "15px"
-                      }}>
-                        {/* Precio */}
-                        <div>
-                          <div style={{
-                            fontSize: "28px",
-                            fontWeight: "800",
-                            color: "#FF6B35",
-                            lineHeight: "1",
-                            fontFamily: "'Inter', sans-serif"
-                          }}>
-                            ${p.precioProducto.toFixed(2)}
-                          </div>
-                        </div>
-
-                        {/* Botón de agregar - Solo activo para CONSUMIDORES con stock */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAgregarCarrito(p);
-                          }}
-                          disabled={!puedeAgregar}
-                          style={{
-                            background: !puedeAgregar ? "#e5e7eb" : "#FF6B35",
-                            width: "50px",
-                            height: "50px",
-                            borderRadius: "14px",
-                            border: "none",
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            cursor: puedeAgregar ? "pointer" : "not-allowed",
-                            transition: "all 0.3s ease",
-                            fontSize: "22px",
-                            position: "relative"
-                          }}
-                          onMouseEnter={(e) => {
-                            if (puedeAgregar) {
-                              e.currentTarget.style.transform = "scale(1.1)";
-                              e.currentTarget.style.background = "#FF8E53";
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (puedeAgregar) {
-                              e.currentTarget.style.transform = "scale(1)";
-                              e.currentTarget.style.background = "#FF6B35";
-                            }
-                          }}
-                        >
-                          <span style={{ color: puedeAgregar ? "white" : "#94a3b8" }}>
-                            {puedeAgregar ? "🛒" : (p.stockProducto <= 0 ? "✗" : "🔒")}
-                          </span>
-                          
-                          {/* Tooltip para explicar por qué está deshabilitado */}
-                          {!puedeAgregar && (
-                            <div style={{
-                              position: "absolute",
-                              bottom: "100%",
-                              right: "0",
-                              marginBottom: "10px",
-                              padding: "8px 12px",
-                              background: "#2C3E50",
-                              color: "white",
-                              borderRadius: "8px",
-                              fontSize: "12px",
-                              fontWeight: "500",
-                              whiteSpace: "nowrap",
-                              opacity: "0",
-                              visibility: "hidden",
-                              transition: "all 0.3s ease",
-                              zIndex: "100",
-                              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)"
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.opacity = "1";
-                              e.currentTarget.style.visibility = "visible";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.opacity = "0";
-                              e.currentTarget.style.visibility = "hidden";
-                            }}
-                            >
-                              {!usuarioLogueado 
-                                ? "Inicia sesión como CONSUMIDOR" 
-                                : rolUsuario !== "CONSUMIDOR" 
-                                  ? "Solo para CONSUMIDORES" 
-                                  : "Sin stock"}
-                            </div>
-                          )}
-                        </button>
                       </div>
+
+                      {/* Botón de agregar - NARANJA */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAgregarCarrito(p);
+                        }}
+                        disabled={p.stockProducto <= 0}
+                        style={{
+                          background: p.stockProducto <= 0 ? "#94a3b8" : "#FF6B35", // NARANJA
+                          width: "50px",
+                          height: "50px",
+                          borderRadius: "14px",
+                          border: "none",
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          cursor: p.stockProducto > 0 ? "pointer" : "not-allowed",
+                          transition: "all 0.3s ease",
+                          fontSize: "22px"
+                        }}
+                        onMouseEnter={(e) => {
+                          if (p.stockProducto > 0) {
+                            e.currentTarget.style.transform = "scale(1.1)";
+                            e.currentTarget.style.background = "#FF8E53";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (p.stockProducto > 0) {
+                            e.currentTarget.style.transform = "scale(1)";
+                            e.currentTarget.style.background = "#FF6B35";
+                          }
+                        }}
+                      >
+                        <span style={{ color: "white" }}>
+                          {p.stockProducto > 0 ? "🛒" : "✗"}
+                        </span>
+                      </button>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
 
             {/* FINAL */}
@@ -898,15 +782,7 @@ export default function ExplorarProductos() {
                 margin: "0",
                 fontFamily: "'Inter', sans-serif"
               }}>
-                {usuarioLogueado && rolUsuario !== "CONSUMIDOR" ? (
-                  <span>
-                    Para comprar, necesitas una cuenta de <strong style={{ color: "#FF6B35" }}>CONSUMIDOR</strong>
-                  </span>
-                ) : (
-                  <span>
-                    Mostrando <strong style={{ color: "#FF6B35" }}>{productosFiltrados.length}</strong> productos
-                  </span>
-                )}
+                Mostrando <strong style={{ color: "#FF6B35" }}>{productosFiltrados.length}</strong> productos
               </p>
             </div>
           </>
@@ -950,7 +826,7 @@ export default function ExplorarProductos() {
               }}
               style={{
                 padding: "16px 36px",
-                background: "#FF6B35",
+                background: "#FF6B35", // NARANJA
                 color: "white",
                 border: "none",
                 borderRadius: "12px",

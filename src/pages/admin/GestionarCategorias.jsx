@@ -17,8 +17,8 @@ import {
   AlertCircle,
   Package,
   File,
-  Tag,
-  Layers
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 
 export default function GestionarCategorias() {
@@ -40,14 +40,16 @@ export default function GestionarCategorias() {
   const [error, setError] = useState(null);
   const [busqueda, setBusqueda] = useState('');
   const [circlePositions, setCirclePositions] = useState([]);
+  
+  // Estados para productos asociados (se llenan automáticamente)
+  const [categoriasConProductos, setCategoriasConProductos] = useState({});
+  const [subcategoriasConProductos, setSubcategoriasConProductos] = useState({});
 
-  // =================== FUNCIÓN PARA GENERAR ABREVIATURAS AUTOMÁTICAS ===================
   const generarAbreviatura = (nombre) => {
     if (!nombre || !nombre.trim()) return 'CAT';
     
     const nombreLimpio = nombre.trim();
     
-    // Abreviaturas comunes predefinidas
     const abreviaturasComunes = {
       'frutas y verduras': 'FV',
       'lácteos': 'LT',
@@ -70,31 +72,26 @@ export default function GestionarCategorias() {
     
     const nombreLower = nombreLimpio.toLowerCase();
     
-    // Buscar si hay una abreviatura común predefinida
     for (const [key, abrev] of Object.entries(abreviaturasComunes)) {
       if (nombreLower.includes(key)) {
         return abrev;
       }
     }
     
-    // Si no hay coincidencia, generar abreviatura dinámica
     const palabras = nombreLimpio.split(' ');
     
     if (palabras.length === 1) {
-      // Para palabras únicas, tomar primeras letras (máximo 3)
       return nombreLimpio.substring(0, 3).toUpperCase();
     } else {
-      // Para múltiples palabras, tomar iniciales
       return palabras
-        .filter(palabra => palabra.length > 2) // Filtrar palabras cortas como "y", "de", etc.
-        .slice(0, 3) // Máximo 3 iniciales
+        .filter(palabra => palabra.length > 2)
+        .slice(0, 3)
         .map(palabra => palabra[0])
         .join('')
         .toUpperCase();
     }
   };
 
-  // =================== VERIFICAR AUTENTICACIÓN ===================
   const verificarAutenticacion = () => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -119,7 +116,6 @@ export default function GestionarCategorias() {
     return true;
   };
 
-  // =================== CÍRCULOS FLOTANTES ===================
   useEffect(() => {
     const generateCircles = () => {
       const circles = [];
@@ -169,7 +165,7 @@ export default function GestionarCategorias() {
     cargarCategorias();
   }, []);
 
-  // =================== CARGAR CATEGORÍAS Y SUBCATEGORÍAS ===================
+  // =================== FUNCIÓN PRINCIPAL MEJORADA ===================
   const cargarCategorias = async () => {
     try {
       setCargando(true);
@@ -202,10 +198,28 @@ export default function GestionarCategorias() {
       
       const categoriasData = await response.json();
       
-      // Para cada categoría, cargar sus subcategorías
+      // Para cada categoría, cargar sus subcategorías Y verificar productos asociados
       const categoriasConSubcategorias = await Promise.all(
         categoriasData.map(async (cat) => {
           try {
+            // 1. Verificar productos de la categoría
+            let tieneProductosCategoria = false;
+            try {
+              const verificarResponse = await fetch(`http://localhost:8080/categorias/${cat.idCategoria}/productos-asociados`, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+              
+              if (verificarResponse.ok) {
+                tieneProductosCategoria = await verificarResponse.json();
+              }
+            } catch (error) {
+              console.error(`Error verificando productos de categoría ${cat.idCategoria}:`, error);
+            }
+
+            // 2. Cargar subcategorías
             const subResponse = await fetch(`http://localhost:8080/subcategorias/categoria/${cat.idCategoria}`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
@@ -216,13 +230,36 @@ export default function GestionarCategorias() {
             let subcategorias = [];
             if (subResponse.ok) {
               const subData = await subResponse.json();
-              subcategorias = subData.map(sub => ({
-                id: sub.idSubcategoria,
-                nombre: sub.nombreSubcategoria,
-                descripcion: sub.descripcionSubcategoria || '',
-                idCategoria: sub.idCategoria,
-                abreviatura: generarAbreviatura(sub.nombreSubcategoria)
-              }));
+              
+              // Para cada subcategoría, verificar si tiene productos
+              subcategorias = await Promise.all(
+                subData.map(async (sub) => {
+                  let tieneProductosSub = false;
+                  try {
+                    const verificarSubResponse = await fetch(`http://localhost:8080/subcategorias/${sub.idSubcategoria}/productos-asociados`, {
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                      }
+                    });
+                    
+                    if (verificarSubResponse.ok) {
+                      tieneProductosSub = await verificarSubResponse.json();
+                    }
+                  } catch (error) {
+                    console.error(`Error verificando productos de subcategoría ${sub.idSubcategoria}:`, error);
+                  }
+                  
+                  return {
+                    id: sub.idSubcategoria,
+                    nombre: sub.nombreSubcategoria,
+                    descripcion: sub.descripcionSubcategoria || '',
+                    idCategoria: sub.idCategoria,
+                    abreviatura: generarAbreviatura(sub.nombreSubcategoria),
+                    tieneProductos: tieneProductosSub
+                  };
+                })
+              );
             }
             
             return {
@@ -230,15 +267,17 @@ export default function GestionarCategorias() {
               nombre: cat.nombreCategoria,
               descripcion: cat.descripcionCategoria,
               abreviatura: generarAbreviatura(cat.nombreCategoria),
+              tieneProductos: tieneProductosCategoria,
               subcategorias: subcategorias
             };
           } catch (error) {
-            console.error(`Error cargando subcategorías para categoría ${cat.idCategoria}:`, error);
+            console.error(`Error cargando categoría ${cat.idCategoria}:`, error);
             return {
               id: cat.idCategoria,
               nombre: cat.nombreCategoria,
               descripcion: cat.descripcionCategoria,
               abreviatura: generarAbreviatura(cat.nombreCategoria),
+              tieneProductos: true, // Por seguridad, asumir que sí tiene
               subcategorias: []
             };
           }
@@ -246,6 +285,20 @@ export default function GestionarCategorias() {
       );
       
       setCategorias(categoriasConSubcategorias);
+      
+      // Actualizar estados para fácil acceso
+      const catMap = {};
+      const subMap = {};
+      
+      categoriasConSubcategorias.forEach(cat => {
+        catMap[cat.id] = cat.tieneProductos;
+        cat.subcategorias.forEach(sub => {
+          subMap[sub.id] = sub.tieneProductos;
+        });
+      });
+      
+      setCategoriasConProductos(catMap);
+      setSubcategoriasConProductos(subMap);
       
     } catch (error) {
       console.error('Error en cargarCategorias:', error);
@@ -435,21 +488,55 @@ export default function GestionarCategorias() {
     }
   };
 
+  // =================== FUNCIÓN ELIMINAR SIMPLIFICADA ===================
   const eliminarCategoria = async (id, nombre, esSubcategoria = false) => {
-    if (!confirm(`¿Estás seguro de eliminar ${esSubcategoria ? 'la subcategoría' : 'la categoría'} "${nombre}"?\n\nSi tiene productos asociados, no se podrá eliminar.`)) {
+    // La verificación YA SE HIZO al cargar, solo mostrar confirmación
+    const tieneProductos = esSubcategoria 
+      ? subcategoriasConProductos[id]
+      : categoriasConProductos[id];
+    
+    if (tieneProductos === undefined) {
+      // Si no sabemos, verificar ahora
+      try {
+        const token = localStorage.getItem('token');
+        const urlVerificar = esSubcategoria 
+          ? `http://localhost:8080/subcategorias/${id}/productos-asociados`
+          : `http://localhost:8080/categorias/${id}/productos-asociados`;
+        
+        const response = await fetch(urlVerificar, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const tiene = await response.json();
+          if (tiene) {
+            alert(`⚠️ No se puede eliminar ${esSubcategoria ? 'la subcategoría' : 'la categoría'} "${nombre}"\n\nTiene productos asociados. Primero debes eliminar o reasignar los productos.`);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error verificando:', error);
+        alert('Error al verificar productos. No se puede proceder.');
+        return;
+      }
+    } else if (tieneProductos) {
+      alert(`⚠️ No se puede eliminar ${esSubcategoria ? 'la subcategoría' : 'la categoría'} "${nombre}"\n\nTiene productos asociados. Primero debes eliminar o reasignar los productos.`);
       return;
     }
-
-    if (!verificarAutenticacion()) {
+    
+    // Confirmación final
+    if (!confirm(`¿Estás seguro de eliminar ${esSubcategoria ? 'la subcategoría' : 'la categoría'} "${nombre}"?`)) {
       return;
     }
-
+    
     try {
+      const token = localStorage.getItem('token');
       const url = esSubcategoria 
         ? `http://localhost:8080/subcategorias/eliminar/${id}`
         : `http://localhost:8080/categorias/eliminar/${id}`;
-      
-      const token = localStorage.getItem('token');
       
       const response = await fetch(url, {
         method: 'DELETE',
@@ -460,12 +547,13 @@ export default function GestionarCategorias() {
       
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('token');
-        window.location.href = '/LoginModal ';
+        window.location.href = '/LoginModal';
         return;
       }
       
       if (response.status === 409) {
-        alert('⚠️ No se puede eliminar porque tiene productos asociados.\n\nPrimero debes eliminar o reasignar los productos.');
+        const errorText = await response.text();
+        alert(`⚠️ ${errorText}`);
         return;
       }
       
@@ -488,7 +576,6 @@ export default function GestionarCategorias() {
   const categoriasSinDescripcion = categorias.filter(cat => !cat.descripcion || cat.descripcion.trim() === '').length;
   const totalElementos = totalCategorias + totalSubcategorias;
 
-  // Filtrar categorías basado en la búsqueda
   const categoriasFiltradas = categorias.filter(categoria => 
     categoria.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
     categoria.descripcion.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -501,7 +588,7 @@ export default function GestionarCategorias() {
         <div style={styles.spinner}></div>
         <div style={styles.loadingContent}>
           <h3 style={styles.loadingTitle}>Cargando categorías...</h3>
-          <p style={styles.loadingText}>Obteniendo datos del sistema</p>
+          <p style={styles.loadingText}>Verificando productos asociados</p>
         </div>
       </div>
     );
@@ -509,7 +596,6 @@ export default function GestionarCategorias() {
 
   return (
     <div style={styles.container}>
-      {/* Header */}
       <div style={styles.headerContainer}>
         {circlePositions.map(circle => (
           <div 
@@ -548,7 +634,7 @@ export default function GestionarCategorias() {
               onClick={cargarCategorias}
               disabled={cargando}
             >
-              <RefreshCcw size={18} /> {cargando ? "Actualizando..." : "Actualizar catálogo"}
+              <RefreshCcw size={18} /> {cargando ? "Actualizando..." : "Actualizar"}
             </button>
             <div style={styles.timeInfo}>
               <Calendar size={14} />
@@ -558,7 +644,6 @@ export default function GestionarCategorias() {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div style={styles.statsGrid}>
         <div style={{...styles.statCard, borderTopColor: '#8B5CF6'}}>
           <div style={{...styles.statIcon, backgroundColor: '#8B5CF620', color: '#8B5CF6'}}>
@@ -567,9 +652,6 @@ export default function GestionarCategorias() {
           <div style={styles.statContent}>
             <h3 style={styles.statNumber}>{totalCategorias}</h3>
             <p style={styles.statLabel}>CATEGORÍAS PRINCIPALES</p>
-            <span style={styles.statTrend}>
-              <TrendingUp size={14} /> Registradas
-            </span>
           </div>
         </div>
         
@@ -580,9 +662,6 @@ export default function GestionarCategorias() {
           <div style={styles.statContent}>
             <h3 style={styles.statNumber}>{totalSubcategorias}</h3>
             <p style={styles.statLabel}>SUBCATEGORÍAS</p>
-            <span style={styles.statTrend}>
-              <TrendingUp size={14} /> {totalSubcategorias > 0 ? `${Math.round((totalSubcategorias/totalElementos)*100)}% del total` : "0%"}
-            </span>
           </div>
         </div>
         
@@ -593,9 +672,6 @@ export default function GestionarCategorias() {
           <div style={styles.statContent}>
             <h3 style={styles.statNumber}>{categoriasSinDescripcion}</h3>
             <p style={styles.statLabel}>SIN DESCRIPCIÓN</p>
-            <span style={styles.statTrend}>
-              <TrendingUp size={14} /> {categoriasSinDescripcion > 0 ? `${Math.round((categoriasSinDescripcion/totalCategorias)*100)}% del total` : "0%"}
-            </span>
           </div>
         </div>
         
@@ -606,14 +682,10 @@ export default function GestionarCategorias() {
           <div style={styles.statContent}>
             <h3 style={styles.statNumber}>{totalElementos}</h3>
             <p style={styles.statLabel}>TOTAL ELEMENTOS</p>
-            <span style={styles.statTrend}>
-              <TrendingUp size={14} /> Categorías + Subcategorías
-            </span>
           </div>
         </div>
       </div>
 
-      {/* Filtros y Búsqueda */}
       <div style={styles.filterContainer}>
         <div style={styles.searchBox}>
           <Search size={18} style={styles.searchIcon} />
@@ -645,17 +717,11 @@ export default function GestionarCategorias() {
         </div>
       </div>
 
-      {/* Tabla de Categorías */}
       <div style={styles.tableContainer}>
         <div style={styles.tableHeader}>
           <h3 style={styles.tableTitle}>
             Catálogo de Categorías <span style={styles.tableCount}>({totalCategorias})</span>
           </h3>
-          <div style={styles.tableActions}>
-            <button style={styles.exportButton}>
-              Exportar CSV
-            </button>
-          </div>
         </div>
 
         {error ? (
@@ -710,10 +776,10 @@ export default function GestionarCategorias() {
                 <tbody>
                   {categoriasFiltradas.map((categoria, index) => {
                     const categoriaKey = categoria.id || `cat-${index}`;
+                    const tieneProductos = categoria.tieneProductos || categoriasConProductos[categoria.id];
                     
                     return (
                       <React.Fragment key={`fragment-${categoriaKey}`}>
-                        {/* Categoría Principal */}
                         <tr key={`row-${categoriaKey}`} style={styles.tableRow}>
                           
                           <td style={styles.tableCell}>
@@ -809,19 +875,41 @@ export default function GestionarCategorias() {
                                 </button>
                                 <button
                                   onClick={() => eliminarCategoria(categoria.id, categoria.nombre, false)}
-                                  style={{...styles.actionButton, backgroundColor: '#EF444410', color: '#EF4444'}}
-                                  title="Eliminar categoría"
+                                  style={{
+                                    ...styles.actionButton, 
+                                    backgroundColor: tieneProductos ? '#f3f4f6' : '#EF444410', 
+                                    color: tieneProductos ? '#9ca3af' : '#EF4444',
+                                    cursor: tieneProductos ? 'not-allowed' : 'pointer',
+                                    opacity: tieneProductos ? 0.6 : 1
+                                  }}
+                                  title={tieneProductos ? "No se puede eliminar (tiene productos asociados)" : "Eliminar categoría"}
+                                  disabled={tieneProductos}
                                 >
                                   <Trash2 size={16} />
                                 </button>
+                                {tieneProductos !== undefined && (
+                                  <span style={{
+                                    ...styles.estadoBadge,
+                                    backgroundColor: tieneProductos ? '#fef3c7' : '#d1fae5',
+                                    color: tieneProductos ? '#92400e' : '#065f46',
+                                    border: tieneProductos ? '1px solid #fde68a' : '1px solid #a7f3d0'
+                                  }}>
+                                    {tieneProductos ? (
+                                      <><XCircle size={10} /> Con productos</>
+                                    ) : (
+                                      <><CheckCircle size={10} /> Sin productos</>
+                                    )}
+                                  </span>
+                                )}
                               </div>
                             )}
                           </td>
                         </tr>
 
-                        {/* Subcategorías */}
                         {expandidas[categoriaKey] && categoria.subcategorias?.map((sub, subIndex) => {
                           const subKey = sub.id || `sub-${categoriaKey}-${subIndex}`;
+                          const tieneProductosSub = sub.tieneProductos || subcategoriasConProductos[sub.id];
+                          
                           return (
                             <tr key={subKey} style={styles.subcategoryRow}>
                               <td style={styles.tableCell}>
@@ -898,11 +986,34 @@ export default function GestionarCategorias() {
                                     </button>
                                     <button
                                       onClick={() => eliminarCategoria(sub.id, sub.nombre, true)}
-                                      style={{...styles.actionButton, backgroundColor: '#EF444410', color: '#EF4444'}}
-                                      title="Eliminar subcategoría"
+                                      style={{
+                                        ...styles.actionButton, 
+                                        backgroundColor: tieneProductosSub ? '#f3f4f6' : '#EF444410', 
+                                        color: tieneProductosSub ? '#9ca3af' : '#EF4444',
+                                        cursor: tieneProductosSub ? 'not-allowed' : 'pointer',
+                                        opacity: tieneProductosSub ? 0.6 : 1
+                                      }}
+                                      title={tieneProductosSub ? "No se puede eliminar (tiene productos asociados)" : "Eliminar subcategoría"}
+                                      disabled={tieneProductosSub}
                                     >
                                       <Trash2 size={16} />
                                     </button>
+                                    {tieneProductosSub !== undefined && (
+                                      <span style={{
+                                        ...styles.estadoBadge,
+                                        backgroundColor: tieneProductosSub ? '#fef3c7' : '#d1fae5',
+                                        color: tieneProductosSub ? '#92400e' : '#065f46',
+                                        border: tieneProductosSub ? '1px solid #fde68a' : '1px solid #a7f3d0',
+                                        fontSize: '11px',
+                                        padding: '2px 8px'
+                                      }}>
+                                        {tieneProductosSub ? (
+                                          <><XCircle size={10} /> Con productos</>
+                                        ) : (
+                                          <><CheckCircle size={10} /> Sin productos</>
+                                        )}
+                                      </span>
+                                    )}
                                   </div>
                                 )}
                               </td>
@@ -918,7 +1029,6 @@ export default function GestionarCategorias() {
           </div>
         )}
 
-        {/* Paginación */}
         {categoriasFiltradas.length > 0 && (
           <div style={styles.pagination}>
             <div style={styles.paginationInfo}>
@@ -935,7 +1045,6 @@ export default function GestionarCategorias() {
         )}
       </div>
 
-      {/* Modal para crear/editar */}
       {modalAbierto && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
@@ -1014,7 +1123,6 @@ export default function GestionarCategorias() {
         </div>
       )}
 
-      {/* Información del Sistema */}
       <div style={styles.systemInfo}>
         <div style={styles.systemInfoContent}>
           <Shield size={16} />
@@ -1024,7 +1132,6 @@ export default function GestionarCategorias() {
         </div>
       </div>
 
-      {/* Estilos globales */}
       <style>{`
         @keyframes floatCircle {
           0%, 100% { 
@@ -1053,7 +1160,7 @@ export default function GestionarCategorias() {
   );
 }
 
-// =================== ESTILOS ===================
+
 const styles = {
   container: {
     padding: '24px',
@@ -1309,6 +1416,36 @@ const styles = {
     transition: 'all 0.2s ease'
   },
   
+  verifyButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '10px 20px',
+    background: '#3B82F6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+  
+  verifyButtonDisabled: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '10px 20px',
+    background: '#93c5fd',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'not-allowed',
+    opacity: 0.7
+  },
+  
   addButton: {
     display: 'flex',
     alignItems: 'center',
@@ -1351,23 +1488,6 @@ const styles = {
   tableCount: {
     color: '#6b7280',
     fontWeight: '500'
-  },
-  
-  tableActions: {
-    display: 'flex',
-    gap: '12px'
-  },
-  
-  exportButton: {
-    padding: '8px 16px',
-    background: '#f3f4f6',
-    color: '#374151',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '13px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease'
   },
   
   tableWrapper: {
@@ -1682,7 +1802,8 @@ const styles = {
   actions: {
     display: 'flex',
     gap: '8px',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   
   actionButton: {
@@ -1697,6 +1818,17 @@ const styles = {
     color: '#6b7280',
     cursor: 'pointer',
     transition: 'all 0.2s ease'
+  },
+  
+  estadoBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '600',
+    marginLeft: '8px'
   },
   
   editActions: {
@@ -1944,4 +2076,4 @@ const styles = {
     gap: '8px',
     transition: 'all 0.2s ease'
   }
-};
+}; 

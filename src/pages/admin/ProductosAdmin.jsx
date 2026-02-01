@@ -20,7 +20,16 @@ import {
   Edit2,
   Save,
   Image as ImageIcon,
-  Camera
+  Camera,
+  EyeOff,
+  Eye as EyeOn,
+  RefreshCw,
+  Scale,
+  Tag,
+  BarChart,
+  Check,
+  AlertTriangle,
+  Info
 } from "lucide-react";
 
 export default function ProductosAdmin() {
@@ -38,9 +47,13 @@ export default function ProductosAdmin() {
   const [categoriaSel, setCategoriaSel] = useState("");
   const [subcategoriaSel, setSubcategoriaSel] = useState("");
   const [vendedorSel, setVendedorSel] = useState("");
+  const [estadoSel, setEstadoSel] = useState("");
   const [busqueda, setBusqueda] = useState("");
 
   const [modalData, setModalData] = useState(null);
+  
+  // Estado para notificaciones flotantes
+  const [notifications, setNotifications] = useState([]);
 
   // =================== Círculos flotantes ===================
   useEffect(() => {
@@ -88,6 +101,28 @@ export default function ProductosAdmin() {
     return () => clearInterval(interval);
   }, []);
 
+  // =================== Función para mostrar notificaciones flotantes ===================
+  const showNotification = (message, type = "success") => {
+    const id = Date.now();
+    const notification = {
+      id,
+      message,
+      type,
+      timestamp: new Date()
+    };
+    
+    setNotifications(prev => [notification, ...prev]);
+    
+    // Remover automáticamente después de 5 segundos
+    setTimeout(() => {
+      removeNotification(id);
+    }, 5000);
+  };
+
+  const removeNotification = (id) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== id));
+  };
+
   // =================== Cargar Categorías ===================
   useEffect(() => {
     cargarCategorias();
@@ -97,7 +132,6 @@ export default function ProductosAdmin() {
     try {
       const res = await fetch(`${API_URL}/categorias`);
       const data = await res.json();
-      console.log("Categorías:", data);
       setCategorias(data);
     } catch (e) {
       console.error("Error cargando categorías:", e);
@@ -117,7 +151,6 @@ export default function ProductosAdmin() {
     try {
       const res = await fetch(`${API_URL}/subcategorias/categoria/${idCategoria}`);
       const data = await res.json();
-      console.log("Subcategorías:", data);
       setSubcategorias(data);
     } catch (e) {
       console.error("Error cargando subcategorías:", e);
@@ -132,7 +165,6 @@ export default function ProductosAdmin() {
   async function cargarVendedores() {
     try {
       const token = localStorage.getItem("token");
-
       const res = await fetch(`${API_URL}/vendedor/listar`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -140,16 +172,14 @@ export default function ProductosAdmin() {
       });
 
       if (!res.ok) throw new Error(res.status);
-
       const data = await res.json();
-      console.log("Vendedores:", data);
       setVendedores(data);
     } catch (e) {
       console.error("Error cargando vendedores:", e);
     }
   }
 
-  // =================== Cargar Productos CON IMÁGENES ===================
+  // =================== Cargar Productos CON BORRADO LÓGICO ===================
   useEffect(() => {
     cargarProductos();
   }, []);
@@ -157,11 +187,8 @@ export default function ProductosAdmin() {
   async function cargarProductos() {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/productos/listar`);
+      const res = await fetch(`${API_URL}/productos/admin/listar`); // Endpoint para admin
       const raw = await res.text();
-
-      console.log("STATUS:", res.status);
-      console.log("RAW PRODUCTOS:", raw);
 
       if (!raw || raw.trim() === "") {
         console.error("⚠️ El backend devolvió una respuesta vacía.");
@@ -170,55 +197,32 @@ export default function ProductosAdmin() {
       }
 
       const data = JSON.parse(raw);
-      console.log("Productos parseados:", data);
       
-      // Verificar estructura de datos para imágenes
-      const productosConImagenes = data.map(producto => {
-        console.log(`Producto ${producto.idProducto}:`, {
-          nombre: producto.nombreProducto,
-          tieneImagenProducto: !!producto.imagenProducto,
-          imagenProducto: producto.imagenProducto,
-          tieneImagen: !!producto.imagen,
-          imagen: producto.imagen,
-          tieneImagenUrl: !!producto.imagenUrl,
-          imagenUrl: producto.imagenUrl,
-          tieneImagenes: !!producto.imagenes,
-          imagenes: producto.imagenes
-        });
-        
+      // Procesar productos con URL de imagen completa
+      const productosProcesados = data.map(producto => {
         // Determinar la URL de la imagen
         let imagenUrl = null;
         
-        // Prioridad de búsqueda de imagen
         if (producto.imagenProducto && producto.imagenProducto !== "string") {
-          // Si es una URL completa
           if (producto.imagenProducto.startsWith('http')) {
             imagenUrl = producto.imagenProducto;
-          } 
-          // Si es un nombre de archivo
-          else if (producto.imagenProducto.includes('.jpg') || 
-                   producto.imagenProducto.includes('.jpeg') || 
-                   producto.imagenProducto.includes('.png') ||
-                   producto.imagenProducto.includes('.webp')) {
+          } else if (producto.imagenProducto.includes('.')) {
             imagenUrl = `${API_URL}/uploads/${producto.imagenProducto}`;
-          }
-        } else if (producto.imagenUrl) {
-          imagenUrl = producto.imagenUrl;
-        } else if (producto.imagen) {
-          if (producto.imagen.startsWith('http')) {
-            imagenUrl = producto.imagen;
-          } else {
-            imagenUrl = `${API_URL}/uploads/${producto.imagen}`;
           }
         }
         
+        // Asegurar que los campos de borrado lógico existan
         return {
           ...producto,
-          imagenUrl: imagenUrl
+          imagenUrl: imagenUrl,
+          activo: producto.activo !== undefined ? producto.activo : true,
+          fechaDesactivacion: producto.fechaDesactivacion || null,
+          motivoDesactivacion: producto.motivoDesactivacion || null,
+          unidad: producto.unidad || "Unidad" // Valor por defecto
         };
       });
       
-      setProductos(productosConImagenes);
+      setProductos(productosProcesados);
 
     } catch (e) {
       console.error("❌ Error cargando productos:", e);
@@ -229,12 +233,10 @@ export default function ProductosAdmin() {
 
   // =================== Función para obtener imagen del producto ===================
   const obtenerImagenProducto = (producto) => {
-    // Si ya tenemos la URL procesada
     if (producto.imagenUrl) {
       return producto.imagenUrl;
     }
     
-    // Intentar diferentes formas de obtener la imagen
     if (producto.imagenProducto && producto.imagenProducto !== "string") {
       if (producto.imagenProducto.startsWith('http')) {
         return producto.imagenProducto;
@@ -243,19 +245,6 @@ export default function ProductosAdmin() {
       }
     }
     
-    if (producto.imagenUrl) {
-      return producto.imagenUrl;
-    }
-    
-    if (producto.imagen) {
-      if (producto.imagen.startsWith('http')) {
-        return producto.imagen;
-      } else {
-        return `${API_URL}/uploads/${producto.imagen}`;
-      }
-    }
-    
-    // Si no hay imagen, retornar null para mostrar placeholder
     return null;
   };
 
@@ -300,7 +289,7 @@ export default function ProductosAdmin() {
     );
   };
 
-  // =================== FILTROS ===================
+  // =================== FILTROS CON BORRADO LÓGICO ===================
   const productosFiltrados = productos.filter(p => {
     const coincideBusqueda = 
       p.nombreProducto?.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -312,46 +301,107 @@ export default function ProductosAdmin() {
     const f1 = categoriaSel ? p.idCategoria === Number(categoriaSel) : true;
     const f2 = subcategoriaSel ? p.idSubcategoria === Number(subcategoriaSel) : true;
     const f3 = vendedorSel ? p.idVendedor === Number(vendedorSel) : true;
+    const f4 = estadoSel ? p.estado === estadoSel : true;
     
-    return coincideBusqueda && f1 && f2 && f3;
+    return coincideBusqueda && f1 && f2 && f3 && f4;
   });
 
   // =================== Estadísticas ===================
   const totalProductos = productos.length;
-  const productosBajoStock = productos.filter(p => p.stockProducto <= 10).length;
+  const productosActivos = productos.filter(p => p.activo === true).length;
+  const productosInactivos = productos.filter(p => p.activo === false).length;
+  const productosBajoStock = productos.filter(p => p.stockProducto <= 10 && p.stockProducto > 0).length;
   const productosSinStock = productos.filter(p => p.stockProducto === 0).length;
   const totalVendedores = [...new Set(productos.map(p => p.idVendedor))].length;
   const productosConImagen = productos.filter(p => obtenerImagenProducto(p)).length;
 
-  // =================== ELIMINAR ===================
-  const eliminarProducto = async (id) => {
-    if (!confirm("¿Eliminar producto?")) return;
+  // =================== BORRADO LÓGICO - DESACTIVAR PRODUCTO ===================
+  const desactivarProducto = async (id) => {
+    if (!confirm("¿Estás seguro de desactivar este producto?")) return;
 
     try {
-      const res = await fetch(`${API_URL}/productos/${id}`, {
-        method: "DELETE",
+      const token = localStorage.getItem("token");
+      
+      const res = await fetch(`${API_URL}/productos/${id}/desactivar`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ motivo: "Desactivado por administrador" })
       });
 
+      const data = await res.json();
+      
       if (res.ok) {
-        setProductos(prev => prev.filter(p => p.idProducto !== id));
-        alert("✅ Producto eliminado correctamente");
+        // Actualizar el estado local
+        setProductos(prev => prev.map(p => 
+          p.idProducto === id ? { 
+            ...p, 
+            activo: false, 
+            estado: "Inactivo",
+            motivoDesactivacion: "Desactivado por administrador",
+            fechaDesactivacion: new Date().toISOString()
+          } : p
+        ));
+        
+        showNotification("✅ Producto desactivado correctamente", "success");
       } else {
-        alert("❌ Error eliminando producto");
+        showNotification(`❌ Error: ${data.error || "No se pudo desactivar"}`, "error");
       }
     } catch (e) {
-      console.error("Error eliminando:", e);
-      alert("Error eliminando producto: " + e.message);
+      console.error("Error desactivando:", e);
+      showNotification("Error desactivando producto", "error");
     }
   };
 
-  // =================== FUNCIONES DE EDICIÓN (simuladas) ===================
+  // =================== BORRADO LÓGICO - REACTIVAR PRODUCTO ===================
+  const reactivarProducto = async (id) => {
+    if (!confirm("¿Reactivar este producto?")) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      
+      const res = await fetch(`${API_URL}/productos/${id}/reactivar`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+      
+      if (res.ok) {
+        // Actualizar el estado local
+        setProductos(prev => prev.map(p => 
+          p.idProducto === id ? { 
+            ...p, 
+            activo: true, 
+            estado: "Disponible",
+            motivoDesactivacion: null,
+            fechaDesactivacion: null
+          } : p
+        ));
+        showNotification("✅ Producto reactivado correctamente", "success");
+      } else {
+        showNotification(`❌ Error: ${data.error || "No se pudo reactivar"}`, "error");
+      }
+    } catch (e) {
+      console.error("Error reactivando:", e);
+      showNotification("Error reactivando producto", "error");
+    }
+  };
+
+  // =================== FUNCIONES DE EDICIÓN (SOLO NOMBRE Y PRECIO) ===================
   function iniciarEdicion(producto) {
+    // Solo editar nombre y precio, NO stock ni unidad
     setEditando(producto.idProducto);
     setFormEdit({
       id: producto.idProducto,
       nombreProducto: producto.nombreProducto || "",
       precioProducto: producto.precioProducto || "",
-      stockProducto: producto.stockProducto || ""
+      // NO incluir stockProducto ni unidad
     });
   }
 
@@ -361,11 +411,42 @@ export default function ProductosAdmin() {
   }
 
   async function guardarEdicion() {
-    // Simulación de guardado
-    alert(`✅ Producto ${formEdit.id} actualizado (simulación)`);
-    // Aquí iría la llamada real a la API
-    cancelarEdicion();
-    cargarProductos();
+    try {
+      const token = localStorage.getItem("token");
+      
+      const res = await fetch(`${API_URL}/productos/${formEdit.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          nombreProducto: formEdit.nombreProducto,
+          precioProducto: formEdit.precioProducto
+          // NO enviar stockProducto ni unidad
+        })
+      });
+
+      if (res.ok) {
+        // Actualizar localmente
+        setProductos(prev => prev.map(p => 
+          p.idProducto === formEdit.id ? { 
+            ...p, 
+            nombreProducto: formEdit.nombreProducto,
+            precioProducto: formEdit.precioProducto
+          } : p
+        ));
+        
+        showNotification("✅ Producto actualizado correctamente", "success");
+        cancelarEdicion();
+      } else {
+        const error = await res.json();
+        showNotification("❌ Error: " + error.error, "error");
+      }
+    } catch (e) {
+      console.error("Error guardando:", e);
+      showNotification("Error actualizando producto: " + e.message, "error");
+    }
   }
 
   // =================== LIMPIAR FILTROS ===================
@@ -373,7 +454,9 @@ export default function ProductosAdmin() {
     setCategoriaSel("");
     setSubcategoriaSel("");
     setVendedorSel("");
+    setEstadoSel("");
     setBusqueda("");
+    showNotification("Filtros limpiados", "info");
   }
 
   if (loading) {
@@ -390,6 +473,40 @@ export default function ProductosAdmin() {
 
   return (
     <div style={styles.container}>
+      {/* Notificaciones flotantes */}
+      <div style={styles.notificationsContainer}>
+        {notifications.map((notification) => (
+          <div
+            key={notification.id}
+            style={{
+              ...styles.notification,
+              backgroundColor: notification.type === 'success' ? '#10B981' : 
+                              notification.type === 'error' ? '#EF4444' : '#3B82F6',
+              animation: 'slideIn 0.3s ease-out'
+            }}
+          >
+            <div style={styles.notificationContent}>
+              {notification.type === 'success' && <Check size={18} />}
+              {notification.type === 'error' && <AlertTriangle size={18} />}
+              {notification.type === 'info' && <Info size={18} />}
+              <span style={styles.notificationText}>{notification.message}</span>
+            </div>
+            <button
+              onClick={() => removeNotification(notification.id)}
+              style={styles.notificationClose}
+            >
+              <X size={16} />
+            </button>
+            <div 
+              style={{
+                ...styles.notificationProgress,
+                animation: 'progressBar 5s linear forwards'
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
       {/* Header con diseño igual al Dashboard */}
       <div style={styles.headerContainer}>
         {circlePositions.map(circle => (
@@ -426,7 +543,10 @@ export default function ProductosAdmin() {
           <div style={styles.refreshButtonContainer}>
             <button
               style={styles.refreshButton}
-              onClick={cargarProductos}
+              onClick={() => {
+                cargarProductos();
+                showNotification("Actualizando catálogo...", "info");
+              }}
               disabled={loading}
             >
               <RefreshCcw size={18} /> {loading ? "Actualizando..." : "Actualizar catálogo"}
@@ -439,7 +559,7 @@ export default function ProductosAdmin() {
         </div>
       </div>
 
-      {/* Stats Cards - CON COLORES DEL USUARIOSADMIN */}
+      {/* Stats Cards - CON BORRADO LÓGICO */}
       <div style={styles.statsGrid}>
         <div style={{...styles.statCard, borderTopColor: '#8B5CF6'}}>
           <div style={{...styles.statIcon, backgroundColor: '#8B5CF620', color: '#8B5CF6'}}>
@@ -450,6 +570,19 @@ export default function ProductosAdmin() {
             <p style={styles.statLabel}>PRODUCTOS TOTALES</p>
             <span style={styles.statTrend}>
               <TrendingUp size={14} /> Registrados
+            </span>
+          </div>
+        </div>
+        
+        <div style={{...styles.statCard, borderTopColor: '#10B981'}}>
+          <div style={{...styles.statIcon, backgroundColor: '#10B98120', color: '#10B981'}}>
+            <CheckCircle size={22} />
+          </div>
+          <div style={styles.statContent}>
+            <h3 style={styles.statNumber}>{productosActivos}</h3>
+            <p style={styles.statLabel}>ACTIVOS</p>
+            <span style={styles.statTrend}>
+              <TrendingUp size={14} /> {productosActivos > 0 ? `${Math.round((productosActivos/totalProductos)*100)}% del total` : "0%"}
             </span>
           </div>
         </div>
@@ -467,34 +600,21 @@ export default function ProductosAdmin() {
           </div>
         </div>
         
-        <div style={{...styles.statCard, borderTopColor: '#3B82F6'}}>
-          <div style={{...styles.statIcon, backgroundColor: '#3B82F620', color: '#3B82F6'}}>
-            <ImageIcon size={22} />
+        <div style={{...styles.statCard, borderTopColor: '#6B7280'}}>
+          <div style={{...styles.statIcon, backgroundColor: '#6B728020', color: '#6B7280'}}>
+            <EyeOff size={22} />
           </div>
           <div style={styles.statContent}>
-            <h3 style={styles.statNumber}>{productosConImagen}</h3>
-            <p style={styles.statLabel}>CON IMAGEN</p>
+            <h3 style={styles.statNumber}>{productosInactivos}</h3>
+            <p style={styles.statLabel}>INACTIVOS</p>
             <span style={styles.statTrend}>
-              <TrendingUp size={14} /> {productosConImagen > 0 ? `${Math.round((productosConImagen/totalProductos)*100)}% del total` : "0%"}
-            </span>
-          </div>
-        </div>
-        
-        <div style={{...styles.statCard, borderTopColor: '#10B981'}}>
-          <div style={{...styles.statIcon, backgroundColor: '#10B98120', color: '#10B981'}}>
-            <Store size={22} />
-          </div>
-          <div style={styles.statContent}>
-            <h3 style={styles.statNumber}>{totalVendedores}</h3>
-            <p style={styles.statLabel}>VENDEDORES</p>
-            <span style={styles.statTrend}>
-              <TrendingUp size={14} /> Activos
+              <TrendingUp size={14} /> {productosInactivos > 0 ? `${Math.round((productosInactivos/totalProductos)*100)}% del total` : "0%"}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Filtros y Búsqueda */}
+      {/* Filtros y Búsqueda CON ESTADO */}
       <div style={styles.filterContainer}>
         <div style={styles.searchBox}>
           <Search size={18} style={styles.searchIcon} />
@@ -563,6 +683,21 @@ export default function ProductosAdmin() {
               ))}
             </select>
           </div>
+
+          <div style={styles.filterSelect}>
+            <Filter size={16} style={{ marginRight: '8px' }} />
+            <select 
+              value={estadoSel} 
+              onChange={(e) => setEstadoSel(e.target.value)}
+              style={styles.select}
+            >
+              <option value="">Todos los estados</option>
+              <option value="Disponible">Disponible</option>
+              <option value="Inactivo">Inactivo</option>
+              <option value="Agotado">Agotado</option>
+              <option value="Stock Bajo">Stock Bajo</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -571,12 +706,14 @@ export default function ProductosAdmin() {
         <div style={styles.counter}>
           <Hash size={14} />
           <span>Mostrando <strong style={{color: '#FF6B35'}}>{productosFiltrados.length}</strong> de <strong style={{color: '#FF6B35'}}>{totalProductos}</strong> productos</span>
-          {productosConImagen < totalProductos && (
-            <span style={{marginLeft: '16px', color: '#F59E0B', fontSize: '13px'}}>
-              <ImageIcon size={12} style={{marginRight: '4px'}} />
-              {totalProductos - productosConImagen} sin imagen
-            </span>
-          )}
+          <span style={{marginLeft: '16px', color: '#10B981', fontSize: '13px'}}>
+            <CheckCircle size={12} style={{marginRight: '4px'}} />
+            {productosActivos} activos
+          </span>
+          <span style={{marginLeft: '16px', color: '#6B7280', fontSize: '13px'}}>
+            <EyeOff size={12} style={{marginRight: '4px'}} />
+            {productosInactivos} inactivos
+          </span>
         </div>
         <button
           onClick={limpiarFiltros}
@@ -587,21 +724,12 @@ export default function ProductosAdmin() {
         </button>
       </div>
 
-      {/* Tabla de Productos */}
+      {/* Tabla de Productos CON BORRADO LÓGICO */}
       <div style={styles.tableContainer}>
         <div style={styles.tableHeader}>
           <h3 style={styles.tableTitle}>
             Catálogo de Productos <span style={styles.tableCount}>({productosFiltrados.length})</span>
           </h3>
-          <div style={styles.tableActions}>
-            <button style={styles.exportButton}>
-              Exportar CSV
-            </button>
-            <button style={styles.addButton}>
-              <PlusCircle size={16} />
-              Nuevo Producto
-            </button>
-          </div>
         </div>
 
         <div style={styles.tableWrapper}>
@@ -610,7 +738,7 @@ export default function ProductosAdmin() {
               <div style={styles.emptyIcon}>📦</div>
               <h4 style={styles.emptyTitle}>No se encontraron productos</h4>
               <p style={styles.emptyText}>
-                {busqueda || categoriaSel || subcategoriaSel || vendedorSel 
+                {busqueda || categoriaSel || subcategoriaSel || vendedorSel || estadoSel
                   ? "Intenta con otros filtros de búsqueda" 
                   : "No hay productos registrados en el sistema"}
               </p>
@@ -623,7 +751,8 @@ export default function ProductosAdmin() {
                   <th style={styles.tableCellHead}>Imagen</th>
                   <th style={styles.tableCellHead}>Producto</th>
                   <th style={styles.tableCellHead}>Precio</th>
-                  <th style={styles.tableCellHead}>Stock</th>
+                  <th style={styles.tableCellHead}>Stock/Unidad</th>
+                  <th style={styles.tableCellHead}>Estado</th>
                   <th style={styles.tableCellHead}>Categoría</th>
                   <th style={styles.tableCellHead}>Acciones</th>
                 </tr>
@@ -634,17 +763,20 @@ export default function ProductosAdmin() {
                     key={p.idProducto} 
                     style={{
                       ...styles.tableRow,
-                      backgroundColor: p.stockProducto === 0 ? '#FEF2F2' : 
+                      backgroundColor: !p.activo ? '#f8f9fa' : 
+                                      p.stockProducto === 0 ? '#FEF2F2' : 
                                       p.stockProducto <= 10 ? '#FFF9E6' : 'transparent',
-                      borderLeft: p.stockProducto === 0 ? '4px solid #EF4444' : 
-                                 p.stockProducto <= 10 ? '4px solid #F59E0B' : 'none'
+                      opacity: !p.activo ? 0.7 : 1,
+                      borderLeft: !p.activo ? '4px solid #6B7280' :
+                                  p.stockProducto === 0 ? '4px solid #EF4444' : 
+                                  p.stockProducto <= 10 ? '4px solid #F59E0B' : 'none'
                     }}
                   >
                     <td style={styles.tableCell}>
                       <div style={styles.idCell}>
                         <span style={styles.idNumber}>#{p.idProducto}</span>
-                        {p.stockProducto === 0 && (
-                          <span style={styles.suspendedBadge}>SIN STOCK</span>
+                        {!p.activo && (
+                          <span style={styles.inactiveBadge}>INACTIVO</span>
                         )}
                       </div>
                     </td>
@@ -675,9 +807,10 @@ export default function ProductosAdmin() {
                             <div style={styles.productName}>
                               {p.nombreProducto}
                             </div>
-                            {p.nombreSubcategoria && (
-                              <div style={styles.productDetails}>
-                                {p.nombreSubcategoria}
+                            {p.unidad && (
+                              <div style={styles.unitInfo}>
+                                <Scale size={12} style={{ marginRight: '6px', color: '#8B5CF6' }} />
+                                Unidad: {p.unidad}
                               </div>
                             )}
                             {p.nombreEmpresa && (
@@ -699,26 +832,23 @@ export default function ProductosAdmin() {
                           onChange={(e) => setFormEdit({...formEdit, precioProducto: e.target.value})}
                           placeholder="Precio"
                           style={styles.editInput}
+                          step="0.01"
+                          min="0"
                         />
                       ) : (
                         <div style={styles.priceCell}>
                           <span style={styles.price}>
                             ${Number(p.precioProducto).toFixed(2)}
                           </span>
+                          <span style={styles.unitPrice}>
+                            por {p.unidad?.toLowerCase() || 'unidad'}
+                          </span>
                         </div>
                       )}
                     </td>
                     
                     <td style={styles.tableCell}>
-                      {editando === p.idProducto ? (
-                        <input
-                          type="number"
-                          value={formEdit.stockProducto}
-                          onChange={(e) => setFormEdit({...formEdit, stockProducto: e.target.value})}
-                          placeholder="Stock"
-                          style={styles.editInput}
-                        />
-                      ) : (
+                      <div style={styles.stockUnitContainer}>
                         <span style={{
                           ...styles.badge,
                           backgroundColor: p.stockProducto > 10 ? '#10B98120' : 
@@ -730,21 +860,52 @@ export default function ProductosAdmin() {
                         }}>
                           {p.stockProducto === 0 ? <X size={12} /> : 
                            p.stockProducto <= 10 ? <AlertCircle size={12} /> : <CheckCircle size={12} />}
-                          {p.stockProducto} unidades
+                          {p.stockProducto} {p.unidad?.toLowerCase() || 'unidades'}
                         </span>
-                      )}
+                      </div>
+                    </td>
+                    
+                    <td style={styles.tableCell}>
+                      <span style={{
+                        ...styles.badge,
+                        backgroundColor: !p.activo ? '#6B728020' :
+                                        p.estado === 'Disponible' ? '#10B98120' : 
+                                        p.estado === 'Agotado' ? '#F59E0B20' : 
+                                        p.estado === 'Stock Bajo' ? '#F59E0B20' : '#6B728020',
+                        color: !p.activo ? '#6B7280' :
+                               p.estado === 'Disponible' ? '#10B981' : 
+                               p.estado === 'Agotado' ? '#F59E0B' : 
+                               p.estado === 'Stock Bajo' ? '#F59E0B' : '#6B7280',
+                        borderColor: !p.activo ? '#6B728040' :
+                                     p.estado === 'Disponible' ? '#10B98140' : 
+                                     p.estado === 'Agotado' ? '#F59E0B40' : '#6B728040'
+                      }}>
+                        {!p.activo ? <EyeOff size={12} /> :
+                         p.estado === 'Disponible' ? <CheckCircle size={12} /> :
+                         p.estado === 'Agotado' ? <X size={12} /> :
+                         p.estado === 'Stock Bajo' ? <AlertCircle size={12} /> : <EyeOff size={12} />}
+                        {!p.activo ? 'Inactivo' : p.estado}
+                      </span>
                     </td>
                     
                     <td style={styles.tableCell}>
                       {p.nombreCategoria && (
-                        <span style={{
-                          ...styles.badge,
-                          backgroundColor: '#8B5CF620',
-                          color: '#8B5CF6',
-                          borderColor: '#8B5CF640'
-                        }}>
-                          {p.nombreCategoria}
-                        </span>
+                        <div style={styles.categoryInfo}>
+                          <span style={{
+                            ...styles.badge,
+                            backgroundColor: '#8B5CF620',
+                            color: '#8B5CF6',
+                            borderColor: '#8B5CF640'
+                          }}>
+                            {p.nombreCategoria}
+                          </span>
+                          {p.nombreSubcategoria && (
+                            <div style={styles.subcategory}>
+                              <Tag size={10} style={{ marginRight: '4px' }} />
+                              {p.nombreSubcategoria}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </td>
                     
@@ -775,23 +936,33 @@ export default function ProductosAdmin() {
                           >
                             <Eye size={16} />
                           </button>
-                          <button
-                            onClick={() => iniciarEdicion(p)}
-                            style={{...styles.actionButton, backgroundColor: '#F59E0B10', color: '#F59E0B'}}
-                            title="Editar"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            onClick={() => eliminarProducto(p.idProducto)}
-                            style={{...styles.actionButton, backgroundColor: '#EF444410', color: '#EF4444'}}
-                            title="Eliminar"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                          <button style={{...styles.actionButton, backgroundColor: '#F3F4F6', color: '#6b7280'}}>
-                            <MoreVertical size={16} />
-                          </button>
+                          
+                          {p.activo ? (
+                            <>
+                              <button
+                                onClick={() => iniciarEdicion(p)}
+                                style={{...styles.actionButton, backgroundColor: '#F59E0B10', color: '#F59E0B'}}
+                                title="Editar nombre/precio"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button
+                                onClick={() => desactivarProducto(p.idProducto)}
+                                style={{...styles.actionButton, backgroundColor: '#EF444410', color: '#EF4444'}}
+                                title="Deshabilitar producto"
+                              >
+                                <EyeOff size={16} />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => reactivarProducto(p.idProducto)}
+                              style={{...styles.actionButton, backgroundColor: '#10B98110', color: '#10B981'}}
+                              title="Reactivar producto"
+                            >
+                              <RefreshCw size={16} />
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
@@ -807,9 +978,9 @@ export default function ProductosAdmin() {
           <div style={styles.pagination}>
             <div style={styles.paginationInfo}>
               Mostrando {productosFiltrados.length} de {totalProductos} productos
+              {productosActivos > 0 && ` • ${productosActivos} activos`}
+              {productosInactivos > 0 && ` • ${productosInactivos} inactivos`}
               {productosBajoStock > 0 && ` • ${productosBajoStock} con stock bajo`}
-              {productosSinStock > 0 && ` • ${productosSinStock} sin stock`}
-              {productosConImagen < totalProductos && ` • ${totalProductos - productosConImagen} sin imagen`}
             </div>
             <div style={styles.paginationControls}>
               <button style={styles.paginationButton} disabled>Anterior</button>
@@ -820,7 +991,7 @@ export default function ProductosAdmin() {
         )}
       </div>
 
-      {/* Modal Detalles CON IMAGEN GRANDE */}
+      {/* Modal Detalles CON BORRADO LÓGICO */}
       {modalData && (
         <div
           style={styles.modalOverlay}
@@ -840,6 +1011,11 @@ export default function ProductosAdmin() {
               <div>
                 <h2 style={styles.modalTitle}>{modalData.nombreProducto}</h2>
                 <p style={styles.modalSubtitle}>ID: #{modalData.idProducto}</p>
+                {!modalData.activo && (
+                  <span style={styles.modalInactiveBadge}>
+                    <EyeOff size={12} /> Producto Inactivo
+                  </span>
+                )}
               </div>
               <button
                 onClick={() => setModalData(null)}
@@ -853,7 +1029,7 @@ export default function ProductosAdmin() {
               <div style={styles.modalItem}>
                 <span style={styles.modalLabel}>Precio:</span>
                 <span style={styles.modalValuePrice}>
-                  ${Number(modalData.precioProducto).toFixed(2)}
+                  ${Number(modalData.precioProducto).toFixed(2)} por {modalData.unidad?.toLowerCase() || 'unidad'}
                 </span>
               </div>
               
@@ -864,7 +1040,27 @@ export default function ProductosAdmin() {
                   color: modalData.stockProducto > 10 ? '#10B981' : 
                          modalData.stockProducto === 0 ? '#EF4444' : '#F59E0B'
                 }}>
-                  {modalData.stockProducto} unidades
+                  {modalData.stockProducto} {modalData.unidad?.toLowerCase() || 'unidades'}
+                </span>
+              </div>
+              
+              <div style={styles.modalItem}>
+                <span style={styles.modalLabel}>Unidad:</span>
+                <span style={styles.modalValue}>
+                  <Scale size={14} style={{ marginRight: '6px' }} />
+                  {modalData.unidad || 'Unidad'}
+                </span>
+              </div>
+              
+              <div style={styles.modalItem}>
+                <span style={styles.modalLabel}>Estado:</span>
+                <span style={{
+                  ...styles.modalValue,
+                  color: !modalData.activo ? '#6B7280' :
+                         modalData.estado === 'Disponible' ? '#10B981' : 
+                         modalData.estado === 'Agotado' ? '#F59E0B' : '#6B7280'
+                }}>
+                  {!modalData.activo ? 'Inactivo' : modalData.estado}
                 </span>
               </div>
               
@@ -891,15 +1087,57 @@ export default function ProductosAdmin() {
                   </span>
                 </div>
               )}
+              
+              {!modalData.activo && modalData.motivoDesactivacion && (
+                <div style={styles.modalItem}>
+                  <span style={styles.modalLabel}>Motivo desactivación:</span>
+                  <span style={{...styles.modalValue, color: '#EF4444', fontSize: '13px'}}>
+                    {modalData.motivoDesactivacion}
+                  </span>
+                </div>
+              )}
+              
+              {!modalData.activo && modalData.fechaDesactivacion && (
+                <div style={styles.modalItem}>
+                  <span style={styles.modalLabel}>Desactivado el:</span>
+                  <span style={{...styles.modalValue, color: '#6B7280', fontSize: '13px'}}>
+                    {new Date(modalData.fechaDesactivacion).toLocaleDateString('es-ES')}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div style={styles.modalFooter}>
               <button
                 onClick={() => setModalData(null)}
-                style={styles.modalButton}
+                style={styles.modalButtonSecondary}
               >
                 Cerrar
               </button>
+              
+              {!modalData.activo ? (
+                <button
+                  onClick={() => {
+                    reactivarProducto(modalData.idProducto);
+                    setModalData(null);
+                  }}
+                  style={styles.modalButton}
+                >
+                  <RefreshCw size={14} />
+                  Reactivar Producto
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    desactivarProducto(modalData.idProducto);
+                    setModalData(null);
+                  }}
+                  style={{...styles.modalButton, backgroundColor: '#EF4444'}}
+                >
+                  <EyeOff size={14} />
+                  Desactivar Producto
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -939,18 +1177,97 @@ export default function ProductosAdmin() {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+
+        @keyframes progressBar {
+          from {
+            width: 100%;
+          }
+          to {
+            width: 0%;
+          }
+        }
       `}</style>
     </div>
   );
 }
 
-// ESTILOS MODIFICADOS PARA INCLUIR IMÁGENES - ERROR CORREGIDO
+// ESTILOS ACTUALIZADOS CON BORRADO LÓGICO Y UNIDADES
 const styles = {
   container: {
     padding: '24px',
     maxWidth: '1400px',
     margin: '0 auto',
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+    position: 'relative'
+  },
+  
+  // Notificaciones flotantes
+  notificationsContainer: {
+    position: 'fixed',
+    top: '20px',
+    right: '20px',
+    zIndex: 9999,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    maxWidth: '350px'
+  },
+  
+  notification: {
+    padding: '16px',
+    borderRadius: '10px',
+    color: 'white',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    position: 'relative',
+    overflow: 'hidden',
+    animation: 'slideIn 0.3s ease-out'
+  },
+  
+  notificationContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    flex: 1
+  },
+  
+  notificationText: {
+    fontSize: '14px',
+    fontWeight: '500',
+    flex: 1
+  },
+  
+  notificationClose: {
+    background: 'transparent',
+    border: 'none',
+    color: 'white',
+    cursor: 'pointer',
+    padding: '4px',
+    marginLeft: '8px',
+    opacity: '0.8',
+    transition: 'opacity 0.2s ease'
+  },
+  
+  notificationProgress: {
+    position: 'absolute',
+    bottom: '0',
+    left: '0',
+    height: '3px',
+    background: 'rgba(255, 255, 255, 0.5)',
+    animation: 'progressBar 5s linear forwards'
   },
   
   loadingContainer: {
@@ -1335,7 +1652,7 @@ const styles = {
   table: {
     width: '100%',
     borderCollapse: 'collapse',
-    minWidth: '1000px'
+    minWidth: '1100px'
   },
   
   tableHead: {
@@ -1376,9 +1693,9 @@ const styles = {
     fontSize: '13px'
   },
   
-  suspendedBadge: {
-    background: '#EF444420',
-    color: '#EF4444',
+  inactiveBadge: {
+    background: '#6B728020',
+    color: '#6B7280',
     padding: '2px 8px',
     borderRadius: '12px',
     fontSize: '10px',
@@ -1386,7 +1703,7 @@ const styles = {
     display: 'inline-block'
   },
   
-  // NUEVOS ESTILOS PARA IMÁGENES
+  // Estilos para imágenes
   imageContainer: {
     width: '60px',
     height: '60px',
@@ -1413,9 +1730,12 @@ const styles = {
     marginBottom: '4px'
   },
   
-  productDetails: {
+  unitInfo: {
+    display: 'flex',
+    alignItems: 'center',
     fontSize: '12px',
-    color: '#9ca3af'
+    color: '#8B5CF6',
+    marginBottom: '4px'
   },
   
   vendorInfo: {
@@ -1443,13 +1763,25 @@ const styles = {
   
   priceCell: {
     display: 'flex',
-    alignItems: 'center'
+    flexDirection: 'column',
+    gap: '4px'
   },
   
   price: {
     fontWeight: '700',
     color: '#FF6B35',
     fontSize: '16px'
+  },
+  
+  unitPrice: {
+    fontSize: '12px',
+    color: '#9ca3af'
+  },
+  
+  stockUnitContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
   },
   
   badge: {
@@ -1461,6 +1793,20 @@ const styles = {
     fontSize: '12px',
     fontWeight: '600',
     border: '1px solid transparent'
+  },
+  
+  categoryInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+  
+  subcategory: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: '11px',
+    color: '#9ca3af',
+    marginTop: '2px'
   },
   
   actions: {
@@ -1577,6 +1923,7 @@ const styles = {
     gap: '10px'
   },
   
+  // Modal mejorado
   modalOverlay: {
     position: 'fixed',
     top: 0,
@@ -1597,7 +1944,9 @@ const styles = {
     padding: '24px',
     maxWidth: '500px',
     width: '100%',
-    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)'
+    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+    maxHeight: '90vh',
+    overflowY: 'auto'
   },
   
   modalHeader: {
@@ -1626,13 +1975,27 @@ const styles = {
     fontSize: '20px',
     fontWeight: '700',
     color: '#111827',
-    margin: '0 0 4px 0'
+    margin: '0 0 4px 0',
+    flex: 1
   },
   
   modalSubtitle: {
     fontSize: '14px',
     color: '#6b7280',
     margin: 0
+  },
+  
+  modalInactiveBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    background: '#EF444420',
+    color: '#EF4444',
+    padding: '4px 8px',
+    borderRadius: '12px',
+    fontSize: '11px',
+    fontWeight: '600',
+    marginTop: '4px'
   },
   
   modalClose: {
@@ -1664,7 +2027,8 @@ const styles = {
   modalLabel: {
     fontSize: '14px',
     color: '#6b7280',
-    fontWeight: '500'
+    fontWeight: '500',
+    minWidth: '120px'
   },
   
   modalValue: {
@@ -1672,22 +2036,32 @@ const styles = {
     color: '#374151',
     fontWeight: '600',
     display: 'flex',
-    alignItems: 'center'
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'flex-end',
+    textAlign: 'right'
   },
   
   modalValuePrice: {
     fontSize: '18px',
     color: '#FF6B35',
-    fontWeight: '700'
+    fontWeight: '700',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
   },
   
   modalFooter: {
     display: 'flex',
-    justifyContent: 'flex-end'
+    justifyContent: 'space-between',
+    gap: '12px'
   },
   
   modalButton: {
-    padding: '10px 24px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '10px 20px',
     background: '#FF6B35',
     color: 'white',
     border: 'none',
@@ -1695,6 +2069,20 @@ const styles = {
     fontSize: '14px',
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'all 0.2s ease'
+    transition: 'all 0.2s ease',
+    flex: 1
+  },
+  
+  modalButtonSecondary: {
+    padding: '10px 20px',
+    background: '#f3f4f6',
+    color: '#374151',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    flex: 1
   }
 };
