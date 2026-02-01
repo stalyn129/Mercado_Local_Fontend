@@ -21,6 +21,24 @@ import {
   XCircle
 } from 'lucide-react';
 
+// Función auxiliar para fetch con timeout
+const fetchWithTimeout = async (url, options = {}, timeout = 5000) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+};
+
 export default function GestionarCategorias() {
   const [categorias, setCategorias] = useState([]);
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -41,7 +59,7 @@ export default function GestionarCategorias() {
   const [busqueda, setBusqueda] = useState('');
   const [circlePositions, setCirclePositions] = useState([]);
   
-  // Estados para productos asociados (se llenan automáticamente)
+  // Estados para productos asociados
   const [categoriasConProductos, setCategoriasConProductos] = useState({});
   const [subcategoriasConProductos, setSubcategoriasConProductos] = useState({});
 
@@ -116,6 +134,34 @@ export default function GestionarCategorias() {
     return true;
   };
 
+  // Función para verificación manual (alternativa)
+  const verificarManualProductos = async (id, esSubcategoria = false) => {
+    const token = localStorage.getItem('token');
+    if (!token) return true; // Por seguridad
+    
+    const url = esSubcategoria 
+      ? `http://localhost:8080/subcategorias/${id}/productos`
+      : `http://localhost:8080/categorias/${id}/productos`;
+    
+    try {
+      const response = await fetchWithTimeout(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }, 3000);
+      
+      if (response.ok) {
+        const productos = await response.json();
+        // Verificar si es array y tiene elementos
+        return Array.isArray(productos) && productos.length > 0;
+      }
+      return true; // Por seguridad, asumir que sí tiene
+    } catch (error) {
+      console.error('Error en verificación manual:', error);
+      return true; // Por seguridad
+    }
+  };
+
   useEffect(() => {
     const generateCircles = () => {
       const circles = [];
@@ -165,7 +211,7 @@ export default function GestionarCategorias() {
     cargarCategorias();
   }, []);
 
-  // =================== FUNCIÓN PRINCIPAL MEJORADA ===================
+  // =================== FUNCIÓN PRINCIPAL MEJORADA CON DEPURACIÓN ===================
   const cargarCategorias = async () => {
     try {
       setCargando(true);
@@ -178,12 +224,12 @@ export default function GestionarCategorias() {
       const token = localStorage.getItem('token');
       
       // Cargar categorías principales
-      const response = await fetch('http://localhost:8080/categorias/listar', {
+      const response = await fetchWithTimeout('http://localhost:8080/categorias/listar', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
-      });
+      }, 10000);
       
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('token');
@@ -198,34 +244,72 @@ export default function GestionarCategorias() {
       
       const categoriasData = await response.json();
       
+      // Crear arrays para almacenar estados de productos
+      const nuevasCategoriasConProductos = {};
+      const nuevasSubcategoriasConProductos = {};
+      
       // Para cada categoría, cargar sus subcategorías Y verificar productos asociados
       const categoriasConSubcategorias = await Promise.all(
         categoriasData.map(async (cat) => {
           try {
-            // 1. Verificar productos de la categoría
+            // 1. Verificar productos de la categoría PRINCIPAL
             let tieneProductosCategoria = false;
             try {
-              const verificarResponse = await fetch(`http://localhost:8080/categorias/${cat.idCategoria}/productos-asociados`, {
+              const verificarResponse = await fetchWithTimeout(
+                `http://localhost:8080/categorias/${cat.idCategoria}/productos-asociados`,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  }
+                },
+                3000
+              );
+              
+              if (verificarResponse.ok) {
+                const resultado = await verificarResponse.json();
+                console.log(`✅ Categoría ${cat.idCategoria} (${cat.nombreCategoria}): Resultado API =`, resultado);
+                
+                // Interpretación detallada del resultado
+                if (resultado === true || resultado === false) {
+                  tieneProductosCategoria = resultado;
+                } else if (typeof resultado === 'number') {
+                  tieneProductosCategoria = resultado > 0;
+                } else if (typeof resultado === 'object' && resultado !== null) {
+                  tieneProductosCategoria = resultado.tieneProductos === true || 
+                                           resultado.count > 0 || 
+                                           resultado.cantidad > 0 ||
+                                           resultado.existe === true;
+                } else if (typeof resultado === 'string') {
+                  tieneProductosCategoria = resultado.toLowerCase() === 'true' || resultado === '1';
+                }
+                
+                console.log(`   Interpretado como: ${tieneProductosCategoria ? 'TIENE productos' : 'SIN productos'}`);
+              } else {
+                console.warn(`⚠️ Error verificando categoría ${cat.idCategoria}: ${verificarResponse.status}`);
+                const errorText = await verificarResponse.text();
+                console.warn('   Error detallado:', errorText);
+                tieneProductosCategoria = true; // Por seguridad
+              }
+            } catch (error) {
+              console.error(`❌ Error verificando productos de categoría ${cat.idCategoria}:`, error);
+              tieneProductosCategoria = true;
+            }
+            
+            // Guardar en el estado
+            nuevasCategoriasConProductos[cat.idCategoria] = tieneProductosCategoria;
+
+            // 2. Cargar subcategorías
+            const subResponse = await fetchWithTimeout(
+              `http://localhost:8080/subcategorias/categoria/${cat.idCategoria}`,
+              {
                 headers: {
                   'Authorization': `Bearer ${token}`,
                   'Content-Type': 'application/json'
                 }
-              });
-              
-              if (verificarResponse.ok) {
-                tieneProductosCategoria = await verificarResponse.json();
-              }
-            } catch (error) {
-              console.error(`Error verificando productos de categoría ${cat.idCategoria}:`, error);
-            }
-
-            // 2. Cargar subcategorías
-            const subResponse = await fetch(`http://localhost:8080/subcategorias/categoria/${cat.idCategoria}`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              }
-            });
+              },
+              5000
+            );
             
             let subcategorias = [];
             if (subResponse.ok) {
@@ -235,20 +319,67 @@ export default function GestionarCategorias() {
               subcategorias = await Promise.all(
                 subData.map(async (sub) => {
                   let tieneProductosSub = false;
+                  
+                  // PRIMERO: Intentar con el endpoint principal
                   try {
-                    const verificarSubResponse = await fetch(`http://localhost:8080/subcategorias/${sub.idSubcategoria}/productos-asociados`, {
-                      headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                      }
-                    });
+                    const verificarSubResponse = await fetchWithTimeout(
+                      `http://localhost:8080/subcategorias/${sub.idSubcategoria}/productos-asociados`,
+                      {
+                        headers: {
+                          'Authorization': `Bearer ${token}`,
+                          'Content-Type': 'application/json'
+                        }
+                      },
+                      3000
+                    );
                     
                     if (verificarSubResponse.ok) {
-                      tieneProductosSub = await verificarSubResponse.json();
+                      const resultado = await verificarSubResponse.json();
+                      console.log(`   ↳ Subcategoría ${sub.idSubcategoria} (${sub.nombreSubcategoria}): Resultado API =`, {
+                        resultado,
+                        tipo: typeof resultado,
+                        stringResult: JSON.stringify(resultado)
+                      });
+                      
+                      // Interpretación detallada
+                      if (resultado === true || resultado === false) {
+                        tieneProductosSub = resultado;
+                      } else if (typeof resultado === 'number') {
+                        tieneProductosSub = resultado > 0;
+                      } else if (typeof resultado === 'object' && resultado !== null) {
+                        tieneProductosSub = resultado.tieneProductos === true || 
+                                           resultado.count > 0 || 
+                                           resultado.cantidad > 0 ||
+                                           resultado.existe === true;
+                      } else if (typeof resultado === 'string') {
+                        tieneProductosSub = resultado.toLowerCase() === 'true' || resultado === '1';
+                      }
+                      
+                      console.log(`     Interpretado como: ${tieneProductosSub ? 'TIENE productos' : 'SIN productos'}`);
+                      
+                      // SEGUNDO: Verificación alternativa si el primer resultado parece incorrecto
+                      if (tieneProductosSub) {
+                        console.log(`     ⚠️ Verificación alternativa para subcategoría ${sub.idSubcategoria}...`);
+                        const verifAlternativa = await verificarManualProductos(sub.idSubcategoria, true);
+                        if (!verifAlternativa) {
+                          console.log(`     ✅ Corrección: La subcategoría NO tiene productos realmente`);
+                          tieneProductosSub = false;
+                        }
+                      }
+                      
+                    } else {
+                      console.warn(`   ↳ Error verificando subcategoría ${sub.idSubcategoria}: ${verificarSubResponse.status}`);
+                      const errorText = await verificarSubResponse.text();
+                      console.warn('     Error detallado:', errorText);
+                      tieneProductosSub = true;
                     }
                   } catch (error) {
-                    console.error(`Error verificando productos de subcategoría ${sub.idSubcategoria}:`, error);
+                    console.error(`   ↳ Error verificando productos de subcategoría ${sub.idSubcategoria}:`, error);
+                    tieneProductosSub = true;
                   }
+                  
+                  // Guardar en el estado
+                  nuevasSubcategoriasConProductos[sub.idSubcategoria] = tieneProductosSub;
                   
                   return {
                     id: sub.idSubcategoria,
@@ -271,38 +402,32 @@ export default function GestionarCategorias() {
               subcategorias: subcategorias
             };
           } catch (error) {
-            console.error(`Error cargando categoría ${cat.idCategoria}:`, error);
+            console.error(`🔥 Error cargando categoría ${cat.idCategoria}:`, error);
             return {
               id: cat.idCategoria,
               nombre: cat.nombreCategoria,
               descripcion: cat.descripcionCategoria,
               abreviatura: generarAbreviatura(cat.nombreCategoria),
-              tieneProductos: true, // Por seguridad, asumir que sí tiene
+              tieneProductos: true,
               subcategorias: []
             };
           }
         })
       );
       
+      // Actualizar todos los estados de una vez
       setCategorias(categoriasConSubcategorias);
+      setCategoriasConProductos(nuevasCategoriasConProductos);
+      setSubcategoriasConProductos(nuevasSubcategoriasConProductos);
       
-      // Actualizar estados para fácil acceso
-      const catMap = {};
-      const subMap = {};
-      
-      categoriasConSubcategorias.forEach(cat => {
-        catMap[cat.id] = cat.tieneProductos;
-        cat.subcategorias.forEach(sub => {
-          subMap[sub.id] = sub.tieneProductos;
-        });
+      console.log('📊 Estado final de productos:', {
+        categorias: nuevasCategoriasConProductos,
+        subcategorias: nuevasSubcategoriasConProductos
       });
       
-      setCategoriasConProductos(catMap);
-      setSubcategoriasConProductos(subMap);
-      
     } catch (error) {
-      console.error('Error en cargarCategorias:', error);
-      if (error.message.includes('Failed to fetch')) {
+      console.error('💥 Error en cargarCategorias:', error);
+      if (error.message.includes('Failed to fetch') || error.name === 'AbortError') {
         setError('Error de conexión con el servidor. Verifica que el backend esté ejecutándose en http://localhost:8080');
       } else {
         setError(`Error al cargar las categorías: ${error.message}`);
@@ -397,14 +522,14 @@ export default function GestionarCategorias() {
       
       const token = localStorage.getItem('token');
       
-      const response = await fetch(url, {
+      const response = await fetchWithTimeout(url, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(body)
-      });
+      }, 5000);
       
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('token');
@@ -459,14 +584,14 @@ export default function GestionarCategorias() {
       
       const token = localStorage.getItem('token');
       
-      const response = await fetch(finalUrl, {
+      const response = await fetchWithTimeout(finalUrl, {
         method: method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(body)
-      });
+      }, 5000);
       
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('token');
@@ -488,85 +613,263 @@ export default function GestionarCategorias() {
     }
   };
 
-  // =================== FUNCIÓN ELIMINAR SIMPLIFICADA ===================
+  // =================== FUNCIÓN ELIMINAR MEJORADA CON DEPURACIÓN ===================
   const eliminarCategoria = async (id, nombre, esSubcategoria = false) => {
-    // La verificación YA SE HIZO al cargar, solo mostrar confirmación
-    const tieneProductos = esSubcategoria 
-      ? subcategoriasConProductos[id]
-      : categoriasConProductos[id];
-    
-    if (tieneProductos === undefined) {
-      // Si no sabemos, verificar ahora
-      try {
-        const token = localStorage.getItem('token');
-        const urlVerificar = esSubcategoria 
-          ? `http://localhost:8080/subcategorias/${id}/productos-asociados`
-          : `http://localhost:8080/categorias/${id}/productos-asociados`;
-        
-        const response = await fetch(urlVerificar, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          const tiene = await response.json();
-          if (tiene) {
-            alert(`⚠️ No se puede eliminar ${esSubcategoria ? 'la subcategoría' : 'la categoría'} "${nombre}"\n\nTiene productos asociados. Primero debes eliminar o reasignar los productos.`);
-            return;
-          }
-        }
-      } catch (error) {
-        console.error('Error verificando:', error);
-        alert('Error al verificar productos. No se puede proceder.');
-        return;
-      }
-    } else if (tieneProductos) {
-      alert(`⚠️ No se puede eliminar ${esSubcategoria ? 'la subcategoría' : 'la categoría'} "${nombre}"\n\nTiene productos asociados. Primero debes eliminar o reasignar los productos.`);
+    if (!verificarAutenticacion()) {
       return;
     }
-    
-    // Confirmación final
-    if (!confirm(`¿Estás seguro de eliminar ${esSubcategoria ? 'la subcategoría' : 'la categoría'} "${nombre}"?`)) {
-      return;
-    }
-    
+
     try {
       const token = localStorage.getItem('token');
-      const url = esSubcategoria 
+      
+      // 1. VERIFICACIÓN DETALLADA CON EL BACKEND
+      const urlVerificar = esSubcategoria 
+        ? `http://localhost:8080/subcategorias/${id}/productos-asociados`
+        : `http://localhost:8080/categorias/${id}/productos-asociados`;
+      
+      console.log(`🔍 Verificando productos para ${esSubcategoria ? 'subcategoría' : 'categoría'} ID: ${id}, Nombre: "${nombre}"`);
+      
+      const responseVerificar = await fetchWithTimeout(urlVerificar, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }, 5000);
+      
+      // DEPURACIÓN DETALLADA
+      console.log('📊 Estado de la respuesta:', {
+        ok: responseVerificar.ok,
+        status: responseVerificar.status,
+        statusText: responseVerificar.statusText
+      });
+      
+      let tieneProductos = false;
+      if (responseVerificar.ok) {
+        const resultado = await responseVerificar.json();
+        console.log('📊 Resultado crudo de la API:', {
+          resultado,
+          tipo: typeof resultado,
+          stringResult: JSON.stringify(resultado)
+        });
+        
+        // Análisis detallado del resultado
+        if (resultado === true || resultado === false) {
+          tieneProductos = resultado;
+        } else if (typeof resultado === 'number') {
+          tieneProductos = resultado > 0;
+        } else if (typeof resultado === 'object' && resultado !== null) {
+          tieneProductos = resultado.tieneProductos === true || 
+                          resultado.count > 0 || 
+                          resultado.cantidad > 0 ||
+                          resultado.existe === true;
+        } else if (typeof resultado === 'string') {
+          tieneProductos = resultado.toLowerCase() === 'true' || resultado === '1';
+        }
+        
+        console.log(`📊 Resultado interpretado: ${tieneProductos ? 'TIENE productos' : 'NO tiene productos'}`);
+        
+        // VERIFICACIÓN ALTERNATIVA SI EL RESULTADO PARECE SOSPECHOSO
+        if (tieneProductos) {
+          console.log('🔍 Realizando verificación alternativa...');
+          const verifAlternativa = await verificarManualProductos(id, esSubcategoria);
+          console.log(`📊 Verificación alternativa: ${verifAlternativa ? 'TIENE productos' : 'NO tiene productos'}`);
+          
+          if (!verifAlternativa) {
+            console.log('✅ Corrección aplicada: La categoría NO tiene productos realmente');
+            tieneProductos = false;
+          }
+        }
+      } else {
+        const errorText = await responseVerificar.text();
+        console.error('❌ Error en verificación:', {
+          status: responseVerificar.status,
+          errorText
+        });
+        tieneProductos = true; // Por seguridad
+      }
+      
+      // 2. SI TIENE PRODUCTOS, MOSTRAR ERROR
+      if (tieneProductos) {
+        alert(`⚠️ No se puede eliminar ${esSubcategoria ? 'la subcategoría' : 'la categoría'} "${nombre}"\n\nTiene productos asociados. Primero debes eliminar o reasignar los productos.`);
+        return;
+      }
+      
+      // 3. CONFIRMACIÓN FINAL
+      if (!confirm(`¿Estás seguro de eliminar ${esSubcategoria ? 'la subcategoría' : 'la categoría'} "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
+        return;
+      }
+      
+      // 4. ELIMINAR
+      const urlEliminar = esSubcategoria 
         ? `http://localhost:8080/subcategorias/eliminar/${id}`
         : `http://localhost:8080/categorias/eliminar/${id}`;
       
-      const response = await fetch(url, {
+      const responseEliminar = await fetchWithTimeout(urlEliminar, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
-      });
+      }, 5000);
       
-      if (response.status === 401 || response.status === 403) {
+      if (responseEliminar.status === 401 || responseEliminar.status === 403) {
         localStorage.removeItem('token');
         window.location.href = '/LoginModal';
         return;
       }
       
-      if (response.status === 409) {
-        const errorText = await response.text();
+      if (responseEliminar.status === 409) {
+        const errorText = await responseEliminar.text();
         alert(`⚠️ ${errorText}`);
         return;
       }
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Error ${response.status}: ${errorText || 'Error al eliminar'}`);
+      if (!responseEliminar.ok) {
+        const errorText = await responseEliminar.text();
+        throw new Error(`Error ${responseEliminar.status}: ${errorText || 'Error al eliminar'}`);
       }
       
+      // 5. RECARGAR Y MOSTRAR CONFIRMACIÓN
       await cargarCategorias();
-      alert(`✅ ${esSubcategoria ? 'Subcategoría' : 'Categoría'} eliminada exitosamente`);
+      alert(`✅ ${esSubcategoria ? 'Subcategoría' : 'Categoría'} "${nombre}" eliminada exitosamente`);
+      
     } catch (error) {
-      console.error('Error en eliminarCategoria:', error);
-      alert(`Error al eliminar: ${error.message}`);
+      console.error('💥 Error en eliminarCategoria:', error);
+      if (error.name === 'AbortError') {
+        alert('⚠️ Tiempo de espera agotado. Verifica la conexión con el servidor.');
+      } else {
+        alert(`❌ Error al eliminar: ${error.message}`);
+      }
+    }
+  };
+
+  // =================== FUNCIÓN PARA DEPURAR LA API ===================
+  const depurarAPI = async () => {
+    if (!verificarAutenticacion()) {
+      return;
+    }
+    
+    const token = localStorage.getItem('token');
+    console.log('🔍 INICIANDO DEPURACIÓN COMPLETA DE LA API 🔍');
+    
+    try {
+      // Depurar todas las categorías
+      for (const cat of categorias) {
+        console.log(`\n📋 DEPURANDO CATEGORÍA: ${cat.nombre} (ID: ${cat.id})`);
+        
+        // Endpoint de productos-asociados
+        try {
+          const response1 = await fetch(
+            `http://localhost:8080/categorias/${cat.id}/productos-asociados`,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          
+          if (response1.ok) {
+            const resultado1 = await response1.json();
+            console.log('  📊 /productos-asociados:', {
+              resultado: resultado1,
+              tipo: typeof resultado1
+            });
+          } else {
+            console.error('  ❌ Error /productos-asociados:', response1.status);
+          }
+        } catch (error) {
+          console.error('  ❌ Error en /productos-asociados:', error);
+        }
+        
+        // Endpoint de productos (alternativo)
+        try {
+          const response2 = await fetch(
+            `http://localhost:8080/categorias/${cat.id}/productos`,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            }
+          );
+          
+          if (response2.ok) {
+            const resultado2 = await response2.json();
+            console.log('  📦 /productos:', {
+              esArray: Array.isArray(resultado2),
+              cantidad: Array.isArray(resultado2) ? resultado2.length : 'No es array'
+            });
+          } else {
+            console.error('  ❌ Error /productos:', response2.status);
+          }
+        } catch (error) {
+          console.error('  ❌ Error en /productos:', error);
+        }
+        
+        // Depurar subcategorías
+        if (cat.subcategorias && cat.subcategorias.length > 0) {
+          for (const sub of cat.subcategorias) {
+            console.log(`\n    🍎 DEPURANDO SUBCATEGORÍA: ${sub.nombre} (ID: ${sub.id})`);
+            
+            // Endpoint de productos-asociados
+            try {
+              const response3 = await fetch(
+                `http://localhost:8080/subcategorias/${sub.id}/productos-asociados`,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  }
+                }
+              );
+              
+              if (response3.ok) {
+                const resultado3 = await response3.json();
+                console.log('      📊 /productos-asociados:', {
+                  resultado: resultado3,
+                  tipo: typeof resultado3,
+                  stringResult: JSON.stringify(resultado3)
+                });
+              } else {
+                console.error('      ❌ Error /productos-asociados:', response3.status);
+              }
+            } catch (error) {
+              console.error('      ❌ Error en /productos-asociados:', error);
+            }
+            
+            // Endpoint de productos (alternativo)
+            try {
+              const response4 = await fetch(
+                `http://localhost:8080/subcategorias/${sub.id}/productos`,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${token}`
+                  }
+                }
+              );
+              
+              if (response4.ok) {
+                const resultado4 = await response4.json();
+                console.log('      📦 /productos:', {
+                  esArray: Array.isArray(resultado4),
+                  cantidad: Array.isArray(resultado4) ? resultado4.length : 'No es array',
+                  contenido: Array.isArray(resultado4) && resultado4.length > 0 ? resultado4[0] : 'Vacío'
+                });
+              } else {
+                console.error('      ❌ Error /productos:', response4.status);
+              }
+            } catch (error) {
+              console.error('      ❌ Error en /productos:', error);
+            }
+          }
+        }
+      }
+      
+      console.log('\n✅ DEPURACIÓN COMPLETADA ✅');
+      alert('Depuración completada. Revisa la consola para ver los resultados detallados.');
+      
+    } catch (error) {
+      console.error('💥 Error en depuración:', error);
+      alert('Error durante la depuración. Revisa la consola.');
     }
   };
 
@@ -575,6 +878,10 @@ export default function GestionarCategorias() {
   const totalSubcategorias = categorias.reduce((acc, cat) => acc + (cat.subcategorias?.length || 0), 0);
   const categoriasSinDescripcion = categorias.filter(cat => !cat.descripcion || cat.descripcion.trim() === '').length;
   const totalElementos = totalCategorias + totalSubcategorias;
+
+  // Contar categorías con productos
+  const categoriasConProductosCount = Object.values(categoriasConProductos).filter(Boolean).length;
+  const categoriasSinProductosCount = totalCategorias - categoriasConProductosCount;
 
   const categoriasFiltradas = categorias.filter(categoria => 
     categoria.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -588,7 +895,12 @@ export default function GestionarCategorias() {
         <div style={styles.spinner}></div>
         <div style={styles.loadingContent}>
           <h3 style={styles.loadingTitle}>Cargando categorías...</h3>
-          <p style={styles.loadingText}>Verificando productos asociados</p>
+          <p style={styles.loadingText}>Verificando productos asociados en todas las categorías</p>
+          <div style={styles.loadingProgress}>
+            <div style={styles.progressBar}>
+              <div style={styles.progressFill}></div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -624,7 +936,7 @@ export default function GestionarCategorias() {
               Gestión de Categorías
             </h1>
             <p style={styles.headerDescription}>
-              Sistema MercadoLocal-IA • {totalElementos} elemento{totalElementos !== 1 ? 's' : ''} encontrado{totalElementos !== 1 ? 's' : ''}
+              Sistema MercadoLocal-IA • {totalElementos} elemento{totalElementos !== 1 ? 's' : ''} • Verificación automática de productos
             </p>
           </div>
           
@@ -652,6 +964,15 @@ export default function GestionarCategorias() {
           <div style={styles.statContent}>
             <h3 style={styles.statNumber}>{totalCategorias}</h3>
             <p style={styles.statLabel}>CATEGORÍAS PRINCIPALES</p>
+            <div style={styles.statSubtext}>
+              <span style={{ color: '#10B981', fontWeight: '600' }}>
+                {categoriasSinProductosCount} sin productos
+              </span>
+              <span style={{ margin: '0 4px' }}>•</span>
+              <span style={{ color: '#EF4444', fontWeight: '600' }}>
+                {categoriasConProductosCount} con productos
+              </span>
+            </div>
           </div>
         </div>
         
@@ -662,6 +983,11 @@ export default function GestionarCategorias() {
           <div style={styles.statContent}>
             <h3 style={styles.statNumber}>{totalSubcategorias}</h3>
             <p style={styles.statLabel}>SUBCATEGORÍAS</p>
+            <div style={styles.statSubtext}>
+              <span style={{ color: '#6b7280', fontSize: '12px' }}>
+                {Object.values(subcategoriasConProductos).filter(Boolean).length} con productos
+              </span>
+            </div>
           </div>
         </div>
         
@@ -672,6 +998,11 @@ export default function GestionarCategorias() {
           <div style={styles.statContent}>
             <h3 style={styles.statNumber}>{categoriasSinDescripcion}</h3>
             <p style={styles.statLabel}>SIN DESCRIPCIÓN</p>
+            <div style={styles.statSubtext}>
+              <span style={{ color: '#6b7280', fontSize: '12px' }}>
+                Requieren atención
+              </span>
+            </div>
           </div>
         </div>
         
@@ -682,6 +1013,11 @@ export default function GestionarCategorias() {
           <div style={styles.statContent}>
             <h3 style={styles.statNumber}>{totalElementos}</h3>
             <p style={styles.statLabel}>TOTAL ELEMENTOS</p>
+            <div style={styles.statSubtext}>
+              <span style={{ color: '#6b7280', fontSize: '12px' }}>
+                Todas las categorías y subcategorías
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -708,6 +1044,30 @@ export default function GestionarCategorias() {
             </button>
           )}
           <button
+            onClick={depurarAPI}
+            style={{
+              ...styles.verifyButton,
+              backgroundColor: '#8B5CF6'
+            }}
+            title="Depurar todos los endpoints de la API"
+          >
+            <AlertCircle size={16} />
+            Depurar API
+          </button>
+          <button
+            onClick={async () => {
+              setCargando(true);
+              console.log('🔄 Verificando productos en todas las categorías...');
+              await cargarCategorias();
+              alert('✅ Verificación completada. Revisa la consola para detalles.');
+            }}
+            style={styles.verifyButton}
+            title="Verificar productos en todas las categorías"
+          >
+            <RefreshCcw size={16} />
+            Verificar Productos
+          </button>
+          <button
             onClick={() => abrirModalCrear()}
             style={styles.addButton}
           >
@@ -722,6 +1082,16 @@ export default function GestionarCategorias() {
           <h3 style={styles.tableTitle}>
             Catálogo de Categorías <span style={styles.tableCount}>({totalCategorias})</span>
           </h3>
+          <div style={styles.tableSubtitle}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#10B981' }}></div>
+              Sin productos
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '16px' }}>
+              <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#EF4444' }}></div>
+              Con productos (no eliminable)
+            </span>
+          </div>
         </div>
 
         {error ? (
@@ -776,11 +1146,17 @@ export default function GestionarCategorias() {
                 <tbody>
                   {categoriasFiltradas.map((categoria, index) => {
                     const categoriaKey = categoria.id || `cat-${index}`;
-                    const tieneProductos = categoria.tieneProductos || categoriasConProductos[categoria.id];
+                    const tieneProductos = categoria.tieneProductos !== undefined 
+                      ? categoria.tieneProductos 
+                      : categoriasConProductos[categoria.id] || false;
                     
                     return (
                       <React.Fragment key={`fragment-${categoriaKey}`}>
-                        <tr key={`row-${categoriaKey}`} style={styles.tableRow}>
+                        <tr key={`row-${categoriaKey}`} style={{
+                          ...styles.tableRow,
+                          backgroundColor: tieneProductos ? '#FEF2F2' : 'transparent',
+                          borderLeft: tieneProductos ? '4px solid #EF4444' : '4px solid transparent'
+                        }}>
                           
                           <td style={styles.tableCell}>
                             {editando === categoria.id ? (
@@ -806,12 +1182,30 @@ export default function GestionarCategorias() {
                                     }
                                   </button>
                                 )}
-                                <div style={styles.categoryInitials}>
+                                <div style={{
+                                  ...styles.categoryInitials,
+                                  background: tieneProductos 
+                                    ? 'linear-gradient(135deg, #EF4444, #F87171)' 
+                                    : 'linear-gradient(135deg, #10B981, #34D399)'
+                                }}>
                                   {categoria.abreviatura || generarAbreviatura(categoria.nombre)}
                                 </div>
                                 <div>
                                   <div style={styles.categoryName}>
                                     {categoria.nombre || 'Sin nombre'}
+                                    {tieneProductos && (
+                                      <span style={{
+                                        marginLeft: '8px',
+                                        fontSize: '11px',
+                                        backgroundColor: '#FEE2E2',
+                                        color: '#991B1B',
+                                        padding: '2px 6px',
+                                        borderRadius: '4px',
+                                        fontWeight: '600'
+                                      }}>
+                                        CON PRODUCTOS
+                                      </span>
+                                    )}
                                   </div>
                                   <div style={styles.categoryId}>
                                     <Hash size={12} /> ID: {categoria.id}
@@ -882,25 +1276,30 @@ export default function GestionarCategorias() {
                                     cursor: tieneProductos ? 'not-allowed' : 'pointer',
                                     opacity: tieneProductos ? 0.6 : 1
                                   }}
-                                  title={tieneProductos ? "No se puede eliminar (tiene productos asociados)" : "Eliminar categoría"}
+                                  title={tieneProductos 
+                                    ? "No se puede eliminar porque tiene productos asociados" 
+                                    : "Eliminar categoría"}
                                   disabled={tieneProductos}
                                 >
                                   <Trash2 size={16} />
                                 </button>
-                                {tieneProductos !== undefined && (
-                                  <span style={{
-                                    ...styles.estadoBadge,
-                                    backgroundColor: tieneProductos ? '#fef3c7' : '#d1fae5',
-                                    color: tieneProductos ? '#92400e' : '#065f46',
-                                    border: tieneProductos ? '1px solid #fde68a' : '1px solid #a7f3d0'
-                                  }}>
-                                    {tieneProductos ? (
-                                      <><XCircle size={10} /> Con productos</>
-                                    ) : (
-                                      <><CheckCircle size={10} /> Sin productos</>
-                                    )}
-                                  </span>
-                                )}
+                                <span style={{
+                                  ...styles.estadoBadge,
+                                  backgroundColor: tieneProductos ? '#FEF3C7' : '#D1FAE5',
+                                  color: tieneProductos ? '#92400E' : '#065F46',
+                                  border: tieneProductos ? '1px solid #FDE68A' : '1px solid #A7F3D0',
+                                  cursor: 'help'
+                                }}
+                                title={tieneProductos 
+                                  ? "Esta categoría tiene productos asociados. No se puede eliminar." 
+                                  : "Esta categoría no tiene productos asociados. Se puede eliminar."}
+                                >
+                                  {tieneProductos ? (
+                                    <><XCircle size={10} /> Con productos</>
+                                  ) : (
+                                    <><CheckCircle size={10} /> Sin productos</>
+                                  )}
+                                </span>
                               </div>
                             )}
                           </td>
@@ -908,10 +1307,16 @@ export default function GestionarCategorias() {
 
                         {expandidas[categoriaKey] && categoria.subcategorias?.map((sub, subIndex) => {
                           const subKey = sub.id || `sub-${categoriaKey}-${subIndex}`;
-                          const tieneProductosSub = sub.tieneProductos || subcategoriasConProductos[sub.id];
+                          const tieneProductosSub = sub.tieneProductos !== undefined 
+                            ? sub.tieneProductos 
+                            : subcategoriasConProductos[sub.id] || false;
                           
                           return (
-                            <tr key={subKey} style={styles.subcategoryRow}>
+                            <tr key={subKey} style={{
+                              ...styles.subcategoryRow,
+                              backgroundColor: tieneProductosSub ? '#FEF2F2' : '#FAFAFA',
+                              borderLeft: tieneProductosSub ? '4px solid #EF4444' : '4px solid #10B981'
+                            }}>
                               <td style={styles.tableCell}>
                                 <div style={{ paddingLeft: '60px' }}>
                                   {editando === sub.id ? (
@@ -926,12 +1331,30 @@ export default function GestionarCategorias() {
                                     </div>
                                   ) : (
                                     <div style={styles.categoryInfo}>
-                                      <div style={styles.subcategoryInitials}>
+                                      <div style={{
+                                        ...styles.subcategoryInitials,
+                                        background: tieneProductosSub 
+                                          ? 'linear-gradient(135deg, #EF4444, #F87171)' 
+                                          : 'linear-gradient(135deg, #10B981, #34D399)'
+                                      }}>
                                         {sub.abreviatura || generarAbreviatura(sub.nombre)}
                                       </div>
                                       <div>
                                         <div style={styles.categoryName}>
                                           {sub.nombre || 'Sin nombre'}
+                                          {tieneProductosSub && (
+                                            <span style={{
+                                              marginLeft: '8px',
+                                              fontSize: '10px',
+                                              backgroundColor: '#FEE2E2',
+                                              color: '#991B1B',
+                                              padding: '1px 4px',
+                                              borderRadius: '3px',
+                                              fontWeight: '600'
+                                            }}>
+                                              CON PRODUCTOS
+                                            </span>
+                                          )}
                                         </div>
                                         <div style={styles.subcategoryInfo}>
                                           Subcategoría de {categoria.nombre}
@@ -993,27 +1416,32 @@ export default function GestionarCategorias() {
                                         cursor: tieneProductosSub ? 'not-allowed' : 'pointer',
                                         opacity: tieneProductosSub ? 0.6 : 1
                                       }}
-                                      title={tieneProductosSub ? "No se puede eliminar (tiene productos asociados)" : "Eliminar subcategoría"}
+                                      title={tieneProductosSub 
+                                        ? "No se puede eliminar porque tiene productos asociados" 
+                                        : "Eliminar subcategoría"}
                                       disabled={tieneProductosSub}
                                     >
                                       <Trash2 size={16} />
                                     </button>
-                                    {tieneProductosSub !== undefined && (
-                                      <span style={{
-                                        ...styles.estadoBadge,
-                                        backgroundColor: tieneProductosSub ? '#fef3c7' : '#d1fae5',
-                                        color: tieneProductosSub ? '#92400e' : '#065f46',
-                                        border: tieneProductosSub ? '1px solid #fde68a' : '1px solid #a7f3d0',
-                                        fontSize: '11px',
-                                        padding: '2px 8px'
-                                      }}>
-                                        {tieneProductosSub ? (
-                                          <><XCircle size={10} /> Con productos</>
-                                        ) : (
-                                          <><CheckCircle size={10} /> Sin productos</>
-                                        )}
-                                      </span>
-                                    )}
+                                    <span style={{
+                                      ...styles.estadoBadge,
+                                      backgroundColor: tieneProductosSub ? '#FEF3C7' : '#D1FAE5',
+                                      color: tieneProductosSub ? '#92400E' : '#065F46',
+                                      border: tieneProductosSub ? '1px solid #FDE68A' : '1px solid #A7F3D0',
+                                      fontSize: '11px',
+                                      padding: '2px 8px',
+                                      cursor: 'help'
+                                    }}
+                                    title={tieneProductosSub 
+                                      ? "Esta subcategoría tiene productos asociados. No se puede eliminar." 
+                                      : "Esta subcategoría no tiene productos asociados. Se puede eliminar."}
+                                    >
+                                      {tieneProductosSub ? (
+                                        <><XCircle size={10} /> Con productos</>
+                                      ) : (
+                                        <><CheckCircle size={10} /> Sin productos</>
+                                      )}
+                                    </span>
                                   </div>
                                 )}
                               </td>
@@ -1155,11 +1583,15 @@ export default function GestionarCategorias() {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+
+        @keyframes progress {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
       `}</style>
     </div>
   );
 }
-
 
 const styles = {
   container: {
@@ -1188,7 +1620,8 @@ const styles = {
   },
   
   loadingContent: {
-    textAlign: 'center'
+    textAlign: 'center',
+    width: '300px'
   },
   
   loadingTitle: {
@@ -1200,7 +1633,26 @@ const styles = {
   
   loadingText: {
     fontSize: '14px',
-    color: '#6b7280'
+    color: '#6b7280',
+    marginBottom: '16px'
+  },
+  
+  loadingProgress: {
+    width: '100%'
+  },
+  
+  progressBar: {
+    height: '4px',
+    backgroundColor: '#f1f5f9',
+    borderRadius: '2px',
+    overflow: 'hidden'
+  },
+  
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#FF6B35',
+    width: '30%',
+    animation: 'progress 1.5s ease-in-out infinite'
   },
   
   headerContainer: {
@@ -1351,6 +1803,14 @@ const styles = {
     letterSpacing: '0.5px'
   },
   
+  statSubtext: {
+    fontSize: '12px',
+    color: '#6b7280',
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap'
+  },
+  
   statTrend: {
     display: 'flex',
     alignItems: 'center',
@@ -1488,6 +1948,13 @@ const styles = {
   tableCount: {
     color: '#6b7280',
     fontWeight: '500'
+  },
+  
+  tableSubtitle: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: '12px',
+    color: '#6b7280'
   },
   
   tableWrapper: {
@@ -1637,7 +2104,6 @@ const styles = {
   },
   
   subcategoryRow: {
-    backgroundColor: '#fafafa',
     borderBottom: '1px solid #f3f4f6',
     transition: 'all 0.2s ease'
   },
@@ -1673,7 +2139,6 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'linear-gradient(135deg, #FF6B35, #FF8E53)',
     color: 'white',
     fontWeight: '600',
     fontSize: '14px',
@@ -1687,7 +2152,6 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
     color: 'white',
     fontWeight: '600',
     fontSize: '12px',
@@ -1697,7 +2161,9 @@ const styles = {
   categoryName: {
     fontWeight: '600',
     color: '#111827',
-    marginBottom: '4px'
+    marginBottom: '4px',
+    display: 'flex',
+    alignItems: 'center'
   },
   
   categoryId: {
@@ -2076,4 +2542,4 @@ const styles = {
     gap: '8px',
     transition: 'all 0.2s ease'
   }
-}; 
+};

@@ -2,36 +2,43 @@ import { useEffect, useState } from "react";
 import Footer from "../../components/Footer.jsx";
 
 export default function GestionarProductos() {
-  // ✅ CORREGIDO: Usar tu IP para que las imágenes carguen
-  const API_URL = "http://192.168.1.13:8080";
+  // ✅ CORREGIDO: Usar localhost para desarrollo
+  const API_URL = "http://localhost:8080";
 
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [circlePositions, setCirclePositions] = useState([]);
 
-  // ✅ AÑADIDO: Función para construir URLs de imágenes
+  // ✅ FUNCIÓN SIMPLIFICADA PARA CLOUDINARY
   const getImageUrl = (imagePath) => {
+    // Si es undefined, null o string vacío
     if (!imagePath) {
-      return 'https://via.placeholder.com/150x150?text=Sin+Imagen';
+      return 'https://via.placeholder.com/150x150/FF6B35/ffffff?text=Producto';
     }
     
-    // Si ya es una URL completa (http://...)
-    if (imagePath.startsWith('http')) {
+    // Si ya es una URL completa de Cloudinary (https://res.cloudinary.com/...)
+    if (typeof imagePath === 'string' && 
+        (imagePath.startsWith('http://') || imagePath.startsWith('https://'))) {
       return imagePath;
     }
     
-    // Si es una ruta relativa (/uploads/productos/...)
-    if (imagePath.startsWith('/uploads/')) {
+    // Si es una URL de Cloudinary sin protocolo
+    if (typeof imagePath === 'string' && imagePath.includes('cloudinary.com')) {
+      return `https://${imagePath}`;
+    }
+    
+    // Si es una ruta relativa (/uploads/...)
+    if (typeof imagePath === 'string' && imagePath.startsWith('/')) {
       return `${API_URL}${imagePath}`;
     }
     
     // Si solo es un nombre de archivo
-    if (imagePath && !imagePath.includes('/')) {
+    if (typeof imagePath === 'string' && imagePath.trim() !== '') {
       return `${API_URL}/uploads/productos/${imagePath}`;
     }
     
-    // Si no reconocemos el formato, usar placeholder
-    return 'https://via.placeholder.com/150x150?text=Error+Imagen';
+    // Por defecto, placeholder
+    return 'https://via.placeholder.com/150x150/FF6B35/ffffff?text=Producto';
   };
 
   // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
@@ -83,24 +90,47 @@ export default function GestionarProductos() {
 
   // ==================== CARGA DE PRODUCTOS ====================
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("user"));
+    const cargarProductos = async () => {
+      const user = JSON.parse(localStorage.getItem("user"));
 
-    if (!user) {
-      console.warn("⚠ No hay sesión");
-      window.location.href = "/loginmodal";
-      return;
-    }
+      if (!user) {
+        console.warn("⚠ No hay sesión");
+        window.location.href = "/loginmodal";
+        return;
+      }
 
-    if (!user.idVendedor) {
-      console.warn("⚠ No existe idVendedor en el localStorage");
-      return;
-    }
+      // Obtener idVendedor del usuario
+      let idVendedor = user.idVendedor || user.idUsuario || user.id;
+      
+      if (!idVendedor) {
+        console.warn("⚠ No se pudo obtener idVendedor del usuario");
+        alert("Error: No se pudo identificar al vendedor. Por favor, inicie sesión nuevamente.");
+        window.location.href = "/login";
+        return;
+      }
 
-    obtenerProductos(user.idVendedor, user.token);
+      console.log("🔍 Cargando productos para vendedor ID:", idVendedor);
+      
+      // Obtener token
+      const token = localStorage.getItem("authToken") || user.token;
+      
+      if (!token) {
+        console.warn("⚠ No hay token de autenticación");
+        alert("Error: Sesión expirada. Por favor, inicie sesión nuevamente.");
+        window.location.href = "/login";
+        return;
+      }
+
+      await obtenerProductos(idVendedor, token);
+    };
+
+    cargarProductos();
   }, []);
 
   const obtenerProductos = async (idVendedor, token) => {
     try {
+      console.log("🔗 Llamando endpoint:", `${API_URL}/productos/vendedor/${idVendedor}`);
+      
       const res = await fetch(`${API_URL}/productos/vendedor/${idVendedor}`, {
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -108,21 +138,41 @@ export default function GestionarProductos() {
         }
       });
 
-      const data = await res.json();
-      console.log("📦 Productos cargados:", data);
+      console.log("📊 Response status:", res.status, res.statusText);
       
-      // ✅ DEBUG: Verificar URLs de imágenes
-      data.forEach((producto, index) => {
-        console.log(`🔍 Producto ${index + 1}:`, {
-          nombre: producto.nombreProducto,
-          imagenOriginal: producto.imagenProducto,
-          imagenConvertida: getImageUrl(producto.imagenProducto)
-        });
-      });
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("❌ Error del servidor:", errorText);
+        throw new Error(`Error ${res.status}: ${errorText}`);
+      }
 
+      const data = await res.json();
+      console.log("✅ Productos recibidos:", data);
+      
+      // DEBUG: Verificar estructura de los productos
+      if (Array.isArray(data)) {
+        console.log(`📦 Total de productos: ${data.length}`);
+        
+        data.forEach((producto, index) => {
+          console.log(`\n=== PRODUCTO ${index + 1} ===`);
+          console.log("ID:", producto.idProducto);
+          console.log("Nombre:", producto.nombreProducto);
+          console.log("Imagen (raw):", producto.imagenProducto);
+          console.log("URL construida:", getImageUrl(producto.imagenProducto));
+          
+          // Verificar otros campos
+          console.log("Estado:", producto.estado);
+          console.log("Activo:", producto.activo);
+          console.log("Vendedor ID:", producto.idVendedor);
+        });
+      } else {
+        console.warn("⚠ La respuesta no es un array:", data);
+      }
+      
       setProductos(data);
-    } catch (e) {
-      console.error("❌ Error al cargar productos:", e);
+    } catch (error) {
+      console.error("❌ Error al cargar productos:", error);
+      alert(`Error al cargar productos: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -140,11 +190,12 @@ export default function GestionarProductos() {
 
     try {
       const user = JSON.parse(localStorage.getItem("user"));
+      const token = localStorage.getItem("authToken") || user.token;
       
       const res = await fetch(`${API_URL}/productos/eliminar/${idProducto}`, {
         method: "DELETE",
         headers: {
-          "Authorization": `Bearer ${user.token}`,
+          "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
         }
       });
@@ -152,14 +203,26 @@ export default function GestionarProductos() {
       if (res.ok) {
         setProductos(prev => prev.filter(p => p.idProducto !== idProducto));
         alert(`🗑️ Producto "${nombreProducto}" eliminado exitosamente`);
-        console.log("🗑️ Producto eliminado:", idProducto);
+        console.log("✅ Producto eliminado:", idProducto);
       } else {
-        const text = await res.text();
-        alert(`❌ No se pudo eliminar: ${text || 'Error inesperado'}`);
+        const errorText = await res.text();
+        alert(`❌ No se pudo eliminar: ${errorText || 'Error inesperado'}`);
       }
-    } catch (e) {
-      console.error("❌ Error al eliminar producto:", e);
+    } catch (error) {
+      console.error("❌ Error al eliminar producto:", error);
       alert("❌ Error de conexión. Verifica tu red e intenta nuevamente.");
+    }
+  };
+
+  // ==================== RECARGAR PRODUCTOS ====================
+  const recargarProductos = () => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    const token = localStorage.getItem("authToken");
+    
+    if (user && (user.idVendedor || user.idUsuario || user.id)) {
+      setLoading(true);
+      const idVendedor = user.idVendedor || user.idUsuario || user.id;
+      obtenerProductos(idVendedor, token);
     }
   };
 
@@ -188,7 +251,7 @@ export default function GestionarProductos() {
             animationDelay: circle.animationDelay,
             filter: `blur(${circle.blur})`,
             opacity: 0.7,
-            zIndex: circle.zIndex,
+            zIndex: 0,
             pointerEvents: "none"
           }}
         />
@@ -300,7 +363,9 @@ export default function GestionarProductos() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: "30px"
+            marginBottom: "30px",
+            flexWrap: "wrap",
+            gap: "16px"
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
               <div style={{
@@ -332,27 +397,40 @@ export default function GestionarProductos() {
                   margin: "0",
                   fontWeight: "500"
                 }}>
-                  {productos.length} productos en total
+                  {productos.length} {productos.length === 1 ? 'producto' : 'productos'} en total
                 </p>
               </div>
             </div>
             
-            {productos.length > 0 && (
-              <div style={{
-                background: "#f1f5f9",
-                padding: "10px 20px",
-                borderRadius: "20px",
-                fontSize: "14px",
-                fontWeight: "600",
-                color: "#475569",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px"
-              }}>
-                <span>📈</span>
-                <span>Total: ${productos.reduce((sum, p) => sum + (p.precioProducto || 0), 0).toFixed(2)}</span>
-              </div>
-            )}
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button
+                onClick={recargarProductos}
+                style={{
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  border: "1px solid #cbd5e1",
+                  padding: "10px 20px",
+                  borderRadius: "10px",
+                  cursor: "pointer",
+                  fontWeight: "600",
+                  fontSize: "14px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  transition: "all 0.3s ease"
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = "#e2e8f0";
+                  e.target.style.transform = "translateY(-2px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = "#f1f5f9";
+                  e.target.style.transform = "translateY(0)";
+                }}
+              >
+                🔄 Recargar
+              </button>
+            </div>
           </div>
 
           {/* Loading State */}
@@ -475,7 +553,8 @@ export default function GestionarProductos() {
                         color: "#475569",
                         textTransform: "uppercase",
                         letterSpacing: "0.8px",
-                        borderBottom: "2px solid #E2E8F0"
+                        borderBottom: "2px solid #E2E8F0",
+                        width: "100px"
                       }}>
                         Imagen
                       </th>
@@ -499,7 +578,8 @@ export default function GestionarProductos() {
                         color: "#475569",
                         textTransform: "uppercase",
                         letterSpacing: "0.8px",
-                        borderBottom: "2px solid #E2E8F0"
+                        borderBottom: "2px solid #E2E8F0",
+                        width: "120px"
                       }}>
                         Precio
                       </th>
@@ -511,7 +591,8 @@ export default function GestionarProductos() {
                         color: "#475569",
                         textTransform: "uppercase",
                         letterSpacing: "0.8px",
-                        borderBottom: "2px solid #E2E8F0"
+                        borderBottom: "2px solid #E2E8F0",
+                        width: "120px"
                       }}>
                         Stock
                       </th>
@@ -523,7 +604,8 @@ export default function GestionarProductos() {
                         color: "#475569",
                         textTransform: "uppercase",
                         letterSpacing: "0.8px",
-                        borderBottom: "2px solid #E2E8F0"
+                        borderBottom: "2px solid #E2E8F0",
+                        width: "150px"
                       }}>
                         Categoría
                       </th>
@@ -535,7 +617,8 @@ export default function GestionarProductos() {
                         color: "#475569",
                         textTransform: "uppercase",
                         letterSpacing: "0.8px",
-                        borderBottom: "2px solid #E2E8F0"
+                        borderBottom: "2px solid #E2E8F0",
+                        width: "150px"
                       }}>
                         Subcategoría
                       </th>
@@ -547,7 +630,8 @@ export default function GestionarProductos() {
                         color: "#475569",
                         textTransform: "uppercase",
                         letterSpacing: "0.8px",
-                        borderBottom: "2px solid #E2E8F0"
+                        borderBottom: "2px solid #E2E8F0",
+                        width: "200px"
                       }}>
                         Acciones
                       </th>
@@ -574,7 +658,7 @@ export default function GestionarProductos() {
                       >
                         {/* Imagen */}
                         <td style={{ 
-                          padding: "20px",
+                          padding: "16px",
                           borderLeft: "4px solid transparent",
                           borderImage: index % 3 === 0 ? "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%) 1" :
                                     index % 3 === 1 ? "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%) 1" :
@@ -588,7 +672,6 @@ export default function GestionarProductos() {
                             position: "relative",
                             boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)"
                           }}>
-                            {/* ✅ CORREGIDO: Usar getImageUrl para construir URL completa */}
                             <img 
                               src={getImageUrl(p.imagenProducto)} 
                               alt={p.nombreProducto}
@@ -596,23 +679,31 @@ export default function GestionarProductos() {
                                 width: "100%",
                                 height: "100%",
                                 objectFit: "cover",
-                                transition: "transform 0.3s ease"
+                                transition: "transform 0.3s ease",
+                                backgroundColor: "#f8f9fa"
                               }}
                               onMouseEnter={(e) => e.target.style.transform = "scale(1.1)"}
                               onMouseLeave={(e) => e.target.style.transform = "scale(1)"}
                               onError={(e) => {
-                                console.error('❌ Error cargando imagen:', p.imagenProducto);
-                                e.target.src = 'https://via.placeholder.com/150x150?text=Error+Imagen';
-                                e.target.onerror = null; // Prevenir bucles
+                                console.log('❌ Error cargando imagen para producto:', {
+                                  id: p.idProducto,
+                                  nombre: p.nombreProducto,
+                                  imagenOriginal: p.imagenProducto,
+                                  imagenIntentada: e.target.src
+                                });
+                                e.target.src = 'https://via.placeholder.com/150x150/FF6B35/ffffff?text=Producto';
+                                e.target.onerror = null;
                               }}
-                              onLoad={() => console.log('✅ Imagen cargada exitosamente')}
+                              onLoad={() => {
+                                console.log('✅ Imagen cargada:', p.nombreProducto);
+                              }}
                             />
                           </div>
                         </td>
                         
                         {/* Nombre del Producto */}
                         <td style={{ 
-                          padding: "20px",
+                          padding: "16px",
                           verticalAlign: "top"
                         }}>
                           <div style={{ 
@@ -636,11 +727,30 @@ export default function GestionarProductos() {
                               {p.descripcionProducto}
                             </div>
                           )}
+                          <div style={{
+                            fontSize: "12px",
+                            color: "#94a3b8",
+                            marginTop: "4px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px"
+                          }}>
+                            <span style={{
+                              display: "inline-block",
+                              width: "8px",
+                              height: "8px",
+                              borderRadius: "50%",
+                              background: p.estado === 'disponible' ? "#10B981" : 
+                                        p.estado === 'agotado' ? "#EF4444" : 
+                                        p.activo ? "#3B82F6" : "#F59E0B"
+                            }}></span>
+                            <span>{p.estado || (p.activo ? 'Activo' : 'Inactivo')}</span>
+                          </div>
                         </td>
                         
                         {/* Precio */}
                         <td style={{ 
-                          padding: "20px",
+                          padding: "16px",
                           verticalAlign: "top"
                         }}>
                           <div style={{ 
@@ -649,43 +759,49 @@ export default function GestionarProductos() {
                             fontSize: "18px",
                             marginBottom: "6px"
                           }}>
-                            ${Number(p.precioProducto).toFixed(2)}
+                            ${Number(p.precioProducto || 0).toFixed(2)}
+                          </div>
+                          <div style={{
+                            fontSize: "12px",
+                            color: "#94a3b8"
+                          }}>
+                            por {p.unidad || 'unidad'}
                           </div>
                         </td>
                         
                         {/* Stock */}
-                        <td style={{ padding: "20px", verticalAlign: "top" }}>
+                        <td style={{ padding: "16px", verticalAlign: "top" }}>
                           <div style={{
                             background: p.stockProducto > 20 ? "linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%)" :
                                     p.stockProducto > 10 ? "linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)" :
                                     "linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)",
                             color: p.stockProducto > 20 ? "#065F46" :
                                    p.stockProducto > 10 ? "#92400E" : "#991B1B",
-                            padding: "10px 16px",
-                            borderRadius: "12px",
-                            fontSize: "14px",
+                            padding: "8px 12px",
+                            borderRadius: "10px",
+                            fontSize: "13px",
                             fontWeight: "800",
                             display: "inline-flex",
                             alignItems: "center",
-                            gap: "8px",
-                            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)"
+                            gap: "6px",
+                            boxShadow: "0 3px 8px rgba(0, 0, 0, 0.05)"
                           }}>
                             <span>📦</span>
-                            <span>{p.stockProducto} unidades</span>
+                            <span>{p.stockProducto || 0} {p.unidad || 'unidades'}</span>
                           </div>
                         </td>
                         
                         {/* Categoría */}
                         <td style={{ 
-                          padding: "20px",
+                          padding: "16px",
                           verticalAlign: "top"
                         }}>
                           <div style={{
                             background: "rgba(139, 92, 246, 0.1)",
                             color: "#7C3AED",
-                            padding: "10px 16px",
-                            borderRadius: "12px",
-                            fontSize: "14px",
+                            padding: "8px 12px",
+                            borderRadius: "10px",
+                            fontSize: "13px",
                             fontWeight: "700",
                             display: "inline-block"
                           }}>
@@ -695,15 +811,15 @@ export default function GestionarProductos() {
                         
                         {/* Subcategoría */}
                         <td style={{ 
-                          padding: "20px",
+                          padding: "16px",
                           verticalAlign: "top"
                         }}>
                           <div style={{
                             background: "rgba(255, 107, 53, 0.1)",
                             color: "#FF6B35",
-                            padding: "10px 16px",
-                            borderRadius: "12px",
-                            fontSize: "14px",
+                            padding: "8px 12px",
+                            borderRadius: "10px",
+                            fontSize: "13px",
                             fontWeight: "600",
                             display: "inline-block"
                           }}>
@@ -713,13 +829,13 @@ export default function GestionarProductos() {
                         
                         {/* Acciones */}
                         <td style={{ 
-                          padding: "20px",
+                          padding: "16px",
                           textAlign: "center",
                           verticalAlign: "top"
                         }}>
                           <div style={{ 
                             display: "flex", 
-                            gap: "12px",
+                            gap: "8px",
                             justifyContent: "center"
                           }}>
                             {/* Botón Editar */}
@@ -729,31 +845,31 @@ export default function GestionarProductos() {
                                 background: "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)",
                                 color: "white",
                                 border: "none",
-                                padding: "12px 24px",
-                                borderRadius: "12px",
+                                padding: "10px 16px",
+                                borderRadius: "10px",
                                 cursor: "pointer",
                                 fontWeight: "700",
                                 fontSize: "13px",
                                 transition: "all 0.3s ease",
                                 display: "flex",
                                 alignItems: "center",
-                                gap: "8px",
-                                minWidth: "100px",
+                                gap: "6px",
+                                minWidth: "90px",
                                 justifyContent: "center",
-                                boxShadow: "0 4px 15px rgba(59, 130, 246, 0.3)"
+                                boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)"
                               }}
                               onMouseEnter={(e) => {
-                                e.target.style.transform = "translateY(-3px)";
-                                e.target.style.boxShadow = "0 8px 25px rgba(59, 130, 246, 0.4)";
+                                e.target.style.transform = "translateY(-2px)";
+                                e.target.style.boxShadow = "0 6px 20px rgba(59, 130, 246, 0.4)";
                                 e.target.style.background = "linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)";
                               }}
                               onMouseLeave={(e) => {
                                 e.target.style.transform = "translateY(0)";
-                                e.target.style.boxShadow = "0 4px 15px rgba(59, 130, 246, 0.3)";
+                                e.target.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.3)";
                                 e.target.style.background = "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)";
                               }}
                             >
-                              <span style={{ fontSize: "16px" }}>✏️</span>
+                              <span style={{ fontSize: "14px" }}>✏️</span>
                               Editar
                             </button>
 
@@ -764,31 +880,31 @@ export default function GestionarProductos() {
                                 background: "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)",
                                 color: "white",
                                 border: "none",
-                                padding: "12px 24px",
-                                borderRadius: "12px",
+                                padding: "10px 16px",
+                                borderRadius: "10px",
                                 cursor: "pointer",
                                 fontWeight: "700",
                                 fontSize: "13px",
                                 transition: "all 0.3s ease",
                                 display: "flex",
                                 alignItems: "center",
-                                gap: "8px",
-                                minWidth: "100px",
+                                gap: "6px",
+                                minWidth: "90px",
                                 justifyContent: "center",
-                                boxShadow: "0 4px 15px rgba(239, 68, 68, 0.3)"
+                                boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)"
                               }}
                               onMouseEnter={(e) => {
-                                e.target.style.transform = "translateY(-3px)";
-                                e.target.style.boxShadow = "0 8px 25px rgba(239, 68, 68, 0.4)";
+                                e.target.style.transform = "translateY(-2px)";
+                                e.target.style.boxShadow = "0 6px 20px rgba(239, 68, 68, 0.4)";
                                 e.target.style.background = "linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)";
                               }}
                               onMouseLeave={(e) => {
                                 e.target.style.transform = "translateY(0)";
-                                e.target.style.boxShadow = "0 4px 15px rgba(239, 68, 68, 0.3)";
+                                e.target.style.boxShadow = "0 4px 12px rgba(239, 68, 68, 0.3)";
                                 e.target.style.background = "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)";
                               }}
                             >
-                              <span style={{ fontSize: "16px" }}>🗑️</span>
+                              <span style={{ fontSize: "14px" }}>🗑️</span>
                               Eliminar
                             </button>
                           </div>
@@ -801,57 +917,78 @@ export default function GestionarProductos() {
 
               {/* Footer de estadísticas */}
               <div style={{
-                padding: "24px",
+                padding: "20px",
                 background: "linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)",
-                borderRadius: "16px",
+                borderRadius: "14px",
                 borderTop: "2px solid #E2E8F0",
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: "center"
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "16px"
               }}>
                 <div style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "16px"
+                  gap: "16px",
+                  flexWrap: "wrap"
                 }}>
                   <div style={{
                     background: "white",
-                    padding: "10px 20px",
-                    borderRadius: "12px",
+                    padding: "10px 16px",
+                    borderRadius: "10px",
                     fontWeight: "600",
                     color: "#475569",
-                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+                    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.04)",
                     display: "flex",
                     alignItems: "center",
                     gap: "8px"
                   }}>
                     <span style={{ 
                       color: "#10B981",
-                      fontSize: "16px"
+                      fontSize: "14px"
                     }}>
                       ✅
                     </span>
                     <div>
                       <div style={{ fontSize: "12px", color: "#64748B" }}>
-                        Total de productos
+                        Productos
                       </div>
                       <div>
-                        <strong style={{ color: "#2C3E50", fontSize: "15px" }}>
+                        <strong style={{ color: "#2C3E50", fontSize: "14px" }}>
                           {productos.length}
-                        </strong> productos
+                        </strong>
                       </div>
                     </div>
                   </div>
                   
                   <div style={{
+                    background: "white",
+                    padding: "10px 16px",
+                    borderRadius: "10px",
+                    fontWeight: "600",
+                    color: "#475569",
+                    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.04)",
                     display: "flex",
                     alignItems: "center",
-                    gap: "8px",
-                    color: "#64748B",
-                    fontSize: "14px"
+                    gap: "8px"
                   }}>
-                    <span>🔄</span>
-                    <span>Última actualización: <strong>Ahora</strong></span>
+                    <span style={{ 
+                      color: "#FF6B35",
+                      fontSize: "14px"
+                    }}>
+                      💰
+                    </span>
+                    <div>
+                      <div style={{ fontSize: "12px", color: "#64748B" }}>
+                        Valor promedio
+                      </div>
+                      <div>
+                        <strong style={{ color: "#2C3E50", fontSize: "14px" }}>
+                          ${productos.length > 0 ? (productos.reduce((sum, p) => sum + (p.precioProducto || 0), 0) / productos.length).toFixed(2) : '0.00'}
+                        </strong>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
@@ -864,10 +1001,10 @@ export default function GestionarProductos() {
                     fontWeight: "600",
                     marginBottom: "4px"
                   }}>
-                    VALOR TOTAL DEL INVENTARIO
+                    VALOR TOTAL
                   </div>
                   <div style={{
-                    fontSize: "24px",
+                    fontSize: "20px",
                     fontWeight: "800",
                     color: "#10B981",
                     background: "linear-gradient(135deg, #10B981 0%, #34D399 100%)",
