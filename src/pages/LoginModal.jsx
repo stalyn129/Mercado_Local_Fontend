@@ -21,6 +21,22 @@ export default function LoginModal() {
   
   const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080"
 
+  // ✅ Función para notificar al carrito después del login
+  const notifyCartAfterLogin = () => {
+    console.log("🔄 Notificando al carrito después del login...");
+    // Disparar evento personalizado para recargar el carrito
+    const authEvent = new CustomEvent("authChange", {
+      detail: { 
+        action: "login",
+        timestamp: new Date().toISOString() 
+      }
+    });
+    window.dispatchEvent(authEvent);
+    
+    // También disparar evento estándar para compatibilidad
+    window.dispatchEvent(new Event("storage"));
+  }
+
   // Manejar error del logo
   const handleLogoError = () => {
     console.error("Error cargando el logo")
@@ -185,6 +201,9 @@ export default function LoginModal() {
         localStorage.removeItem("rememberEmail")
       }
       
+      // ✅ NOTIFICAR AL CARRITO SOBRE EL LOGIN
+      notifyCartAfterLogin();
+      
       // 6. Redirigir según rol
       console.log("🎯 Rol del usuario:", loginData.rol)
       
@@ -216,24 +235,6 @@ export default function LoginModal() {
     console.error("Google Login falló - El usuario canceló o hubo un error")
     setError("❌ Error al conectar con Google. Intenta nuevamente.")
     triggerShake()
-  }
-
-  // ✅ Función para decodificar JWT (igual que en Register)
-  const decodeJWT = (token) => {
-    try {
-      const base64Url = token.split('.')[1]
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split('')
-          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-          .join('')
-      )
-      return JSON.parse(jsonPayload)
-    } catch (error) {
-      console.error("Error decodificando JWT:", error)
-      return {}
-    }
   }
 
   // Verificar si viene del registro exitoso
@@ -376,6 +377,9 @@ export default function LoginModal() {
 
       console.log("ROL del usuario después de login:", data.rol)
 
+      // ✅ NOTIFICAR AL CARRITO SOBRE EL LOGIN
+      notifyCartAfterLogin();
+
       // Redirección según rol
       if (data.rol === "VENDEDOR") {
         navigate("/vendedor")
@@ -400,12 +404,6 @@ export default function LoginModal() {
     } finally {
       setLoading(false)
     }
-  }
-
-  // ✅ Reemplazar la función de Google OAuth antigua
-  const handleGoogleLogin = () => {
-    // Esta función ya no se usa directamente
-    // Ahora usamos el componente GoogleLogin
   }
 
   // Función para ir al registro

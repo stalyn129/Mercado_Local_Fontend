@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCarrito } from "../../context/CarritoContext.jsx";
 import Footer from "../../components/Footer.jsx";
+import Notificaciones from "../../components/Notificaciones.jsx";
+import useNotification from "../../hooks/useNotification.jsx";
 
 export default function Carrito() {
   const {
@@ -17,15 +19,16 @@ export default function Carrito() {
   const [iva, setIVA] = useState(0);
   const [total, setTotal] = useState(0);
   const [circlePositions, setCirclePositions] = useState([]);
+  const [mostrarConfirmacionVaciar, setMostrarConfirmacionVaciar] = useState(false);
   
-  // ==================== SISTEMA DE NOTIFICACIONES ====================
-  const [notificacion, setNotificacion] = useState({
-    mostrar: false,
-    tipo: "success", // success, error, warning, info
-    titulo: "",
-    mensaje: "",
-    icono: ""
-  });
+  // ==================== SISTEMA DE NOTIFICACIONES MEJORADO ====================
+  const {
+    notificacion,
+    setNotificacion,
+    notificaciones,
+    confirmacionPago,
+    setConfirmacionPago
+  } = useNotification();
 
   // ==================== CARGAR CARRITO AL INICIAR ====================
   useEffect(() => {
@@ -39,28 +42,6 @@ export default function Carrito() {
       console.log("⚠️ Usuario no es consumidor, rol:", user.rol);
     }
   }, []);
-
-  // ==================== MOSTRAR NOTIFICACIÓN ====================
-  const mostrarNotificacion = (tipo, titulo, mensaje, icono = null) => {
-    const iconosPorTipo = {
-      success: "✅",
-      error: "❌",
-      warning: "⚠️",
-      info: "ℹ️"
-    };
-
-    setNotificacion({
-      mostrar: true,
-      tipo,
-      titulo,
-      mensaje,
-      icono: icono || iconosPorTipo[tipo]
-    });
-
-    setTimeout(() => {
-      setNotificacion(prev => ({...prev, mostrar: false}));
-    }, 4000);
-  };
 
   // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
   useEffect(() => {
@@ -121,17 +102,40 @@ export default function Carrito() {
     setTotal(sub + ivaCalc);
   }, [carrito]);
 
+  // ✅ FUNCIÓN PARA CONFIRMAR VACIAR CARRITO
+  const confirmarVaciarCarrito = () => {
+    if (carrito.length === 0) {
+      notificaciones.advertenciaCarritoVacio();
+      return;
+    }
+    setMostrarConfirmacionVaciar(true);
+  };
+
+  // ✅ FUNCIÓN PARA VACIAR CARRITO (SE EJECUTA DESPUÉS DE CONFIRMAR)
+  const vaciarCarritoConfirmado = async () => {
+    setMostrarConfirmacionVaciar(false);
+    
+    try {
+      notificaciones.info("Proceso iniciado", "Vaciando carrito...", "⏱️");
+      await limpiarCarrito();
+      notificaciones.exito("Carrito vaciado", "Todos los productos han sido eliminados", "🗑️");
+    } catch (error) {
+      console.error("Error vaciando carrito:", error);
+      notificaciones.error("Error", "No se pudo vaciar el carrito");
+    }
+  };
+
+  const cancelarVaciarCarrito = () => {
+    setMostrarConfirmacionVaciar(false);
+    notificaciones.info("Acción cancelada", "No se vació el carrito", "❌");
+  };
+
   const realizarCheckout = () => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
     const token = localStorage.getItem("authToken");
 
     if (!token || !user.idConsumidor) {
-      mostrarNotificacion(
-        "warning",
-        "Inicia sesión",
-        "Debes iniciar sesión como consumidor para finalizar la compra",
-        "🔒"
-      );
+      notificaciones.advertenciaLogin();
       
       setTimeout(() => {
         navigate("/LoginModal");
@@ -140,12 +144,7 @@ export default function Carrito() {
     }
 
     if (!carrito || carrito.length === 0) {
-      mostrarNotificacion(
-        "error",
-        "Carrito vacío",
-        "Tu carrito está vacío",
-        "🛒"
-      );
+      notificaciones.advertenciaCarritoVacio();
       return;
     }
 
@@ -154,54 +153,34 @@ export default function Carrito() {
   };
 
   const handleDecrementar = (item) => {
+    const producto = item.producto || {};
+    
     if (item.cantidad > 1) {
       actualizarCantidad(item.idItem, item.cantidad - 1);
-      mostrarNotificacion(
-        "success",
-        "Cantidad actualizada",
-        `Reduciste la cantidad a ${item.cantidad - 1}`,
-        "➖"
+      notificaciones.infoCarritoActualizado(
+        producto.nombre || "Producto", 
+        item.cantidad - 1
       );
     } else {
       // Notificación para eliminar directamente
       eliminarProducto(item.idItem);
-      mostrarNotificacion(
-        "success",
-        "Producto eliminado",
-        "Producto eliminado del carrito",
-        "✅"
-      );
+      notificaciones.exitoEliminarCarrito(producto.nombre || "Producto");
     }
   };
 
   const handleIncrementar = (item) => {
+    const producto = item.producto || {};
     actualizarCantidad(item.idItem, item.cantidad + 1);
-    mostrarNotificacion(
-      "success",
-      "Cantidad actualizada",
-      `Aumentaste la cantidad a ${item.cantidad + 1}`,
-      "➕"
+    notificaciones.infoCarritoActualizado(
+      producto.nombre || "Producto", 
+      item.cantidad + 1
     );
   };
 
   const handleEliminarProducto = (item) => {
+    const producto = item.producto || {};
     eliminarProducto(item.idItem);
-    mostrarNotificacion(
-      "success",
-      "Producto eliminado",
-      "Producto eliminado exitosamente",
-      "✅"
-    );
-  };
-
-  const handleLimpiarCarrito = () => {
-    limpiarCarrito();
-    mostrarNotificacion(
-      "success",
-      "Carrito vaciado",
-      "Todos los productos han sido eliminados",
-      "✅"
-    );
+    notificaciones.exitoEliminarCarrito(producto.nombre || "Producto");
   };
 
   return (
@@ -239,15 +218,13 @@ export default function Carrito() {
           100% { transform: rotate(360deg); }
         }
         
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         @keyframes slideIn {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
+          from { opacity: 0; transform: translateY(20px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
         
         .scroll-container {
@@ -274,105 +251,135 @@ export default function Carrito() {
         }
       `}</style>
 
-      {/* NOTIFICACIÓN FLOTANTE */}
-      {notificacion.mostrar && (
-        <div 
-          style={{
-            position: "fixed",
-            top: "30px",
-            right: "30px",
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            gap: "15px",
-            padding: "20px 25px",
-            borderRadius: "16px",
-            boxShadow: "0 10px 40px rgba(0, 0, 0, 0.15)",
-            border: "2px solid",
-            maxWidth: "400px",
-            minWidth: "350px",
-            animation: "slideIn 0.4s ease-out forwards",
-            fontFamily: "'Inter', sans-serif",
-            backdropFilter: "blur(10px)",
-            transform: "translateX(0)",
-            opacity: 1,
-            transition: "all 0.4s ease",
-            background: notificacion.tipo === "success" ? "linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.08))" :
-                      notificacion.tipo === "error" ? "linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.08))" :
-                      notificacion.tipo === "warning" ? "linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.08))" :
-                      "linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.08))",
-            borderColor: notificacion.tipo === "success" ? "rgba(16, 185, 129, 0.5)" :
-                        notificacion.tipo === "error" ? "rgba(239, 68, 68, 0.5)" :
-                        notificacion.tipo === "warning" ? "rgba(245, 158, 11, 0.5)" :
-                        "rgba(59, 130, 246, 0.5)",
-            color: notificacion.tipo === "success" ? "#10B981" :
-                  notificacion.tipo === "error" ? "#EF4444" :
-                  notificacion.tipo === "warning" ? "#F59E0B" :
-                  "#3B82F6"
-          }}
-        >
-          <div style={{
-            fontSize: "32px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "50px",
-            height: "50px",
-            borderRadius: "12px",
-            background: "rgba(255, 255, 255, 0.9)",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)"
-          }}>
-            {notificacion.icono}
-          </div>
+      {/* COMPONENTE DE NOTIFICACIONES PREMIUM */}
+      <Notificaciones
+        notificacion={notificacion}
+        setNotificacion={setNotificacion}
+        position="top-right"
+        autoClose={4000}
+        showProgress={true}
+        pauseOnHover={true}
+        confirmacionPago={confirmacionPago}
+        setConfirmacionPago={setConfirmacionPago}
+      />
+
+      {/* ✅ MODAL DE CONFIRMACIÓN PARA VACIAR CARRITO */}
+      {mostrarConfirmacionVaciar && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: "100%",
+          background: "rgba(0, 0, 0, 0.75)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          zIndex: 10000,
+          backdropFilter: "blur(8px)",
+          animation: "fadeIn 0.3s ease"
+        }}>
           
-          <div style={{ flex: 1 }}>
+          <div style={{
+            background: "white",
+            borderRadius: "20px",
+            padding: "40px",
+            maxWidth: "400px",
+            width: "90%",
+            textAlign: "center",
+            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.2)",
+            border: "2px solid rgba(255, 107, 53, 0.2)",
+            animation: "slideIn 0.3s ease",
+            fontFamily: "'Inter', sans-serif"
+          }}>
             <div style={{
-              fontSize: "16px",
+              fontSize: "50px",
+              marginBottom: "20px",
+              color: "#FF6B35"
+            }}>⚠️</div>
+            
+            <h3 style={{
+              fontSize: "22px",
               fontWeight: "800",
-              marginBottom: "5px",
-              letterSpacing: "0.3px"
+              color: "#2C3E50",
+              margin: "0 0 15px 0"
             }}>
-              {notificacion.titulo}
-            </div>
-            <div style={{
-              fontSize: "14px",
-              fontWeight: "500",
-              opacity: 0.9,
+              ¿Vaciar todo el carrito?
+            </h3>
+            
+            <p style={{
+              fontSize: "16px",
+              color: "#64748b",
+              margin: "0 0 30px 0",
               lineHeight: "1.5"
             }}>
-              {notificacion.mensaje}
+              Se eliminarán <strong>{carrito.length}</strong> producto{carrito.length > 1 ? 's' : ''} de tu carrito.<br />
+              <span style={{ color: "#dc2626", fontWeight: "600" }}>Esta acción no se puede deshacer.</span>
+            </p>
+            
+            <div style={{
+              display: "flex",
+              gap: "15px",
+              justifyContent: "center"
+            }}>
+              <button
+                onClick={cancelarVaciarCarrito}
+                style={{
+                  padding: "16px 32px",
+                  background: "white",
+                  border: "2px solid #FF6B35",
+                  color: "#FF6B35",
+                  borderRadius: "12px",
+                  fontFamily: "'Inter', sans-serif",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  transition: "all 0.3s ease",
+                  flex: 1
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = "rgba(255, 107, 53, 0.1)";
+                  e.target.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = "white";
+                  e.target.style.transform = "translateY(0)";
+                }}
+              >
+                Cancelar
+              </button>
+              
+              <button
+                onClick={vaciarCarritoConfirmado}
+                style={{
+                  padding: "16px 32px",
+                  background: "#dc2626",
+                  border: "2px solid #dc2626",
+                  color: "white",
+                  borderRadius: "12px",
+                  fontFamily: "'Inter', sans-serif",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  transition: "all 0.3s ease",
+                  flex: 1,
+                  boxShadow: "0 4px 12px rgba(220, 38, 38, 0.2)"
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = "#ef4444";
+                  e.target.style.transform = "translateY(-1px)";
+                  e.target.style.boxShadow = "0 6px 16px rgba(220, 38, 38, 0.3)";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = "#dc2626";
+                  e.target.style.transform = "translateY(0)";
+                  e.target.style.boxShadow = "0 4px 12px rgba(220, 38, 38, 0.2)";
+                }}
+              >
+                Sí, vaciar todo
+              </button>
             </div>
           </div>
-          
-          <button 
-            onClick={() => setNotificacion({...notificacion, mostrar: false})}
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: "18px",
-              color: "inherit",
-              opacity: 0.7,
-              cursor: "pointer",
-              padding: "5px",
-              borderRadius: "50%",
-              width: "30px",
-              height: "30px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "all 0.2s ease"
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = "1";
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = "0.7";
-              e.currentTarget.style.background = "none";
-            }}
-          >
-            ✕
-          </button>
         </div>
       )}
 
@@ -554,8 +561,9 @@ export default function Carrito() {
                   }}>{carrito.length} {carrito.length === 1 ? 'producto' : 'productos'}</p>
                 </div>
 
+                {/* ✅ BOTÓN VACIAR CARRITO CON CONFIRMACIÓN */}
                 <button
-                  onClick={handleLimpiarCarrito}
+                  onClick={confirmarVaciarCarrito}
                   style={{
                     padding: "12px 24px",
                     background: "#fef2f2",
