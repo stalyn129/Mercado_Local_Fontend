@@ -3,6 +3,8 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import Footer from "../../components/Footer.jsx";
+import Notificaciones from "../../components/Notificaciones"; // NUEVO: Importar componente de notificaciones
+import useNotification from "../../hooks/useNotification"; // NUEVO: Importar hook de notificaciones
 
 export default function Factura() {
   const { idPedido, idCompra } = useParams();
@@ -16,68 +18,13 @@ export default function Factura() {
   const [tipoFactura, setTipoFactura] = useState("individual");
   const [facturaBackend, setFacturaBackend] = useState(null);
   const [creandoFactura, setCreandoFactura] = useState(false);
-  const [error, setError] = useState(null);
   const [descargandoPDF, setDescargandoPDF] = useState(false);
   const [viendoPDF, setViendoPDF] = useState(false);
 
-  const facturaRef = useRef();
+  // NUEVO: Usar el hook de notificaciones
+  const { notificacion, setNotificacion, notificaciones } = useNotification();
 
-  // Función para mostrar toast (manteniendo colores similares)
-  const mostrarToast = (mensaje, tipo = "info") => {
-    const toast = document.createElement("div");
-    toast.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 12px 24px;
-      border-radius: 12px;
-      color: white;
-      font-weight: 600;
-      z-index: 1000;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
-      animation: slideIn 0.3s ease;
-      max-width: 400px;
-      font-family: 'Inter', sans-serif;
-    `;
-    
-    if (tipo === "success") {
-      toast.style.backgroundColor = "#10B981";
-    } else if (tipo === "error") {
-      toast.style.backgroundColor = "#EF4444";
-    } else if (tipo === "warning") {
-      toast.style.backgroundColor = "#F59E0B";
-    } else {
-      toast.style.backgroundColor = "#3B82F6";
-    }
-    
-    toast.textContent = mensaje;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-      toast.style.animation = "slideOut 0.3s ease";
-      setTimeout(() => {
-        if (toast.parentNode) {
-          document.body.removeChild(toast);
-        }
-      }, 300);
-    }, 3000);
-    
-    if (!document.getElementById("toast-styles")) {
-      const style = document.createElement("style");
-      style.id = "toast-styles";
-      style.textContent = `
-        @keyframes slideIn {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes slideOut {
-          from { transform: translateX(0); opacity: 1; }
-          to { transform: translateX(100%); opacity: 0; }
-        }
-      `;
-      document.head.appendChild(style);
-    }
-  };
+  const facturaRef = useRef();
 
   // Función para obtener factura del backend
   const obtenerFacturaBackend = async (idPedido) => {
@@ -100,6 +47,8 @@ export default function Factura() {
       return await response.json();
     } catch (error) {
       console.error("Error obteniendo factura del backend:", error);
+      // NUEVO: Mostrar notificación de error
+      notificaciones.error("Error de conexión", "No se pudo conectar con el servidor", "📡");
       return null;
     }
   };
@@ -108,7 +57,6 @@ export default function Factura() {
   const crearFacturaBackend = async (idPedido) => {
     try {
       setCreandoFactura(true);
-      setError(null);
       const token = localStorage.getItem("authToken");
       const response = await fetch(`${API_URL}/api/facturas`, {
         method: 'POST',
@@ -120,17 +68,22 @@ export default function Factura() {
       });
       
       if (!response.ok) {
+        // NUEVO: Mostrar notificación de error
+        notificaciones.error("Error al crear", "No se pudo generar la factura", "❌");
         return null;
       }
       
       const nuevaFactura = await response.json();
       setCreandoFactura(false);
       
-      mostrarToast("✅ Factura creada exitosamente", "success");
+      // NUEVO: Mostrar notificación de éxito
+      notificaciones.exito("Factura creada", "La factura se ha generado correctamente", "📄");
       return nuevaFactura;
     } catch (error) {
       console.error("Error creando factura:", error);
       setCreandoFactura(false);
+      // NUEVO: Mostrar notificación de error
+      notificaciones.error("Error al crear", "Ocurrió un error al generar la factura", "❌");
       return null;
     }
   };
@@ -168,14 +121,16 @@ export default function Factura() {
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
         
-        mostrarToast("📥 PDF descargado del servidor", "success");
+        // NUEVO: Mostrar notificación de éxito
+        notificaciones.exito("PDF descargado", "El archivo se ha descargado correctamente", "📥");
       } else {
         throw new Error("Endpoint no disponible");
       }
       
     } catch (error) {
       console.log('Usando PDF local:', error.message);
-      mostrarToast("📄 Generando PDF local...", "info");
+      // NUEVO: Mostrar notificación informativa
+      notificaciones.info("Generando PDF", "Creando versión local del documento", "⚙️");
       await descargarPDFLocal();
     } finally {
       setDescargandoPDF(false);
@@ -209,6 +164,9 @@ export default function Factura() {
         const url = window.URL.createObjectURL(blob);
         window.open(url, '_blank');
         
+        // NUEVO: Mostrar notificación de éxito
+        notificaciones.exito("PDF abierto", "El documento se ha abierto en una nueva pestaña", "👁️");
+        
         setTimeout(() => {
           window.URL.revokeObjectURL(url);
         }, 10000);
@@ -218,7 +176,8 @@ export default function Factura() {
       
     } catch (error) {
       console.log('Usando PDF local:', error.message);
-      mostrarToast("👁️ Abriendo PDF local...", "info");
+      // NUEVO: Mostrar notificación informativa
+      notificaciones.info("Abriendo PDF", "Generando vista previa del documento", "⚙️");
       await verPDFLocal();
     } finally {
       setViendoPDF(false);
@@ -233,6 +192,9 @@ export default function Factura() {
       if (!elemento) {
         throw new Error("Elemento de factura no encontrado");
       }
+      
+      // NUEVO: Mostrar notificación de proceso iniciado
+      notificaciones.infoProcesoIniciado();
       
       const originalStyles = {
         boxShadow: elemento.style.boxShadow,
@@ -277,9 +239,13 @@ export default function Factura() {
       const pdfUrl = URL.createObjectURL(pdfBlob);
       window.open(pdfUrl, '_blank');
       
+      // NUEVO: Mostrar notificación de éxito
+      notificaciones.exito("PDF generado", "La vista previa se ha abierto correctamente", "✅");
+      
     } catch (error) {
       console.error('Error generando PDF local:', error);
-      mostrarToast("❌ Error generando PDF", "error");
+      // NUEVO: Mostrar notificación de error
+      notificaciones.error("Error al generar", "No se pudo crear el PDF", "❌");
     }
   };
 
@@ -292,6 +258,9 @@ export default function Factura() {
       if (!elemento) {
         throw new Error("Elemento de factura no encontrado");
       }
+      
+      // NUEVO: Mostrar notificación de proceso iniciado
+      notificaciones.infoProcesoIniciado();
       
       const originalStyles = {
         boxShadow: elemento.style.boxShadow,
@@ -336,11 +305,14 @@ export default function Factura() {
       const nombreArchivo = `Factura_${numeroFactura}.pdf`;
       
       pdf.save(nombreArchivo);
-      mostrarToast("📥 PDF descargado exitosamente", "success");
+      
+      // NUEVO: Mostrar notificación de éxito
+      notificaciones.exito("PDF descargado", "El documento se ha guardado en tu dispositivo", "📥");
       
     } catch (error) {
       console.error('Error generando PDF local:', error);
-      mostrarToast("❌ Error generando PDF", "error");
+      // NUEVO: Mostrar notificación de error
+      notificaciones.error("Error al descargar", "No se pudo generar el archivo PDF", "❌");
     } finally {
       setDescargandoPDF(false);
     }
@@ -440,12 +412,15 @@ export default function Factura() {
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (!token) {
-      navigate("/loginmodal");
+      // NUEVO: Mostrar notificación de advertencia
+      notificaciones.advertenciaLogin();
+      setTimeout(() => {
+        navigate("/loginmodal");
+      }, 1500);
       return;
     }
 
     setLoading(true);
-    setError(null);
 
     const compraUnificadaData = location.state?.compraData;
     
@@ -482,6 +457,8 @@ export default function Factura() {
         })
         .catch(err => {
           console.error("Error cargando factura consolidada:", err);
+          // NUEVO: Mostrar notificación de error
+          notificaciones.error("Error al cargar", "No se pudo cargar la información de la compra", "caja");
           setLoading(false);
         });
     }
@@ -498,8 +475,13 @@ export default function Factura() {
             const detallesConvertidos = convertirDetallesFacturaBackend(facturaExistente);
             setDetalles(detallesConvertidos);
             setLoading(false);
+            // NUEVO: Mostrar notificación de éxito
+            notificaciones.exito("Factura cargada", "Información de factura cargada correctamente", "📄");
             return;
           }
+          
+          // NUEVO: Mostrar notificación de carga
+          notificaciones.info("Cargando datos", "Obteniendo información del pedido...", "📦");
           
           const [pedidoData, detallesData] = await Promise.all([
             fetch(`${API_URL}/pedidos/${idPedido}`, {
@@ -520,8 +502,13 @@ export default function Factura() {
           setDetalles(detallesData);
           setLoading(false);
           
+          // NUEVO: Mostrar notificación de éxito
+          notificaciones.exito("Datos cargados", "Información del pedido cargada correctamente", "✅");
+          
         } catch (error) {
           console.error("Error cargando datos:", error);
+          // NUEVO: Mostrar notificación de error
+          notificaciones.error("Error al cargar", "No se pudo cargar la información del pedido", "❌");
           setLoading(false);
         }
       };
@@ -730,7 +717,13 @@ export default function Factura() {
             No se pudo cargar la información de la factura
           </p>
           <button
-            onClick={() => navigate("/mis-pedidos")}
+            onClick={() => {
+              // NUEVO: Mostrar notificación al volver
+              notificaciones.info("Redirigiendo", "Volviendo a tus pedidos...", "📍");
+              setTimeout(() => {
+                navigate("/mis-pedidos");
+              }, 1000);
+            }}
             style={{
               padding: "14px 28px",
               background: "#FF6B35",
@@ -770,6 +763,16 @@ export default function Factura() {
 
   return (
     <>
+      {/* NUEVO: Componente de notificaciones */}
+      <Notificaciones
+        notificacion={notificacion}
+        setNotificacion={setNotificacion}
+        position="top-right"
+        autoClose={4000}
+        showProgress={true}
+        pauseOnHover={true}
+      />
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
         
@@ -1868,9 +1871,15 @@ export default function Factura() {
           {/* BOTÓN VER PEDIDO/COMPRA */}
           {tipoFactura === "consolidada" ? (
             <button
-              onClick={() => navigate(`/mi-compra-unificada/${facturaData.idCompraUnificada || idCompra}`, {
-                state: { compraData: facturaData }
-              })}
+              onClick={() => {
+                // NUEVO: Mostrar notificación al navegar
+                notificaciones.info("Redirigiendo", "Cargando compra unificada...", "🛍️");
+                setTimeout(() => {
+                  navigate(`/mi-compra-unificada/${facturaData.idCompraUnificada || idCompra}`, {
+                    state: { compraData: facturaData }
+                  });
+                }, 500);
+              }}
               style={{
                 padding: "16px 28px",
                 background: "white",
@@ -1905,7 +1914,13 @@ export default function Factura() {
             </button>
           ) : (
             <button
-              onClick={() => navigate(`/pedido/${idPedido}`)}
+              onClick={() => {
+                // NUEVO: Mostrar notificación al navegar
+                notificaciones.info("Redirigiendo", "Cargando detalles del pedido...", "📦");
+                setTimeout(() => {
+                  navigate(`/pedido/${idPedido}`);
+                }, 500);
+              }}
               style={{
                 padding: "16px 28px",
                 background: "white",

@@ -2,6 +2,8 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { obtenerPerfil } from "../services/perfilService";
 import Footer from "../components/Footer";
+import Notificaciones from "../components/Notificaciones";
+import useNotification from "../hooks/useNotification";
 
 export default function Perfil() {
   const [perfil, setPerfil] = useState(null);
@@ -15,7 +17,8 @@ export default function Perfil() {
   });
   const navigate = useNavigate();
 
-  // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
+  const { notificacion, setNotificacion, notificaciones } = useNotification();
+
   useEffect(() => {
     const generateCircles = () => {
       const circles = [];
@@ -65,28 +68,39 @@ export default function Perfil() {
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (!token) {
-      navigate("/LoginModal");
+      notificaciones.advertenciaLogin();
+      setTimeout(() => {
+        navigate("/LoginModal");
+      }, 1500);
       return;
     }
+
+    notificaciones.info("Cargando perfil", "Obteniendo tu información...", "👤");
 
     obtenerPerfil()
       .then(data => {
         setPerfil(data);
-        // Si es vendedor, cargar estadísticas adicionales
+        notificaciones.exito("Perfil cargado", "Tu información ha sido cargada correctamente", "✅");
+        
         if (data.rol === "VENDEDOR") {
           cargarEstadisticasVendedor(data.idVendedor || data._id, token);
         }
       })
-      .catch(() => navigate("/LoginModal"))
+      .catch(() => {
+        notificaciones.error("Error al cargar", "No se pudo cargar tu perfil", "❌");
+        setTimeout(() => {
+          navigate("/LoginModal");
+        }, 1500);
+      })
       .finally(() => setLoading(false));
   }, [navigate]);
 
-  // Función para cargar estadísticas del vendedor
   const cargarEstadisticasVendedor = async (idVendedor, token) => {
     try {
       const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
       
-      // 1. Cargar productos del vendedor
+      notificaciones.info("Cargando estadísticas", "Obteniendo métricas de tu negocio...", "📊");
+      
       const productosRes = await fetch(`${API_URL}/productos/vendedor/${idVendedor}`, {
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -95,7 +109,6 @@ export default function Perfil() {
       });
       const productos = await productosRes.json();
       
-      // 2. Cargar pedidos del vendedor
       const pedidosRes = await fetch(`${API_URL}/pedidos/vendedor/${idVendedor}`, {
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -104,7 +117,6 @@ export default function Perfil() {
       });
       const pedidos = await pedidosRes.json();
       
-      // Calcular estadísticas
       const pedidosPagados = pedidos.filter(p => p.estadoPago === "PAGADO");
       const totalVentas = pedidosPagados.reduce((sum, p) => sum + (p.total || 0), 0);
       
@@ -115,9 +127,19 @@ export default function Perfil() {
         calificacionPromedio: perfil?.calificacionPromedio || 0
       });
       
+      notificaciones.exito("Estadísticas cargadas", "Las métricas se han actualizado correctamente", "📈");
+      
     } catch (error) {
       console.error("Error cargando estadísticas del vendedor:", error);
+      notificaciones.error("Error en estadísticas", "No se pudieron cargar todas las métricas", "📉");
     }
+  };
+
+  const navegarConNotificacion = (ruta, mensaje, icono) => {
+    notificaciones.info("Redirigiendo", mensaje, icono);
+    setTimeout(() => {
+      navigate(ruta);
+    }, 800);
   };
 
   if (loading) {
@@ -156,7 +178,6 @@ export default function Perfil() {
 
   if (!perfil) return null;
 
-  // Determinar si el perfil está activo
   const estaActivo = perfil.estado === "activo" || perfil.estado === "Activo" || perfil.activo === true;
 
   const InfoItem = ({ label, value }) => (
@@ -245,7 +266,6 @@ export default function Perfil() {
     );
   };
 
-  // NUEVA VERSIÓN MEJORADA DE STATCARD
   const StatCard = ({ title, value, icon, color, description }) => (
     <div style={{
       flex: "1",
@@ -269,9 +289,11 @@ export default function Perfil() {
       e.currentTarget.style.transform = "translateY(0) scale(1)";
       e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.05)";
       e.currentTarget.style.borderColor = `${color}20`;
+    }}
+    onClick={() => {
+      notificaciones.info(title, `Valor actual: ${value}`, icon);
     }}>
       
-      {/* Elemento decorativo en esquina */}
       <div style={{
         position: "absolute",
         top: "-25px",
@@ -283,7 +305,6 @@ export default function Perfil() {
         zIndex: "0"
       }} />
       
-      {/* Icono con fondo circular */}
       <div style={{
         position: "relative",
         zIndex: "2",
@@ -305,7 +326,6 @@ export default function Perfil() {
         }}>{icon}</span>
       </div>
       
-      {/* Valor principal con efecto de gradiente */}
       <div style={{
         fontFamily: "'Playfair Display', serif",
         fontSize: "42px",
@@ -321,7 +341,6 @@ export default function Perfil() {
         {value}
       </div>
       
-      {/* Título con mejor tipografía */}
       <div style={{
         fontSize: "13px",
         color: "#64748b",
@@ -334,7 +353,6 @@ export default function Perfil() {
         {title}
       </div>
       
-      {/* Descripción (opcional) */}
       {description && (
         <div style={{
           fontSize: "12px",
@@ -348,7 +366,6 @@ export default function Perfil() {
         </div>
       )}
       
-      {/* Línea decorativa en la parte inferior */}
       <div style={{
         position: "absolute",
         bottom: "0",
@@ -368,8 +385,18 @@ export default function Perfil() {
       minHeight: "100vh",
       background: "#f8f9fa",
       fontFamily: "'Inter', sans-serif",
-      overflowX: "hidden"
+      overflowX: "hidden",
+      position: "relative"
     }}>
+      <Notificaciones
+        notificacion={notificacion}
+        setNotificacion={setNotificacion}
+        position="top-right"
+        autoClose={4000}
+        showProgress={true}
+        pauseOnHover={true}
+      />
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
         
@@ -412,7 +439,6 @@ export default function Perfil() {
         }
       `}</style>
 
-      {/* HEADER SECTION */}
       <div style={{
         background: "white",
         borderRadius: "0 0 30px 30px",
@@ -425,7 +451,6 @@ export default function Perfil() {
         borderBottom: "1px solid #f1f5f9"
       }}>
         
-        {/* CÍRCULOS FLOTANTES */}
         {circlePositions.map(circle => (
           <div 
             key={circle.id}
@@ -490,7 +515,6 @@ export default function Perfil() {
               marginBottom: "20px",
               flexWrap: "wrap"
             }}>
-              {/* Estado del perfil */}
               <div style={{
                 display: "flex",
                 alignItems: "center",
@@ -506,7 +530,15 @@ export default function Perfil() {
                 boxShadow: estaActivo ? "0 4px 15px rgba(52, 211, 153, 0.2)" : "0 4px 15px rgba(239, 68, 68, 0.2)",
                 position: "relative",
                 overflow: "hidden",
-                animation: estaActivo ? "glow 2s ease-in-out infinite" : "none"
+                animation: estaActivo ? "glow 2s ease-in-out infinite" : "none",
+                cursor: "pointer"
+              }}
+              onClick={() => {
+                if (estaActivo) {
+                  notificaciones.exito("Perfil activo", "Tu cuenta está activa y operativa", "🟢");
+                } else {
+                  notificaciones.advertencia("Perfil inactivo", "Tu cuenta necesita activación", "🔴");
+                }
               }}>
                 <div style={{
                   position: "absolute",
@@ -595,7 +627,11 @@ export default function Perfil() {
                   border: "2px solid rgba(255, 107, 53, 0.3)",
                   boxShadow: "0 4px 15px rgba(255, 107, 53, 0.2)",
                   position: "relative",
-                  overflow: "hidden"
+                  overflow: "hidden",
+                  cursor: "pointer"
+                }}
+                onClick={() => {
+                  notificaciones.info("Fecha de registro", `Miembro desde: ${perfil.fechaRegistro?.split("T")[0]}`, "📅");
                 }}>
                   <div style={{
                     position: "absolute",
@@ -682,13 +718,11 @@ export default function Perfil() {
         </div>
       </div>
 
-      {/* CONTENIDO PRINCIPAL */}
       <div style={{
         maxWidth: "1200px",
         margin: "0 auto",
         padding: "0 20px 40px 20px"
       }}>
-        {/* 🔥 ACCIONES DISPONIBLES */}
         <div style={{
           background: "white",
           borderRadius: "20px",
@@ -742,21 +776,28 @@ export default function Perfil() {
           }}>
             {perfil.rol === "CONSUMIDOR" && (
               <>
-                <ActionButton onClick={() => navigate("/consumidor/EditarPerfilConsumidor")} icon="✏️">
+                <ActionButton 
+                  onClick={() => navegarConNotificacion("/consumidor/EditarPerfilConsumidor", "Cargando editor de perfil...", "✏️")} 
+                  icon="✏️"
+                >
                   Editar perfil
                 </ActionButton>
-                <ActionButton onClick={() => navigate("/favoritos")} variant="secondary" icon="❤️">
+                <ActionButton 
+                  onClick={() => navegarConNotificacion("/favoritos", "Cargando tus favoritos...", "❤️")} 
+                  variant="secondary" 
+                  icon="❤️"
+                >
                   Mis favoritos
                 </ActionButton>
                 <ActionButton
-                  onClick={() => navigate("/mis-pedidos")}
+                  onClick={() => navegarConNotificacion("/mis-pedidos", "Cargando tus pedidos...", "📦")}
                   variant="secondary"
                   icon="📦"
                 >
                   Mis pedidos
                 </ActionButton>
                 <ActionButton
-                  onClick={() => navigate("/carrito")}
+                  onClick={() => navegarConNotificacion("/carrito", "Cargando tu carrito...", "🛒")}
                   variant="secondary"
                   icon="🛒"
                 >
@@ -767,17 +808,31 @@ export default function Perfil() {
 
             {perfil.rol === "VENDEDOR" && (
               <>
-                {/* SOLO LAS 4 OPCIONES QUE SOLICITASTE */}
-                <ActionButton onClick={() => navigate("/vendedor/editar-perfil")} icon="✏️">
+                <ActionButton 
+                  onClick={() => navegarConNotificacion("/vendedor/editar-perfil", "Cargando editor de perfil...", "✏️")} 
+                  icon="✏️"
+                >
                   Editar perfil
                 </ActionButton>
-                <ActionButton onClick={() => navigate("/vendedor/pedidos")} variant="secondary" icon="📊">
+                <ActionButton 
+                  onClick={() => navegarConNotificacion("/vendedor/pedidos", "Cargando gestión de pedidos...", "📊")} 
+                  variant="secondary" 
+                  icon="📊"
+                >
                   Gestionar pedidos
                 </ActionButton>
-                <ActionButton onClick={() => navigate("/vendedor/resenas")} variant="secondary" icon="⭐">
+                <ActionButton 
+                  onClick={() => navegarConNotificacion("/vendedor/resenas", "Cargando reseñas...", "⭐")} 
+                  variant="secondary" 
+                  icon="⭐"
+                >
                   Ver reseñas
                 </ActionButton>
-                <ActionButton onClick={() => navigate("/vendedor/gestionar-productos")} variant="secondary" icon="📦">
+                <ActionButton 
+                  onClick={() => navegarConNotificacion("/vendedor/gestionar-productos", "Cargando productos...", "📦")} 
+                  variant="secondary" 
+                  icon="📦"
+                >
                   Mis productos
                 </ActionButton>
               </>
@@ -785,16 +840,31 @@ export default function Perfil() {
 
             {perfil.rol === "ADMIN" && (
               <>
-                <ActionButton onClick={() => navigate("/admin/dashboard")} icon="⚙️">
+                <ActionButton 
+                  onClick={() => navegarConNotificacion("/admin/dashboard", "Accediendo al panel de administración...", "⚙️")} 
+                  icon="⚙️"
+                >
                   Panel Admin
                 </ActionButton>
-                <ActionButton onClick={() => navigate("/admin/usuarios")} variant="secondary" icon="👥">
+                <ActionButton 
+                  onClick={() => navegarConNotificacion("/admin/usuarios", "Cargando gestión de usuarios...", "👥")} 
+                  variant="secondary" 
+                  icon="👥"
+                >
                   Gestionar usuarios
                 </ActionButton>
-                <ActionButton onClick={() => navigate("/admin/reportes")} variant="secondary" icon="📈">
+                <ActionButton 
+                  onClick={() => navegarConNotificacion("/admin/reportes", "Cargando reportes...", "📈")} 
+                  variant="secondary" 
+                  icon="📈"
+                >
                   Reportes
                 </ActionButton>
-                <ActionButton onClick={() => navigate("/admin/configuracion")} variant="secondary" icon="⚡">
+                <ActionButton 
+                  onClick={() => navegarConNotificacion("/admin/configuracion", "Cargando configuración...", "⚡")} 
+                  variant="secondary" 
+                  icon="⚡"
+                >
                   Configuración
                 </ActionButton>
               </>
@@ -802,7 +872,6 @@ export default function Perfil() {
           </div>
         </div>
 
-        {/* 🔥 ESTADÍSTICAS (Solo para VENDEDOR) - VERSIÓN MEJORADA */}
         {perfil.rol === "VENDEDOR" && (
           <div style={{
             background: "white",
@@ -814,7 +883,6 @@ export default function Perfil() {
             position: "relative",
             overflow: "hidden"
           }}>
-            {/* Efecto de fondo sutil */}
             <div style={{
               position: "absolute",
               top: "0",
@@ -908,7 +976,6 @@ export default function Perfil() {
               />
             </div>
             
-            {/* Información adicional */}
             <div style={{
               marginTop: "28px",
               paddingTop: "20px",
@@ -933,7 +1000,6 @@ export default function Perfil() {
           </div>
         )}
 
-        {/* 🔥 INFORMACIÓN PERSONAL */}
         <div style={{
           display: "grid",
           gridTemplateColumns: perfil.rol === "VENDEDOR" ? "1fr" : "repeat(auto-fit, minmax(350px, 1fr))",
@@ -1000,55 +1066,8 @@ export default function Perfil() {
               <InfoItem label="Fecha de registro" value={perfil.fechaRegistro?.split("T")[0]} />
               <InfoItem label="Estado" value={perfil.estado} />
             </div>
-
-            {/* Vinculación con Google - OPCIONAL */}
-            <div style={{ marginTop: "28px", paddingTop: "20px", borderTop: "2px solid #f1f5f9" }}>
-              <button
-                onClick={() => {
-                  console.log("Vincular con Google");
-                }}
-                style={{
-                  padding: "14px 20px",
-                  background: "white",
-                  color: "#2C3E50",
-                  border: "2px solid #e5e7eb",
-                  borderRadius: "12px",
-                  fontWeight: "700",
-                  fontSize: "14px",
-                  cursor: "pointer",
-                  transition: "all 0.3s ease",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  justifyContent: "center",
-                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-                  fontFamily: "'Inter', sans-serif",
-                  minWidth: "180px",
-                  width: "100%"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.12)";
-                  e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.borderColor = "#d1d5db";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.08)";
-                  e.currentTarget.style.borderColor = "#e5e7eb";
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-                  <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" />
-                  <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" />
-                  <path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z" />
-                  <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" />
-                </svg>
-                Vincular cuenta de Google
-              </button>
-            </div>
           </div>
 
-          {/* INFORMACIÓN ESPECÍFICA POR ROL */}
           {perfil.rol === "CONSUMIDOR" && (
             <div style={{
               background: "white",
@@ -1182,17 +1201,22 @@ export default function Perfil() {
                 </div>
               </div>
 
-              {/* Calificación promedio */}
               {perfil.calificacionPromedio !== undefined && (
-                <div style={{
-                  marginTop: "28px",
-                  paddingTop: "20px",
-                  borderTop: "2px solid #f1f5f9",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "16px",
-                  justifyContent: "center"
-                }}>
+                <div 
+                  style={{
+                    marginTop: "28px",
+                    paddingTop: "20px",
+                    borderTop: "2px solid #f1f5f9",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "16px",
+                    justifyContent: "center",
+                    cursor: "pointer"
+                  }}
+                  onClick={() => {
+                    notificaciones.exito("Calificación promedio", `${(perfil.calificacionPromedio || 0).toFixed(1)}/5.0 ⭐`, "⭐");
+                  }}
+                >
                   <div style={{
                     width: "56px",
                     height: "56px",
@@ -1299,7 +1323,6 @@ export default function Perfil() {
         </div>
       </div>
 
-      {/* FOOTER */}
       <Footer />
     </div>
   );
