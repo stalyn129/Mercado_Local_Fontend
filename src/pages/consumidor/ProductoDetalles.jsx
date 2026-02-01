@@ -174,68 +174,80 @@ export default function ProductoDetalle() {
   };
 
   const comprarAhora = async () => {
-    if (bloquearSiNoConsumidor()) return;
+  if (bloquearSiNoConsumidor()) return;
 
-    const token = localStorage.getItem("authToken");
-    const usuario = JSON.parse(localStorage.getItem("user"));
+  const token = localStorage.getItem("authToken");
+  const usuario = JSON.parse(localStorage.getItem("user"));
 
-    if (!token || !usuario?.idConsumidor) {
-      notificaciones.advertenciaLogin();
-      setTimeout(() => navigate("/LoginModal"), 1500);
+  if (!token || !usuario?.idConsumidor) {
+    notificaciones.advertenciaLogin();
+    setTimeout(() => navigate("/LoginModal"), 1500);
+    return;
+  }
+
+  const body = {
+    idConsumidor: usuario.idConsumidor,
+    idVendedor: producto.idVendedor,
+    metodoPago: "TARJETA", // Solo como placeholder
+    detalles: [
+      {
+        idProducto: producto.idProducto,
+        cantidad: cantidad
+      }
+    ]
+  };
+
+  try {
+    setComprandoAhora(true);
+    
+    // ✅ MOSTRAR NOTIFICACIÓN DE PROCESANDO
+    notificaciones.info(
+      "Procesando tu compra",
+      "Estamos creando tu pedido...",
+      "⏳"
+    );
+
+    const res = await fetch(`${API_URL}/pedidos/comprar-ahora`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("Error en compra:", errorText);
+      notificaciones.error("Error", "No se pudo crear el pedido. Intenta nuevamente.");
       return;
     }
 
-    const body = {
-      idConsumidor: usuario.idConsumidor,
-      idVendedor: producto.idVendedor,
-      metodoPago: "TARJETA",
-      detalles: [
-        {
-          idProducto: producto.idProducto,
-          cantidad: cantidad
-        }
-      ]
-    };
-
-    try {
-      setComprandoAhora(true);
-      const res = await fetch(`${API_URL}/pedidos/comprar-ahora`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(body)
+    const pedido = await res.json();
+    console.log("RESPUESTA DEL PEDIDO =>", pedido);
+    
+    // ✅ NOTIFICACIÓN DE ÉXITO SOLO PARA CONFIRMAR QUE EL PEDIDO SE CREÓ
+    notificaciones.exito(
+      "¡Pedido creado!", 
+      "Ahora serás redirigido para completar el pago",
+      "✅"
+    );
+    
+    // ✅ Redirigir a la página del pedido (que mostrará el checkout)
+    // El pedido estará en estado PENDIENTE y mostrará el formulario de pago
+    setTimeout(() => {
+      navigate(`/pedido/${pedido.idPedido}`, {
+        state: { origen: "CHECKOUT" }
       });
+    }, 1500);
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error("Error en compra:", errorText);
-        notificaciones.error("Error", "No se pudo procesar la compra");
-        return;
-      }
-
-      const pedido = await res.json();
-      console.log("RESPUESTA DEL PEDIDO =>", pedido);
-      
-      notificaciones.exito(
-        "¡Compra realizada!", 
-        "Tu pedido ha sido procesado exitosamente",
-        "🎉"
-      );
-      
-      // Redirigir después de 2 segundos para que se vea la notificación
-      setTimeout(() => {
-        navigate(`/pedido/${pedido.idPedido}`);
-      }, 2000);
-
-    } catch (err) {
-      console.error("Error:", err);
-      notificaciones.error("Error", "Ocurrió un error inesperado");
-    } finally {
-      setComprandoAhora(false);
-    }
-  };
+  } catch (err) {
+    console.error("Error:", err);
+    notificaciones.error("Error", "Ocurrió un error inesperado al procesar tu compra");
+  } finally {
+    setComprandoAhora(false);
+  }
+};
 
   const enviarReseña = async () => {
     if (bloquearSiNoConsumidor()) return;
