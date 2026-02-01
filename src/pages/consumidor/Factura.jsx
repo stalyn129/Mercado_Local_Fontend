@@ -14,8 +14,348 @@ export default function Factura() {
   const [detalles, setDetalles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tipoFactura, setTipoFactura] = useState("individual");
+  const [facturaBackend, setFacturaBackend] = useState(null);
+  const [creandoFactura, setCreandoFactura] = useState(false);
+  const [error, setError] = useState(null);
+  const [descargandoPDF, setDescargandoPDF] = useState(false);
+  const [viendoPDF, setViendoPDF] = useState(false);
 
   const facturaRef = useRef();
+
+  // Función para mostrar toast
+  const mostrarToast = (mensaje, tipo = "info") => {
+    const toast = document.createElement("div");
+    toast.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      color: white;
+      font-weight: 600;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      animation: slideIn 0.3s ease;
+      max-width: 400px;
+    `;
+    
+    if (tipo === "success") {
+      toast.style.backgroundColor = "#10B981";
+    } else if (tipo === "error") {
+      toast.style.backgroundColor = "#EF4444";
+    } else if (tipo === "warning") {
+      toast.style.backgroundColor = "#F59E0B";
+    } else {
+      toast.style.backgroundColor = "#3B82F6";
+    }
+    
+    toast.textContent = mensaje;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.style.animation = "slideOut 0.3s ease";
+      setTimeout(() => {
+        if (toast.parentNode) {
+          document.body.removeChild(toast);
+        }
+      }, 300);
+    }, 3000);
+    
+    if (!document.getElementById("toast-styles")) {
+      const style = document.createElement("style");
+      style.id = "toast-styles";
+      style.textContent = `
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  };
+
+  // Función para obtener factura del backend
+  const obtenerFacturaBackend = async (idPedido) => {
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`${API_URL}/api/facturas/pedido/${idPedido}`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null;
+        }
+        return null;
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error("Error obteniendo factura del backend:", error);
+      return null;
+    }
+  };
+
+  // Función para crear factura en el backend
+  const crearFacturaBackend = async (idPedido) => {
+    try {
+      setCreandoFactura(true);
+      setError(null);
+      const token = localStorage.getItem("authToken");
+      const response = await fetch(`${API_URL}/api/facturas`, {
+        method: 'POST',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ idPedido })
+      });
+      
+      if (!response.ok) {
+        return null;
+      }
+      
+      const nuevaFactura = await response.json();
+      setCreandoFactura(false);
+      
+      mostrarToast("✅ Factura creada exitosamente", "success");
+      return nuevaFactura;
+    } catch (error) {
+      console.error("Error creando factura:", error);
+      setCreandoFactura(false);
+      return null;
+    }
+  };
+
+  // Función simplificada para descargar PDF del backend
+  const descargarPDFBackend = async () => {
+    if (descargandoPDF) return;
+    
+    try {
+      setDescargandoPDF(true);
+      
+      // Si no hay factura en backend, usar PDF local
+      if (!facturaBackend || !facturaBackend.idFactura) {
+        console.log("No hay factura backend, usando PDF local");
+        await descargarPDFLocal();
+        return;
+      }
+      
+      const token = localStorage.getItem("authToken");
+      
+      // Intentar con el endpoint que existe (según tu controller)
+      const response = await fetch(`${API_URL}/api/facturas/${facturaBackend.idFactura}/descargar-pdf`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Accept': 'application/pdf'
+        }
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Factura_${facturaBackend.numeroFactura || facturaBackend.idFactura}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        mostrarToast("📥 PDF descargado del servidor", "success");
+      } else {
+        // Si falla, usar PDF local
+        throw new Error("Endpoint no disponible");
+      }
+      
+    } catch (error) {
+      console.log('Usando PDF local:', error.message);
+      mostrarToast("📄 Generando PDF local...", "info");
+      await descargarPDFLocal();
+    } finally {
+      setDescargandoPDF(false);
+    }
+  };
+
+  // Función simplificada para ver PDF del backend
+  const verPDFBackend = async () => {
+    if (viendoPDF) return;
+    
+    try {
+      setViendoPDF(true);
+      
+      // Si no hay factura en backend, usar PDF local
+      if (!facturaBackend || !facturaBackend.idFactura) {
+        console.log("No hay factura backend, usando PDF local");
+        await verPDFLocal();
+        return;
+      }
+      
+      const token = localStorage.getItem("authToken");
+      
+      // Intentar con el endpoint que existe
+      const response = await fetch(`${API_URL}/api/facturas/${facturaBackend.idFactura}/pdf`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Accept': 'application/pdf'
+        }
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        
+        // Liberar memoria después de un tiempo
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+        }, 10000);
+      } else {
+        // Si falla, usar PDF local
+        throw new Error("Endpoint no disponible");
+      }
+      
+    } catch (error) {
+      console.log('Usando PDF local:', error.message);
+      mostrarToast("👁️ Abriendo PDF local...", "info");
+      await verPDFLocal();
+    } finally {
+      setViendoPDF(false);
+    }
+  };
+
+  // Función para ver PDF local
+  const verPDFLocal = async () => {
+    try {
+      const elemento = facturaRef.current;
+      
+      if (!elemento) {
+        throw new Error("Elemento de factura no encontrado");
+      }
+      
+      // Aplicar estilos optimizados para PDF
+      const originalStyles = {
+        boxShadow: elemento.style.boxShadow,
+        border: elemento.style.border,
+        margin: elemento.style.margin,
+        padding: elemento.style.padding
+      };
+      
+      elemento.style.boxShadow = 'none';
+      elemento.style.border = '1px solid #ddd';
+      elemento.style.margin = '0';
+      elemento.style.padding = '20px';
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const canvas = await html2canvas(elemento, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        windowWidth: 794,
+        windowHeight: elemento.scrollHeight
+      });
+      
+      // Restaurar estilos originales
+      Object.assign(elemento.style, originalStyles);
+      
+      const imgData = canvas.toDataURL("image/png", 1.0);
+      const pdf = new jsPDF("p", "mm", "a4");
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      
+      const ratio = Math.min((pdfWidth - 20) / imgWidth, (pdfHeight - 20) / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 10;
+
+      pdf.addImage(imgData, "PNG", imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      
+      // Abrir en nueva ventana
+      const pdfBlob = pdf.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      window.open(pdfUrl, '_blank');
+      
+    } catch (error) {
+      console.error('Error generando PDF local:', error);
+      mostrarToast("❌ Error generando PDF", "error");
+    }
+  };
+
+  // Función para descargar PDF local
+  const descargarPDFLocal = async () => {
+    try {
+      setDescargandoPDF(true);
+      const elemento = facturaRef.current;
+      
+      if (!elemento) {
+        throw new Error("Elemento de factura no encontrado");
+      }
+      
+      // Aplicar estilos optimizados para PDF
+      const originalStyles = {
+        boxShadow: elemento.style.boxShadow,
+        border: elemento.style.border,
+        margin: elemento.style.margin,
+        padding: elemento.style.padding
+      };
+      
+      elemento.style.boxShadow = 'none';
+      elemento.style.border = '1px solid #ddd';
+      elemento.style.margin = '0';
+      elemento.style.padding = '20px';
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const canvas = await html2canvas(elemento, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        windowWidth: 794,
+        windowHeight: elemento.scrollHeight
+      });
+      
+      // Restaurar estilos originales
+      Object.assign(elemento.style, originalStyles);
+      
+      const imgData = canvas.toDataURL("image/png", 1.0);
+      const pdf = new jsPDF("p", "mm", "a4");
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      
+      const ratio = Math.min((pdfWidth - 20) / imgWidth, (pdfHeight - 20) / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 10;
+
+      pdf.addImage(imgData, "PNG", imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      
+      const numeroFactura = generarNumeroFactura();
+      const nombreArchivo = `Factura_${numeroFactura}.pdf`;
+      
+      pdf.save(nombreArchivo);
+      mostrarToast("📥 PDF descargado exitosamente", "success");
+      
+    } catch (error) {
+      console.error('Error generando PDF local:', error);
+      mostrarToast("❌ Error generando PDF", "error");
+    } finally {
+      setDescargandoPDF(false);
+    }
+  };
 
   // Función para cargar detalles de un pedido
   const cargarDetallesPedido = async (token, idPedido) => {
@@ -28,21 +368,19 @@ export default function Factura() {
         throw new Error(`Error al cargar detalles del pedido ${idPedido}`);
       }
       
-      const detallesData = await response.json();
-      return detallesData;
+      return await response.json();
     } catch (error) {
       console.error(`Error cargando detalles del pedido ${idPedido}:`, error);
       return [];
     }
   };
 
-  // Función para cargar productos de múltiples pedidos (compra unificada)
+  // Función para cargar productos de múltiples pedidos
   const cargarProductosDePedidos = async (token, pedidos) => {
     if (!pedidos || pedidos.length === 0) return [];
     
     const todosLosProductos = [];
     
-    // Cargar detalles de cada pedido
     for (const pedido of pedidos) {
       const pedidoId = pedido.idPedido || pedido.id;
       if (!pedidoId) continue;
@@ -50,10 +388,9 @@ export default function Factura() {
       try {
         const detalles = await cargarDetallesPedido(token, pedidoId);
         
-        // Procesar cada detalle del pedido
         detalles.forEach(detalle => {
           const productoInfo = detalle.producto || {};
-          const precioUnitario = detalle.precioUnitario || (detalle.subtotal / detalle.cantidad) || 0;
+          const precioUnitario = detalle.precioUnitario || (detalle.subtotal / (detalle.cantidad || 1)) || 0;
           const cantidad = detalle.cantidad || 1;
           const subtotal = detalle.subtotal || (precioUnitario * cantidad);
           
@@ -63,7 +400,6 @@ export default function Factura() {
             precio: precioUnitario,
             cantidad: cantidad,
             subtotal: subtotal,
-            vendedor: pedido.vendedor || { idVendedor: pedido.idVendedor, nombre: `Vendedor #${pedido.idVendedor}` },
             idPedido: pedidoId
           });
         });
@@ -76,11 +412,51 @@ export default function Factura() {
     return todosLosProductos;
   };
 
+  // Convertir detalles de factura backend al formato del frontend
+  const convertirDetallesFacturaBackend = (facturaBackend) => {
+    if (!facturaBackend.detallesPorVendedor || facturaBackend.detallesPorVendedor.length === 0) {
+      return [];
+    }
+    
+    const detalles = [];
+    
+    facturaBackend.detallesPorVendedor.forEach(vendedorDetalle => {
+      vendedorDetalle.productos.forEach(producto => {
+        detalles.push({
+          nombreProducto: producto.nombre,
+          cantidad: producto.cantidad,
+          precio: producto.precioUnitario,
+          subtotal: producto.subtotal
+        });
+      });
+    });
+    
+    return detalles;
+  };
+
+  // Manejar la creación de factura
+  const handleCrearFactura = async () => {
+    if (!idPedido) return;
+    
+    const nuevaFactura = await crearFacturaBackend(idPedido);
+    if (nuevaFactura) {
+      setFacturaBackend(nuevaFactura);
+      setFacturaData(nuevaFactura);
+      const detallesConvertidos = convertirDetallesFacturaBackend(nuevaFactura);
+      setDetalles(detallesConvertidos);
+    }
+  };
+
+  // Efecto principal para cargar datos
   useEffect(() => {
     const token = localStorage.getItem("authToken");
-    if (!token) return navigate("/loginmodal");
+    if (!token) {
+      navigate("/loginmodal");
+      return;
+    }
 
     setLoading(true);
+    setError(null);
 
     const compraUnificadaData = location.state?.compraData;
     
@@ -123,36 +499,58 @@ export default function Factura() {
     else if (idPedido) {
       setTipoFactura("individual");
       
-      Promise.all([
-        fetch(`${API_URL}/pedidos/${idPedido}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }).then(res => {
-          if (!res.ok) throw new Error(`Error ${res.status} al cargar pedido`);
-          return res.json();
-        }),
-        fetch(`${API_URL}/pedidos/${idPedido}/detalles`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }).then(res => {
-          if (!res.ok) throw new Error(`Error ${res.status} al cargar detalles`);
-          return res.json();
-        })
-      ])
-        .then(([pedidoData, detallesData]) => {
+      const cargarDatosCompletos = async () => {
+        try {
+          // 1. Intentar obtener factura del backend
+          const facturaExistente = await obtenerFacturaBackend(idPedido);
+          
+          if (facturaExistente) {
+            setFacturaBackend(facturaExistente);
+            setFacturaData(facturaExistente);
+            const detallesConvertidos = convertirDetallesFacturaBackend(facturaExistente);
+            setDetalles(detallesConvertidos);
+            setLoading(false);
+            return;
+          }
+          
+          // 2. Si no hay factura, cargar datos del pedido
+          const [pedidoData, detallesData] = await Promise.all([
+            fetch(`${API_URL}/pedidos/${idPedido}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            }).then(res => {
+              if (!res.ok) throw new Error(`Error ${res.status} al cargar pedido`);
+              return res.json();
+            }),
+            fetch(`${API_URL}/pedidos/${idPedido}/detalles`, {
+              headers: { Authorization: `Bearer ${token}` }
+            }).then(res => {
+              if (!res.ok) throw new Error(`Error ${res.status} al cargar detalles`);
+              return res.json();
+            })
+          ]);
+          
           setFacturaData(pedidoData);
           setDetalles(detallesData);
           setLoading(false);
-        })
-        .catch(err => {
-          console.error("Error cargando factura:", err);
+          
+        } catch (error) {
+          console.error("Error cargando datos:", error);
           setLoading(false);
-        });
+        }
+      };
+      
+      cargarDatosCompletos();
     } else {
       setLoading(false);
     }
-  }, [idPedido, idCompra, location.state]);
+  }, [idPedido, idCompra, location.state, navigate]);
 
   // Generar número de factura
   const generarNumeroFactura = () => {
+    if (facturaBackend && facturaBackend.numeroFactura) {
+      return facturaBackend.numeroFactura;
+    }
+    
     if (tipoFactura === "consolidada") {
       const compraId = facturaData?.idCompraUnificada || idCompra;
       const idCorto = compraId ? compraId.split('-').pop().substring(0, 6) : "000000";
@@ -162,29 +560,26 @@ export default function Factura() {
     }
   };
 
-  // Calcular totales para factura consolidada
-  const calcularTotalesConsolidada = () => {
-    if (tipoFactura !== "consolidada" || !detalles.length) {
-      return { 
-        subtotal: facturaData?.subtotal || 0, 
-        iva: facturaData?.iva || 0, 
-        total: facturaData?.total || 0 
+  // Calcular totales
+  const calcularTotales = () => {
+    if (facturaBackend) {
+      return {
+        subtotal: facturaBackend.subtotal || 0,
+        iva: facturaBackend.iva || 0,
+        total: facturaBackend.total || 0
       };
     }
     
-    const subtotal = detalles.reduce((sum, producto) => {
-      return sum + (producto.subtotal || 0);
-    }, 0);
-    
-    const iva = subtotal * 0.12;
-    const total = subtotal + iva;
-    
-    return { subtotal, iva, total };
-  };
-
-  // Calcular totales para factura individual
-  const calcularTotalesIndividual = () => {
-    if (tipoFactura === "consolidada") return calcularTotalesConsolidada();
+    if (tipoFactura === "consolidada" && detalles.length > 0) {
+      const subtotal = detalles.reduce((sum, producto) => {
+        return sum + (producto.subtotal || 0);
+      }, 0);
+      
+      const iva = subtotal * 0.12;
+      const total = subtotal + iva;
+      
+      return { subtotal, iva, total };
+    }
     
     return { 
       subtotal: facturaData?.subtotal || 0, 
@@ -193,84 +588,43 @@ export default function Factura() {
     };
   };
 
-  // Descargar PDF - VERSIÓN MEJORADA
-  const descargarPDF = async () => {
-    const elemento = facturaRef.current;
-    
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const canvas = await html2canvas(elemento, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: "#ffffff",
-      windowWidth: 794, // Ancho A4 en píxeles (210mm * 3.78)
-      windowHeight: elemento.scrollHeight,
-      imageTimeout: 0,
-      removeContainer: true,
-      onclone: (clonedDoc) => {
-        const clonedElement = clonedDoc.querySelector('.factura-print');
-        if (clonedElement) {
-          clonedElement.style.boxShadow = 'none';
-          clonedElement.style.border = '1px solid #ddd';
-          clonedElement.style.margin = '0';
-          clonedElement.style.padding = '20px';
-          clonedElement.style.maxWidth = '100%';
-        }
-      }
-    });
-    
-    const imgData = canvas.toDataURL("image/png", 1.0);
-    const pdf = new jsPDF("p", "mm", "a4");
-    
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
-    
-    const ratio = Math.min((pdfWidth - 20) / imgWidth, (pdfHeight - 20) / imgHeight);
-    const imgX = (pdfWidth - imgWidth * ratio) / 2;
-    const imgY = 10;
-
-    pdf.addImage(imgData, "PNG", imgX, imgY, imgWidth * ratio, imgHeight * ratio);
-    
-    const numeroFactura = generarNumeroFactura();
-    const nombreArchivo = tipoFactura === "consolidada" 
-      ? `Factura_Consolidada_${numeroFactura}.pdf`
-      : `Factura_${numeroFactura}.pdf`;
-    
-    pdf.save(nombreArchivo);
-  };
-
   const formatearFecha = (fecha) => {
     if (!fecha) return "Fecha no disponible";
-    const date = new Date(fecha);
-    return date.toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
+    try {
+      const date = new Date(fecha);
+      return date.toLocaleDateString("es-ES", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch (e) {
+      return fecha.toString();
+    }
   };
 
   const getEstadoInfo = (estado) => {
     const estados = {
       PENDIENTE: { color: "#F59E0B", bg: "#FEF3C7", texto: "Pendiente" },
       PROCESANDO: { color: "#3B82F6", bg: "#DBEAFE", texto: "Procesando" },
-      PENDIENTE_VERIFICACION: { color: "#8B5CF6", bg: "#EDE9FE", texto: "Verificando" },
       COMPLETADO: { color: "#10B981", bg: "#D1FAE5", texto: "Completado" },
       CANCELADO: { color: "#EF4444", bg: "#FEE2E2", texto: "Cancelado" },
       ENVIADO: { color: "#6366F1", bg: "#E0E7FF", texto: "Enviado" },
-      ENTREGADO: { color: "#059669", bg: "#D1FAE5", texto: "Entregado" }
+      ENTREGADO: { color: "#059669", bg: "#D1FAE5", texto: "Entregado" },
+      EMITIDA: { color: "#10B981", bg: "#D1FAE5", texto: "Emitida" },
+      ANULADA: { color: "#EF4444", bg: "#FEE2E2", texto: "Anulada" },
+      PAGADA: { color: "#10B981", bg: "#D1FAE5", texto: "Pagada" },
+      Emitida: { color: "#10B981", bg: "#D1FAE5", texto: "Emitida" },
+      Anulada: { color: "#EF4444", bg: "#FEE2E2", texto: "Anulada" },
+      Pagada: { color: "#10B981", bg: "#D1FAE5", texto: "Pagada" }
     };
-    return estados[estado] || { color: "#6B7280", bg: "#F3F4F6", texto: estado };
+    return estados[estado] || { color: "#6B7280", bg: "#F3F4F6", texto: estado || "Desconocido" };
   };
 
   // Componente de círculos flotantes
   const FloatingCircles = () => (
-    <div className="floating-circles" style={{
+    <div className="floating-circles no-print" style={{
       position: 'fixed',
       top: 0,
       left: 0,
@@ -305,6 +659,15 @@ export default function Factura() {
     </div>
   );
 
+  // Determinar si se puede crear factura
+  const puedeCrearFactura = !facturaBackend && 
+                           tipoFactura === "individual" && 
+                           idPedido &&
+                           (facturaData?.estadoPago === 'PAGADO' || 
+                            facturaData?.estadoPago === 'Pagado' ||
+                            facturaData?.estado === 'COMPLETADO');
+
+  // Estados de carga
   if (loading) {
     return (
       <div style={{
@@ -338,6 +701,7 @@ export default function Factura() {
     );
   }
 
+  // Sin datos
   if (!facturaData) {
     return (
       <div style={{
@@ -393,14 +757,14 @@ export default function Factura() {
     );
   }
 
-  const estadoInfo = tipoFactura === "consolidada" 
-    ? getEstadoInfo(facturaData.estadoCompra || "PROCESANDO")
-    : getEstadoInfo(facturaData.estadoPedido);
-    
+  const estadoInfo = facturaBackend 
+    ? getEstadoInfo(facturaBackend.estado)
+    : tipoFactura === "consolidada" 
+      ? getEstadoInfo(facturaData.estadoCompra || "PROCESANDO")
+      : getEstadoInfo(facturaData.estadoPedido);
+      
   const numeroFactura = generarNumeroFactura();
-  const totales = tipoFactura === "consolidada" 
-    ? calcularTotalesConsolidada()
-    : calcularTotalesIndividual();
+  const totales = calcularTotales();
 
   return (
     <>
@@ -417,7 +781,7 @@ export default function Factura() {
           50% { transform: translateY(-10px); }
         }
 
-        /* ESTILOS DE IMPRESIÓN MEJORADOS */
+        /* ESTILOS DE IMPRESIÓN */
         @media print {
           body * {
             visibility: hidden;
@@ -450,7 +814,6 @@ export default function Factura() {
             visibility: hidden !important;
           }
 
-          /* Mejorar visibilidad de bordes y texto */
           .factura-container table {
             border-collapse: collapse !important;
           }
@@ -466,14 +829,6 @@ export default function Factura() {
             -webkit-print-color-adjust: exact !important;
             color-adjust: exact !important;
           }
-          
-          .factura-print {
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            border: none !important;
-            box-shadow: none !important;
-          }
         }
       `}</style>
 
@@ -486,6 +841,66 @@ export default function Factura() {
       }}>
         <FloatingCircles />
 
+        {/* ALERTA SI NO HAY FACTURA */}
+        {puedeCrearFactura && !creandoFactura && (
+          <div className="no-print" style={{
+            maxWidth: "800px",
+            margin: "0 auto 20px auto",
+            background: "linear-gradient(135deg, #FF6B35, #FF8E53)",
+            color: "white",
+            padding: "15px 20px",
+            borderRadius: "8px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            boxShadow: "0 4px 12px rgba(255, 107, 53, 0.3)"
+          }}>
+            <div>
+              <div style={{ fontWeight: "600", fontSize: "16px", marginBottom: "4px" }}>
+                ⚠️ Factura no generada
+              </div>
+              <div style={{ fontSize: "14px", opacity: 0.9 }}>
+                Este pedido está pagado pero no tiene factura. Genere la factura para efectos tributarios.
+              </div>
+            </div>
+            <button
+              onClick={handleCrearFactura}
+              disabled={creandoFactura}
+              style={{
+                padding: "10px 20px",
+                background: "white",
+                color: "#FF6B35",
+                border: "none",
+                borderRadius: "6px",
+                fontWeight: "600",
+                fontSize: "14px",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+                minWidth: "150px",
+                opacity: creandoFactura ? 0.7 : 1
+              }}
+              onMouseEnter={(e) => {
+                if (!creandoFactura) e.target.style.background = "#FFF2E8";
+              }}
+              onMouseLeave={(e) => {
+                if (!creandoFactura) e.target.style.background = "white";
+              }}
+            >
+              {creandoFactura ? (
+                <>
+                  <span style={{ marginRight: "8px" }}>⏳</span>
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <span style={{ marginRight: "8px" }}>📄</span>
+                  Generar Factura
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
         {/* FACTURA */}
         <div
           ref={facturaRef}
@@ -497,11 +912,31 @@ export default function Factura() {
             padding: "30px",
             borderRadius: "12px",
             boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
-            border: "2px solid #FF6B35",
+            border: facturaBackend ? "2px solid #10B981" : "2px solid #FF6B35",
             position: 'relative',
             zIndex: 1
           }}
         >
+          {/* BADGE DE FACTURA OFICIAL */}
+          {facturaBackend && (
+            <div style={{
+              position: "absolute",
+              top: "20px",
+              right: "20px",
+              background: "#10B981",
+              color: "white",
+              padding: "6px 12px",
+              borderRadius: "4px",
+              fontSize: "12px",
+              fontWeight: "700",
+              textTransform: "uppercase",
+              letterSpacing: "1px",
+              zIndex: 2
+            }}>
+              📋 Factura Oficial
+            </div>
+          )}
+
           {/* ENCABEZADO CON LOGO */}
           <div style={{
             display: "flex",
@@ -561,13 +996,13 @@ export default function Factura() {
             textAlign: "center",
             padding: "20px",
             marginBottom: "25px",
-            background: "#FFF2E8",
+            background: facturaBackend ? "#D1FAE5" : "#FFF2E8",
             borderRadius: "8px",
-            border: "1px dashed #FF6B35"
+            border: facturaBackend ? "1px dashed #10B981" : "1px dashed #FF6B35"
           }}>
             <div style={{
               fontSize: "11px",
-              color: "#FF6B35",
+              color: facturaBackend ? "#10B981" : "#FF6B35",
               fontWeight: "600",
               marginBottom: "6px",
               textTransform: "uppercase",
@@ -578,7 +1013,7 @@ export default function Factura() {
             <div style={{
               fontSize: "24px",
               fontWeight: "800",
-              color: "#FF6B35",
+              color: facturaBackend ? "#10B981" : "#FF6B35",
               marginBottom: "4px"
             }}>
               {numeroFactura}
@@ -631,7 +1066,10 @@ export default function Factura() {
                     color: "#1F2937",
                     fontWeight: "600"
                   }}>
-                    {formatearFecha(facturaData.fechaCompra || facturaData.fechaPedido)}
+                    {facturaBackend 
+                      ? formatearFecha(facturaBackend.fechaEmision)
+                      : formatearFecha(facturaData.fechaCompra || facturaData.fechaPedido)
+                    }
                   </div>
                 </div>
 
@@ -648,12 +1086,67 @@ export default function Factura() {
                     color: "#1F2937",
                     fontWeight: "600"
                   }}>
-                    {facturaData.metodoPago === "EFECTIVO" && "Efectivo"}
-                    {facturaData.metodoPago === "TRANSFERENCIA" && "Transferencia"}
-                    {facturaData.metodoPago === "TARJETA" && "Tarjeta"}
-                    {!facturaData.metodoPago && "No especificado"}
+                    {facturaBackend?.metodoPago || 
+                     (facturaData.metodoPago === "EFECTIVO" && "Efectivo") ||
+                     (facturaData.metodoPago === "TRANSFERENCIA" && "Transferencia") ||
+                     (facturaData.metodoPago === "TARJETA" && "Tarjeta") ||
+                     facturaData.metodoPago || "No especificado"}
                   </div>
                 </div>
+
+                {/* DATOS DEL CLIENTE SI HAY FACTURA BACKEND */}
+                {facturaBackend && (
+                  <>
+                    <div style={{ marginBottom: "8px", paddingTop: "12px", borderTop: "1px solid #E5E7EB" }}>
+                      <div style={{
+                        fontSize: "11px",
+                        color: "#6B7280",
+                        marginBottom: "4px"
+                      }}>
+                        Cliente
+                      </div>
+                      <div style={{
+                        fontSize: "14px",
+                        color: "#1F2937",
+                        fontWeight: "600"
+                      }}>
+                        {facturaBackend.nombreCliente} {facturaBackend.apellidoCliente}
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: "8px" }}>
+                      <div style={{
+                        fontSize: "11px",
+                        color: "#6B7280",
+                        marginBottom: "4px"
+                      }}>
+                        Cédula/RUC
+                      </div>
+                      <div style={{
+                        fontSize: "14px",
+                        color: "#1F2937",
+                        fontWeight: "600"
+                      }}>
+                        {facturaBackend.cedulaCliente}
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: "8px" }}>
+                      <div style={{
+                        fontSize: "11px",
+                        color: "#6B7280",
+                        marginBottom: "4px"
+                      }}>
+                        Email
+                      </div>
+                      <div style={{
+                        fontSize: "14px",
+                        color: "#1F2937",
+                        fontWeight: "600"
+                      }}>
+                        {facturaBackend.correoCliente}
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 {tipoFactura === "consolidada" && facturaData.cantidadPedidos && (
                   <div>
@@ -729,7 +1222,7 @@ export default function Factura() {
             </div>
           </div>
 
-          {/* PRODUCTOS */}
+          {/* PRODUCTOS - SIN COLUMNA VENDEDOR */}
           <div style={{ marginBottom: "30px" }}>
             <h3 style={{
               fontSize: "14px",
@@ -766,7 +1259,7 @@ export default function Factura() {
                 <table style={{
                   width: "100%",
                   borderCollapse: "collapse",
-                  minWidth: "600px"
+                  minWidth: "500px"
                 }}>
                   <thead>
                     <tr style={{
@@ -783,19 +1276,6 @@ export default function Factura() {
                       }}>
                         Producto
                       </th>
-                      {tipoFactura === "consolidada" && (
-                        <th style={{
-                          padding: "12px 16px",
-                          textAlign: "left",
-                          fontSize: "12px",
-                          fontWeight: "600",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                          width: "120px"
-                        }}>
-                          Vendedor
-                        </th>
-                      )}
                       <th style={{
                         padding: "12px 16px",
                         textAlign: "center",
@@ -852,16 +1332,6 @@ export default function Factura() {
                           }}>
                             {d.nombreProducto || d.producto?.nombreProducto || d.nombre || "Producto"}
                           </td>
-                          {tipoFactura === "consolidada" && (
-                            <td style={{
-                              padding: "12px 16px",
-                              fontSize: "13px",
-                              color: "#9C27B0",
-                              fontWeight: "500"
-                            }}>
-                              {d.vendedor?.nombre || `Vendedor #${d.vendedor?.idVendedor || d.idPedido}`}
-                            </td>
-                          )}
                           <td style={{
                             padding: "12px 16px",
                             textAlign: "center",
@@ -899,10 +1369,10 @@ export default function Factura() {
 
           {/* TOTALES */}
           <div style={{
-            background: "#FFF2E8",
+            background: facturaBackend ? "#D1FAE5" : "#FFF2E8",
             padding: "25px",
             borderRadius: "8px",
-            border: "1px solid #FF6B35",
+            border: facturaBackend ? "1px solid #10B981" : "1px solid #FF6B35",
             marginBottom: "25px"
           }}>
             <div style={{
@@ -923,7 +1393,7 @@ export default function Factura() {
               justifyContent: "space-between",
               marginBottom: "20px",
               paddingBottom: "15px",
-              borderBottom: "1px solid #FF8E53"
+              borderBottom: facturaBackend ? "1px solid #34D399" : "1px solid #FF8E53"
             }}>
               <span style={{ fontSize: "14px", color: "#6B7280" }}>
                 IVA (12%)
@@ -947,7 +1417,16 @@ export default function Factura() {
                 }}>
                   TOTAL A PAGAR
                 </div>
-                {tipoFactura === "consolidada" && (
+                {facturaBackend && (
+                  <div style={{
+                    fontSize: "12px",
+                    color: "#10B981",
+                    fontStyle: "italic"
+                  }}>
+                    Factura registrada en sistema
+                  </div>
+                )}
+                {tipoFactura === "consolidada" && !facturaBackend && (
                   <div style={{
                     fontSize: "12px",
                     color: "#9C27B0",
@@ -960,7 +1439,7 @@ export default function Factura() {
               <div style={{
                 fontSize: "28px",
                 fontWeight: "800",
-                color: "#FF6B35"
+                color: facturaBackend ? "#10B981" : "#FF6B35"
               }}>
                 ${totales.total.toFixed(2)}
               </div>
@@ -995,7 +1474,9 @@ export default function Factura() {
               margin: 0,
               fontStyle: "italic"
             }}>
-              Documento válido para efectos tributarios
+              {facturaBackend 
+                ? "Documento válido para efectos tributarios" 
+                : "Documento informativo - Genere la factura oficial para efectos tributarios"}
             </p>
           </div>
         </div>
@@ -1009,11 +1490,53 @@ export default function Factura() {
           justifyContent: "center",
           flexWrap: "wrap"
         }}>
+          {/* BOTÓN PARA CREAR FACTURA SI NO EXISTE */}
+          {puedeCrearFactura && !creandoFactura && (
+            <button
+              onClick={handleCrearFactura}
+              disabled={creandoFactura}
+              style={{
+                padding: "12px 24px",
+                background: "#FF6B35",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                fontWeight: "600",
+                fontSize: "14px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                transition: "all 0.3s ease",
+                opacity: creandoFactura ? 0.7 : 1
+              }}
+              onMouseEnter={(e) => {
+                if (!creandoFactura) e.target.style.background = "#FF8E53";
+              }}
+              onMouseLeave={(e) => {
+                if (!creandoFactura) e.target.style.background = "#FF6B35";
+              }}
+            >
+              {creandoFactura ? (
+                <>
+                  <span>⏳</span>
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <span>📄</span>
+                  Generar Factura Oficial
+                </>
+              )}
+            </button>
+          )}
+
           <button
-            onClick={descargarPDF}
+            onClick={descargarPDFBackend}
+            disabled={descargandoPDF}
             style={{
               padding: "12px 24px",
-              background: "#FF6B35",
+              background: facturaBackend ? "#10B981" : "#FF6B35",
               color: "white",
               border: "none",
               borderRadius: "8px",
@@ -1023,17 +1546,65 @@ export default function Factura() {
               display: "flex",
               alignItems: "center",
               gap: "8px",
-              transition: "all 0.3s ease"
+              transition: "all 0.3s ease",
+              opacity: descargandoPDF ? 0.7 : 1
             }}
             onMouseEnter={(e) => {
-              e.target.style.background = "#FF8E53";
+              if (!descargandoPDF) e.target.style.background = facturaBackend ? "#34D399" : "#FF8E53";
             }}
             onMouseLeave={(e) => {
-              e.target.style.background = "#FF6B35";
+              if (!descargandoPDF) e.target.style.background = facturaBackend ? "#10B981" : "#FF6B35";
             }}
           >
-            <span>📥</span>
-            Descargar PDF
+            {descargandoPDF ? (
+              <>
+                <span>⏳</span>
+                Descargando...
+              </>
+            ) : (
+              <>
+                <span>📥</span>
+                Descargar PDF
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={verPDFBackend}
+            disabled={viendoPDF}
+            style={{
+              padding: "12px 24px",
+              background: "#3B82F6",
+              color: "white",
+              border: "none",
+              borderRadius: "8px",
+              fontWeight: "600",
+              fontSize: "14px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              transition: "all 0.3s ease",
+              opacity: viendoPDF ? 0.7 : 1
+            }}
+            onMouseEnter={(e) => {
+              if (!viendoPDF) e.target.style.background = "#2563EB";
+            }}
+            onMouseLeave={(e) => {
+              if (!viendoPDF) e.target.style.background = "#3B82F6";
+            }}
+          >
+            {viendoPDF ? (
+              <>
+                <span>⏳</span>
+                Cargando...
+              </>
+            ) : (
+              <>
+                <span>👁️</span>
+                Ver PDF
+              </>
+            )}
           </button>
 
           <button
@@ -1041,8 +1612,8 @@ export default function Factura() {
             style={{
               padding: "12px 24px",
               background: "white",
-              color: "#FF6B35",
-              border: "1px solid #FF6B35",
+              color: facturaBackend ? "#10B981" : "#FF6B35",
+              border: `1px solid ${facturaBackend ? "#10B981" : "#FF6B35"}`,
               borderRadius: "8px",
               fontWeight: "600",
               fontSize: "14px",
@@ -1053,7 +1624,7 @@ export default function Factura() {
               transition: "all 0.3s ease"
             }}
             onMouseEnter={(e) => {
-              e.target.style.background = "#FFF2E8";
+              e.target.style.background = facturaBackend ? "#D1FAE5" : "#FFF2E8";
             }}
             onMouseLeave={(e) => {
               e.target.style.background = "white";
@@ -1082,7 +1653,7 @@ export default function Factura() {
                 alignItems: "center",
                 gap: "8px",
                 transition: "all 0.3s ease"
-              }}
+            }}
               onMouseEnter={(e) => {
                 e.target.style.background = "#F8F9FA";
                 e.target.style.borderColor = "#1F2937";
