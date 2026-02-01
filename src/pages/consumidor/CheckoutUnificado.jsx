@@ -1,12 +1,24 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCarrito } from "../../context/CarritoContext.jsx";
+import Notificaciones from "../../components/Notificaciones.jsx";
+import useNotification from "../../hooks/useNotification.jsx";
 import Footer from "../../components/Footer.jsx";
 
 export default function CheckoutUnificado() {
   const { carrito, limpiarCarrito } = useCarrito();
   const navigate = useNavigate();
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+
+  // Hook de notificaciones - CORREGIDO EL NOMBRE
+  const { 
+    notificacion, 
+    setNotificacion,
+    confirmacionPago,
+    setConfirmacionPago,
+    confirmacionesPago,
+    notificaciones
+  } = useNotification(); // ✅ useNotification en lugar de useNotificacion
 
   const [metodoPago, setMetodoPago] = useState("EFECTIVO");
   const [montoEfectivo, setMontoEfectivo] = useState("");
@@ -18,22 +30,8 @@ export default function CheckoutUnificado() {
   const [titular, setTitular] = useState("");
   const [procesando, setProcesando] = useState(false);
   const [circlePositions, setCirclePositions] = useState([]);
-  
-  // ==================== SISTEMA DE NOTIFICACIONES ====================
-  const [notificacion, setNotificacion] = useState({
-    mostrar: false,
-    titulo: "",
-    mensaje: ""
-  });
 
-  // ==================== CONFIRMACIÓN DE COMPRA ====================
-  const [confirmacionTarjeta, setConfirmacionTarjeta] = useState({
-    mostrar: false,
-    monto: 0,
-    metodo: "TARJETA"
-  });
-
-  // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
+  // ==================== ANIMACIÓN DE CÍRCULOS ====================
   useEffect(() => {
     const generateCircles = () => {
       const circles = [];
@@ -80,20 +78,7 @@ export default function CheckoutUnificado() {
     return () => clearInterval(interval);
   }, []);
 
-  // ==================== MOSTRAR NOTIFICACIÓN SIMPLE ====================
-  const mostrarNotificacion = (titulo, mensaje) => {
-    setNotificacion({
-      mostrar: true,
-      titulo,
-      mensaje
-    });
-
-    setTimeout(() => {
-      setNotificacion(prev => ({...prev, mostrar: false}));
-    }, 4000);
-  };
-
-  // Calcular totales
+  // ==================== CÁLCULOS ====================
   const subtotal = carrito.reduce(
     (acc, item) => acc + item.producto.precio * item.cantidad,
     0
@@ -101,21 +86,15 @@ export default function CheckoutUnificado() {
   const iva = subtotal * 0.12;
   const total = subtotal + iva;
 
-  // Validar formulario
+  // ==================== VALIDACIÓN ====================
   const validarFormulario = () => {
     if (metodoPago === "EFECTIVO") {
       if (!montoEfectivo || montoEfectivo.trim() === "") {
-        mostrarNotificacion(
-          "Monto requerido",
-          "Debes ingresar el monto con el que pagarás"
-        );
+        notificaciones.error("Monto requerido", "Debes ingresar el monto con el que pagarás");
         return false;
       }
       if (parseFloat(montoEfectivo) < total) {
-        mostrarNotificacion(
-          "Monto insuficiente",
-          "El monto debe ser mayor o igual al total"
-        );
+        notificaciones.error("Monto insuficiente", "El monto debe ser mayor o igual al total");
         return false;
       }
       return true;
@@ -123,10 +102,7 @@ export default function CheckoutUnificado() {
 
     if (metodoPago === "TRANSFERENCIA") {
       if (!comprobante) {
-        mostrarNotificacion(
-          "Comprobante requerido",
-          "Debes subir el comprobante de transferencia"
-        );
+        notificaciones.error("Comprobante requerido", "Debes subir el comprobante de transferencia");
         return false;
       }
       return true;
@@ -134,24 +110,15 @@ export default function CheckoutUnificado() {
 
     if (metodoPago === "TARJETA") {
       if (!numTarjeta || numTarjeta.replace(/\s/g, "").length < 15) {
-        mostrarNotificacion(
-          "Tarjeta inválida",
-          "Número de tarjeta inválido"
-        );
+        notificaciones.error("Tarjeta inválida", "Número de tarjeta inválido");
         return false;
       }
       if (!cvv || cvv.length < 3) {
-        mostrarNotificacion(
-          "CVV inválido",
-          "CVV inválido"
-        );
+        notificaciones.error("CVV inválido", "CVV inválido");
         return false;
       }
       if (!mesExpiracion || !anioExpiracion) {
-        mostrarNotificacion(
-          "Fecha requerida",
-          "Fecha de expiración requerida"
-        );
+        notificaciones.error("Fecha requerida", "Fecha de expiración requerida");
         return false;
       }
 
@@ -161,18 +128,12 @@ export default function CheckoutUnificado() {
 
       if (parseInt(anioExpiracion) < anioActual || 
           (parseInt(anioExpiracion) === anioActual && parseInt(mesExpiracion) < mesActual)) {
-        mostrarNotificacion(
-          "Tarjeta vencida",
-          "La tarjeta está vencida"
-        );
+        notificaciones.error("Tarjeta vencida", "La tarjeta está vencida");
         return false;
       }
 
       if (!titular.trim()) {
-        mostrarNotificacion(
-          "Titular requerido",
-          "Nombre del titular requerido"
-        );
+        notificaciones.error("Titular requerido", "Nombre del titular requerido");
         return false;
       }
       return true;
@@ -181,24 +142,16 @@ export default function CheckoutUnificado() {
     return true;
   };
 
-  // 🔥 FINALIZAR COMPRA - CONFIRMACIÓN SIMPLE
+  // ==================== FINALIZAR COMPRA ====================
   const finalizarCompra = async () => {
-    // Si es tarjeta y no está en modo confirmación, retornar
-    if (metodoPago === "TARJETA" && !confirmacionTarjeta.mostrar) {
-      return;
-    }
-
+    // ✅ SE ELIMINÓ LA CONDICIÓN PROBLEMÁTICA
     if (!validarFormulario()) return;
 
     const token = localStorage.getItem("authToken");
     const user = JSON.parse(localStorage.getItem("user"));
 
     if (!token || !user?.idConsumidor) {
-      mostrarNotificacion(
-        "Inicia sesión",
-        "Debes iniciar sesión como consumidor para finalizar la compra"
-      );
-      
+      notificaciones.advertencia("Inicia sesión", "Debes iniciar sesión como consumidor para finalizar la compra");
       setTimeout(() => {
         navigate("/loginmodal");
       }, 1500);
@@ -279,18 +232,8 @@ export default function CheckoutUnificado() {
       await Promise.all(promesasFinalizacion);
       await limpiarCarrito();
 
-      // Cerrar confirmación si está abierta
-      if (confirmacionTarjeta.mostrar) {
-        setConfirmacionTarjeta({...confirmacionTarjeta, mostrar: false});
-      }
+      notificaciones.exitoCompra(total);
 
-      // NOTIFICACIÓN DE ÉXITO
-      mostrarNotificacion(
-        "¡Compra realizada con éxito!",
-        `Total: $${total.toFixed(2)}\nRedirigiendo a tu compra...`
-      );
-
-      // ✅ REDIRECCIÓN DESPUÉS DE MOSTRAR LA NOTIFICACIÓN
       setTimeout(() => {
         if (pedidos && pedidos.length > 0) {
           navigate(`/pedido/${pedidos[0].idPedido}`);
@@ -301,15 +244,56 @@ export default function CheckoutUnificado() {
 
     } catch (err) {
       console.error("❌ Error:", err);
-      mostrarNotificacion(
-        "Error al procesar la compra",
-        err.message
-      );
+      notificaciones.error("Error al procesar la compra", err.message);
     } finally {
       setProcesando(false);
     }
   };
 
+  // ==================== MANEJAR CONFIRMACIÓN ====================
+  const handleConfirmacionPago = () => {
+    if (!validarFormulario()) return;
+
+    if (metodoPago === "EFECTIVO") {
+      confirmacionesPago.efectivo(
+        total,
+        parseFloat(montoEfectivo || total),
+        finalizarCompra,
+        () => {
+          console.log("Compra cancelada");
+        }
+      );
+    } else if (metodoPago === "TARJETA") {
+      const tarjetaInfo = {
+        numero: numTarjeta || "4111 1111 1111 1111",
+        fecha: `${mesExpiracion.padStart(2, '0') || '08'} / ${anioExpiracion || '2032'}`,
+        titular: titular || "Maura Calle"
+      };
+      
+      confirmacionesPago.tarjeta(
+        total,
+        tarjetaInfo,
+        finalizarCompra,
+        () => {
+          console.log("Compra cancelada");
+        }
+      );
+    } else if (metodoPago === "TRANSFERENCIA") {
+      confirmacionesPago.transferencia(
+        total,
+        comprobante,
+        finalizarCompra,
+        () => {
+          console.log("Compra cancelada");
+        }
+      );
+    } else {
+      // Para otros métodos, ejecutar directamente
+      finalizarCompra();
+    }
+  };
+
+  // ==================== CARRITO VACÍO ====================
   if (!carrito || carrito.length === 0) {
     return (
       <div style={{
@@ -379,14 +363,13 @@ export default function CheckoutUnificado() {
     );
   }
 
-  // Generar años para el select (desde actual hasta +10 años)
+  // ==================== DATOS PARA SELECTS ====================
   const anios = [];
   const anioActual = new Date().getFullYear();
   for (let i = anioActual; i <= anioActual + 10; i++) {
     anios.push(i);
   }
 
-  // Nombres de los meses (solo números para ser más compacto)
   const meses = [
     { valor: "01", nombre: "01" },
     { valor: "02", nombre: "02" },
@@ -402,6 +385,7 @@ export default function CheckoutUnificado() {
     { valor: "12", nombre: "12" }
   ];
 
+  // ==================== RENDER ====================
   return (
     <div style={{
       minHeight: "100vh",
@@ -410,320 +394,30 @@ export default function CheckoutUnificado() {
       overflowX: "hidden"
     }}>
       
-      {/* NOTIFICACIÓN FLOTANTE SIMPLE */}
-      {notificacion.mostrar && (
-        <div 
-          style={{
-            position: "fixed",
-            top: "30px",
-            right: "30px",
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            gap: "15px",
-            padding: "20px 25px",
-            borderRadius: "16px",
-            boxShadow: "0 10px 40px rgba(0, 0, 0, 0.15)",
-            border: "2px solid #10B9850",
-            maxWidth: "400px",
-            minWidth: "350px",
-            animation: "slideIn 0.4s ease-out forwards",
-            fontFamily: "'Inter', sans-serif",
-            backdropFilter: "blur(10px)",
-            transform: "translateX(0)",
-            opacity: 1,
-            transition: "all 0.4s ease",
-            background: "linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.08))",
-            borderColor: "rgba(16, 185, 129, 0.5)",
-            color: "#10B981"
-          }}
-        >
-          <div style={{
-            fontSize: "32px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: "50px",
-            height: "50px",
-            borderRadius: "12px",
-            background: "rgba(255, 255, 255, 0.9)",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)"
-          }}>
-            ✅
-          </div>
-          
-          <div style={{ flex: 1 }}>
-            <div style={{
-              fontSize: "16px",
-              fontWeight: "800",
-              marginBottom: "5px",
-              letterSpacing: "0.3px"
-            }}>
-              {notificacion.titulo}
-            </div>
-            <div style={{
-              fontSize: "14px",
-              fontWeight: "500",
-              opacity: 0.9,
-              lineHeight: "1.5",
-              whiteSpace: "pre-line"
-            }}>
-              {notificacion.mensaje}
-            </div>
-          </div>
-          
-          <button 
-            onClick={() => setNotificacion({...notificacion, mostrar: false})}
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: "18px",
-              color: "inherit",
-              opacity: 0.7,
-              cursor: "pointer",
-              padding: "5px",
-              borderRadius: "50%",
-              width: "30px",
-              height: "30px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "all 0.2s ease"
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = "1";
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.2)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = "0.7";
-              e.currentTarget.style.background = "none";
-            }}
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* MODAL DE CONFIRMACIÓN PARA TARJETA */}
-      {confirmacionTarjeta.mostrar && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 10000,
-          backdropFilter: "blur(5px)"
-        }}>
-          <div style={{
-            background: "white",
-            borderRadius: "24px",
-            padding: "40px",
-            maxWidth: "450px",
-            width: "90%",
-            boxShadow: "0 20px 60px rgba(0, 0, 0, 0.25)",
-            animation: "slideIn 0.3s ease-out",
-            fontFamily: "'Inter', sans-serif"
-          }}>
-            {/* Icono de tarjeta */}
-            <div style={{
-              fontSize: "48px",
-              textAlign: "center",
-              marginBottom: "20px",
-              color: "#3B82F6"
-            }}>
-              💳
-            </div>
-            
-            {/* Título */}
-            <h2 style={{
-              textAlign: "center",
-              fontSize: "24px",
-              fontWeight: "800",
-              color: "#2C3E50",
-              marginBottom: "10px",
-              fontFamily: "'Playfair Display', serif"
-            }}>
-              Confirmar compra con tarjeta
-            </h2>
-            
-            {/* Mensaje */}
-            <p style={{
-              textAlign: "center",
-              fontSize: "18px",
-              color: "#64748b",
-              marginBottom: "30px",
-              lineHeight: "1.6"
-            }}>
-              ¿Confirmar compra por <strong style={{ color: "#FF6B35" }}>${confirmacionTarjeta.monto.toFixed(2)}</strong> con <strong>TARJETA</strong>?
-            </p>
-            
-            {/* Detalles de pago */}
-            <div style={{
-              background: "#f8fafc",
-              borderRadius: "12px",
-              padding: "20px",
-              marginBottom: "30px",
-              border: "2px solid #e5e7eb"
-            }}>
-              <div style={{ 
-                display: "flex", 
-                justifyContent: "space-between", 
-                marginBottom: "10px",
-                fontSize: "16px"
-              }}>
-                <span style={{ color: "#64748b" }}>Subtotal:</span>
-                <span style={{ fontWeight: "600" }}>${subtotal.toFixed(2)}</span>
-              </div>
-              
-              <div style={{ 
-                display: "flex", 
-                justifyContent: "space-between", 
-                marginBottom: "10px",
-                fontSize: "16px"
-              }}>
-                <span style={{ color: "#64748b" }}>IVA (12%):</span>
-                <span style={{ fontWeight: "600" }}>${iva.toFixed(2)}</span>
-              </div>
-              
-              <div style={{ 
-                display: "flex", 
-                justifyContent: "space-between",
-                paddingTop: "10px",
-                borderTop: "2px solid #e5e7eb",
-                fontSize: "18px",
-                fontWeight: "700"
-              }}>
-                <span style={{ color: "#2C3E50" }}>Total a pagar:</span>
-                <span style={{ color: "#FF6B35" }}>${total.toFixed(2)}</span>
-              </div>
-            </div>
-            
-            {/* Información de la tarjeta */}
-            <div style={{
-              background: "#f0f9ff",
-              borderRadius: "12px",
-              padding: "15px",
-              marginBottom: "30px",
-              border: "2px solid #dbeafe"
-            }}>
-              <h3 style={{
-                fontSize: "14px",
-                fontWeight: "600",
-                color: "#3B82F6",
-                marginBottom: "10px",
-                textTransform: "uppercase",
-                letterSpacing: "1px"
-              }}>
-                Método de pago
-              </h3>
-              
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div style={{
-                  fontSize: "24px",
-                  color: "#3B82F6"
-                }}>
-                  💳
-                </div>
-                <div>
-                  <div style={{
-                    fontFamily: "'Courier New', monospace",
-                    fontSize: "16px",
-                    fontWeight: "600",
-                    color: "#2C3E50",
-                    letterSpacing: "1px"
-                  }}>
-                    {numTarjeta || "4111 1111 1111 1111"}
-                  </div>
-                  <div style={{
-                    fontSize: "14px",
-                    color: "#64748b",
-                    marginTop: "2px"
-                  }}>
-                    {mesExpiracion && anioExpiracion 
-                      ? `${mesExpiracion.padStart(2, '0')} / ${anioExpiracion}`
-                      : "MM / AAAA"
-                    } • {titular || "Nombre del titular"}
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Botones */}
-            <div style={{
-              display: "flex",
-              gap: "15px"
-            }}>
-              <button
-                onClick={() => {
-                  setConfirmacionTarjeta({...confirmacionTarjeta, mostrar: false});
-                  finalizarCompra();
-                }}
-                style={{
-                  flex: 1,
-                  background: "linear-gradient(135deg, #10B981 0%, #34D399 100%)",
-                  color: "white",
-                  border: "none",
-                  padding: "18px",
-                  borderRadius: "12px",
-                  fontSize: "16px",
-                  fontWeight: "700",
-                  cursor: "pointer",
-                  transition: "all 0.3s ease",
-                  fontFamily: "'Inter', sans-serif"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.boxShadow = "0 8px 20px rgba(16, 185, 129, 0.3)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
-              >
-                Aceptar
-              </button>
-              
-              <button
-                onClick={() => setConfirmacionTarjeta({...confirmacionTarjeta, mostrar: false})}
-                style={{
-                  flex: 1,
-                  background: "white",
-                  color: "#64748b",
-                  border: "2px solid #e5e7eb",
-                  padding: "18px",
-                  borderRadius: "12px",
-                  fontSize: "16px",
-                  fontWeight: "700",
-                  cursor: "pointer",
-                  transition: "all 0.3s ease",
-                  fontFamily: "'Inter', sans-serif"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.borderColor = "#EF4444";
-                  e.currentTarget.style.color = "#EF4444";
-                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(239, 68, 68, 0.1)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.borderColor = "#e5e7eb";
-                  e.currentTarget.style.color = "#64748b";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* HEADER CON CÍRCULOS ANIMADOS */}
+      {/* NOTIFICACIONES */}
+      <Notificaciones 
+        notificacion={notificacion}
+        setNotificacion={setNotificacion}
+        confirmacionPago={confirmacionPago}
+        setConfirmacionPago={setConfirmacionPago}
+        onConfirmarPago={() => {
+          if (confirmacionPago?.onConfirmar) {
+            confirmacionPago.onConfirmar();
+          }
+        }}
+        onCancelarPago={() => {
+          if (confirmacionPago?.onCancelar) {
+            confirmacionPago.onCancelar();
+          }
+          setConfirmacionPago(null);
+        }}
+        position="top-right"
+        autoClose={4000}
+        showProgress={true}
+        pauseOnHover={true}
+      />
+      
+      {/* HEADER */}
       <div style={{
         background: "white",
         padding: "80px 20px 60px 20px",
@@ -845,7 +539,6 @@ export default function CheckoutUnificado() {
         
         {/* COLUMNA IZQUIERDA - PRODUCTOS */}
         <div>
-          {/* HEADER DE PRODUCTOS */}
           <div style={{
             background: "white",
             borderRadius: "16px",
@@ -903,7 +596,7 @@ export default function CheckoutUnificado() {
             </div>
           </div>
 
-          {/* LISTA DE PRODUCTOS CON SCROLL */}
+          {/* LISTA DE PRODUCTOS */}
           <div style={{
             background: "white",
             borderRadius: "16px",
@@ -919,10 +612,8 @@ export default function CheckoutUnificado() {
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = "translateY(0)";
             e.currentTarget.style.boxShadow = "0 8px 30px rgba(0, 0, 0, 0.08)";
-          }}
-          >
+          }}>
             
-            {/* PRODUCTOS CON SCROLL */}
             <div style={{ 
               padding: "25px",
               height: "100%",
@@ -1104,7 +795,7 @@ export default function CheckoutUnificado() {
               Método de pago
             </h2>
 
-            {/* SELECTOR DE MÉTODO */}
+            {/* SELECTOR */}
             <div style={{ marginBottom: "25px" }}>
               <select
                 value={metodoPago}
@@ -1275,7 +966,6 @@ export default function CheckoutUnificado() {
 
             {metodoPago === "TARJETA" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                {/* NÚMERO DE TARJETA */}
                 <div>
                   <input
                     type="text"
@@ -1307,14 +997,12 @@ export default function CheckoutUnificado() {
                   />
                 </div>
 
-                {/* CVV Y FECHA EN FILA */}
                 <div style={{ 
                   display: "grid", 
                   gridTemplateColumns: "1fr 2fr", 
                   gap: "15px",
                   alignItems: "center"
                 }}>
-                  {/* CVV */}
                   <div>
                     <input
                       type="text"
@@ -1349,7 +1037,6 @@ export default function CheckoutUnificado() {
                     />
                   </div>
 
-                  {/* FECHA DE EXPIRACIÓN */}
                   <div style={{ 
                     display: "flex", 
                     gap: "10px",
@@ -1440,7 +1127,6 @@ export default function CheckoutUnificado() {
                   </div>
                 </div>
 
-                {/* NOMBRE DEL TITULAR */}
                 <div>
                   <input
                     type="text"
@@ -1475,18 +1161,7 @@ export default function CheckoutUnificado() {
 
             {/* BOTÓN FINALIZAR COMPRA */}
             <button
-              onClick={() => {
-                if (metodoPago === "TARJETA") {
-                  // Mostrar confirmación para tarjeta
-                  setConfirmacionTarjeta({
-                    mostrar: true,
-                    monto: total,
-                    metodo: "TARJETA"
-                  });
-                } else {
-                  finalizarCompra();
-                }
-              }}
+              onClick={handleConfirmacionPago}
               disabled={procesando}
               style={{
                 width: "100%",
@@ -1546,6 +1221,7 @@ export default function CheckoutUnificado() {
 
       <Footer />
       
+      {/* ESTILOS */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
         
@@ -1665,7 +1341,7 @@ export default function CheckoutUnificado() {
         
         @media (max-width: 480px) {
           h1 {
-            fontSize: 32px !important;
+            font-size: 32px !important;
           }
           
           .product-item {

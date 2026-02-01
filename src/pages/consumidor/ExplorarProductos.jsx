@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCarrito } from "../../context/CarritoContext.jsx";
+import useNotification from "../../hooks/useNotification.jsx";
+import Notificaciones from "../../components/Notificaciones.jsx";
 import Footer from "../../components/Footer.jsx";
 import StarRating from "../../components/StarRating.jsx";
 
@@ -8,6 +10,16 @@ export default function ExplorarProductos() {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
   const navigate = useNavigate();
   const { agregarCarrito } = useCarrito();
+  
+  // Hook de notificaciones
+  const {
+    notificacion,
+    setNotificacion,
+    notificaciones,
+    confirmacionPago,
+    setConfirmacionPago,
+    ocultarNotificacion
+  } = useNotification();
 
   // ==================== STATES ====================
   const [productos, setProductos] = useState([]);
@@ -21,31 +33,46 @@ export default function ExplorarProductos() {
   const [filtroCategoria, setFiltroCategoria] = useState("");
   const [filtroSubcategoria, setFiltroSubcategoria] = useState("");
 
+  // ==================== VERIFICAR MODO INVITADO ====================
+  useEffect(() => {
+    const checkGuestMode = () => {
+      const token = localStorage.getItem("authToken");
+      const user = localStorage.getItem("user");
+      
+      if (!token && !user) {
+        setIsGuestMode(true);
+      } else {
+        setIsGuestMode(false);
+      }
+    };
+
+    checkGuestMode();
+  }, []);
+
   // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
   useEffect(() => {
-    // Generar círculos de colores vivos como en móvil
     const generateCircles = () => {
       const circles = [];
       const colors = [
-        "rgba(255, 107, 53, 0.15)",    // Naranja claro
-        "rgba(52, 211, 153, 0.15)",    // Verde esmeralda
-        "rgba(59, 130, 246, 0.15)",    // Azul
-        "rgba(168, 85, 247, 0.15)",    // Morado
-        "rgba(239, 68, 68, 0.15)",     // Rojo
-        "rgba(245, 158, 11, 0.15)",    // Amarillo
-        "rgba(14, 165, 233, 0.15)",    // Azul claro
-        "rgba(236, 72, 153, 0.15)"     // Rosa
+        "rgba(255, 107, 53, 0.15)",
+        "rgba(52, 211, 153, 0.15)",
+        "rgba(59, 130, 246, 0.15)",
+        "rgba(168, 85, 247, 0.15)",
+        "rgba(239, 68, 68, 0.15)",
+        "rgba(245, 158, 11, 0.15)",
+        "rgba(14, 165, 233, 0.15)",
+        "rgba(236, 72, 153, 0.15)"
       ];
       
       for (let i = 0; i < 12; i++) {
         circles.push({
           id: i,
-          size: Math.random() * 100 + 50, // Tamaño entre 50px y 150px
+          size: Math.random() * 100 + 50,
           top: Math.random() * 100,
           left: Math.random() * 100,
           color: colors[Math.floor(Math.random() * colors.length)],
           animationDelay: Math.random() * 5 + "s",
-          animationDuration: Math.random() * 25 + 30 + "s", // Muy lento
+          animationDuration: Math.random() * 25 + 30 + "s",
           blur: Math.random() * 4 + 2 + "px",
           zIndex: 0
         });
@@ -55,7 +82,6 @@ export default function ExplorarProductos() {
 
     generateCircles();
     
-    // Animar los círculos muy lentamente
     const interval = setInterval(() => {
       setCirclePositions(prev => 
         prev.map(circle => ({
@@ -65,7 +91,7 @@ export default function ExplorarProductos() {
           animationDelay: Math.random() * 4 + "s"
         }))
       );
-    }, 35000); // Cambia cada 35 segundos (super lento)
+    }, 35000);
 
     return () => clearInterval(interval);
   }, []);
@@ -84,19 +110,6 @@ export default function ExplorarProductos() {
       }
     };
     cargarDatos();
-
-    const checkGuestMode = () => {
-      const token = localStorage.getItem("authToken");
-      const user = localStorage.getItem("user");
-      
-      if (!token && !user) {
-        setIsGuestMode(true);
-      } else {
-        setIsGuestMode(false);
-      }
-    };
-
-    checkGuestMode();
   }, []);
 
   // ==================== FETCH ====================
@@ -108,6 +121,7 @@ export default function ExplorarProductos() {
       setProductos(data);
     } catch (e) {
       console.error("❌ Error cargando productos", e);
+      notificaciones.error("Error", "No se pudieron cargar los productos", "caja");
     }
   };
 
@@ -143,48 +157,38 @@ export default function ExplorarProductos() {
     return cumpleBusqueda && cumpleCategoria && cumpleSubcategoria;
   });
 
-  // 🔥 FUNCIÓN PARA AGREGAR AL CARRITO
+  // 🔥 FUNCIÓN PARA AGREGAR AL CARRITO - CON NOTIFICACIÓN DE LOGIN
   const handleAgregarCarrito = async (producto) => {
     if (producto.stockProducto <= 0) {
-      alert("Sin stock: Este producto no está disponible por el momento");
+      notificaciones.errorStock();
       return;
     }
 
-    if (isGuestMode) {
-      let carritoLocal = JSON.parse(localStorage.getItem("guestCart") || "[]");
-      const existingIndex = carritoLocal.findIndex(
-        item => item.producto.idProducto === producto.idProducto
+    // ✅ Verificar si el usuario está logueado
+    const usuario = JSON.parse(localStorage.getItem("user"));
+    const token = localStorage.getItem("authToken");
+
+    if (!usuario || !token) {
+      // MOSTRAR NOTIFICACIÓN DE LOGIN REQUERIDO
+      notificaciones.advertencia("Inicia sesión", "Debes iniciar sesión para agregar productos al carrito", "🔒");
+      
+      // Redirigir al login después de un breve tiempo
+      setTimeout(() => {
+        navigate("/LoginModal");
+      }, 1500);
+      return;
+    }
+
+    try {
+      await agregarCarrito(producto.idProducto, 1);
+      notificaciones.exitoAgregarCarrito(producto.nombreProducto);
+    } catch (error) {
+      console.error(error);
+      notificaciones.error(
+        "Error al agregar", 
+        "No se pudo agregar el producto al carrito",
+        "❌"
       );
-      
-      let nuevoCarrito;
-      
-      if (existingIndex >= 0) {
-        nuevoCarrito = [...carritoLocal];
-        nuevoCarrito[existingIndex].cantidad += 1;
-      } else {
-        nuevoCarrito = [...carritoLocal, { producto, cantidad: 1 }];
-      }
-      
-      localStorage.setItem("guestCart", JSON.stringify(nuevoCarrito));
-      alert(`✅ ¡Agregado! ${producto.nombreProducto} agregado al carrito`);
-      
-    } else {
-      const usuario = JSON.parse(localStorage.getItem("user"));
-      const token = localStorage.getItem("authToken");
-
-      if (!usuario || !token) {
-        alert("⚠️ Debes iniciar sesión para agregar productos al carrito");
-        navigate("/login");
-        return;
-      }
-
-      try {
-        await agregarCarrito(producto.idProducto, 1);
-        alert("✅ Producto añadido al carrito");
-      } catch (error) {
-        console.error(error);
-        alert("❌ No se pudo agregar el producto al carrito");
-      }
     }
   };
 
@@ -196,9 +200,21 @@ export default function ExplorarProductos() {
       overflowX: "hidden"
     }}>
       
-      {/* HEADER BLANCO CON CÍRCULOS DE COLORES - COMO EN MÓVIL */}
+      {/* COMPONENTE DE NOTIFICACIONES */}
+      <Notificaciones 
+        notificacion={notificacion}
+        setNotificacion={setNotificacion}
+        confirmacionPago={confirmacionPago}
+        setConfirmacionPago={setConfirmacionPago}
+        position="top-right"
+        autoClose={4000}
+        showProgress={true}
+        pauseOnHover={true}
+      />
+      
+      {/* HEADER BLANCO CON CÍRCULOS DE COLORES */}
       <div style={{
-        background: "white", // FONDO BLANCO
+        background: "white",
         padding: "90px 20px 70px 20px",
         textAlign: "center",
         position: "relative",
@@ -207,7 +223,6 @@ export default function ExplorarProductos() {
         borderBottom: "1px solid #f1f5f9"
       }}>
         
-        {/* CÍRCULOS DE COLORES ANIMADOS - DETRÁS DEL CONTENIDO */}
         {circlePositions.map(circle => (
           <div 
             key={circle.id}
@@ -233,13 +248,12 @@ export default function ExplorarProductos() {
           zIndex: "10",
           padding: "0 15px"
         }}>
-          {/* Título principal - NARANJA */}
           <div style={{
             fontFamily: "'Playfair Display', 'Georgia', serif",
             fontSize: "14px",
             letterSpacing: "3px",
             textTransform: "uppercase",
-            color: "#FF6B35", // NARANJA
+            color: "#FF6B35",
             marginBottom: "8px",
             fontWeight: "500"
           }}>
@@ -250,7 +264,7 @@ export default function ExplorarProductos() {
             fontFamily: "'Playfair Display', 'Georgia', serif",
             fontSize: "48px",
             fontWeight: "700",
-            color: "#FF6B35", // NARANJA
+            color: "#FF6B35",
             margin: "0 0 16px 0",
             letterSpacing: "1px",
             lineHeight: "1.2"
@@ -258,9 +272,8 @@ export default function ExplorarProductos() {
             Explorar Productos
           </h1>
           
-          {/* Subtítulo - MORADO CLARO */}
           <p style={{
-            color: "#8B5CF6", // MORADO CLARO
+            color: "#8B5CF6",
             fontSize: "16px",
             margin: "0 auto",
             maxWidth: "600px",
@@ -274,9 +287,9 @@ export default function ExplorarProductos() {
         </div>
       </div>
 
-      {/* BÚSQUEDA Y FILTROS - MANTENER NARANJA EN BOTONES */}
+      {/* BÚSQUEDA Y FILTROS */}
       <div style={{
-        maxWidth: "1200px",
+        maxWidth: "1400px",
         margin: "0 auto 40px auto",
         padding: "0 20px"
       }}>
@@ -457,7 +470,6 @@ export default function ExplorarProductos() {
             paddingTop: "20px",
             borderTop: "1px solid #f1f5f9"
           }}>
-            {/* CONTADOR */}
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <div style={{
                 fontSize: "28px",
@@ -489,7 +501,6 @@ export default function ExplorarProductos() {
               </div>
             </div>
 
-            {/* BOTONES DE ACCIÓN - CON NARANJA */}
             <div style={{ display: "flex", gap: "15px" }}>
               {(busqueda || filtroCategoria || filtroSubcategoria) && (
                 <button
@@ -497,6 +508,7 @@ export default function ExplorarProductos() {
                     setBusqueda("");
                     setFiltroCategoria("");
                     setFiltroSubcategoria("");
+                    notificaciones.info("Filtros limpiados", "Se han restablecido todos los filtros de búsqueda", "🔄");
                   }}
                   style={{
                     padding: "14px 28px",
@@ -531,9 +543,9 @@ export default function ExplorarProductos() {
         </div>
       </div>
 
-      {/* GRID DE PRODUCTOS - MANTENER NARANJA */}
+      {/* GRID DE PRODUCTOS - 6 CARDS POR FILA */}
       <div style={{
-        maxWidth: "1200px",
+        maxWidth: "1400px",
         margin: "0 auto 60px auto",
         padding: "0 20px"
       }}>
@@ -550,7 +562,7 @@ export default function ExplorarProductos() {
               width: "60px",
               height: "60px",
               border: "5px solid #f1f5f9",
-              borderTop: "5px solid #FF6B35", // NARANJA
+              borderTop: "5px solid #FF6B35",
               borderRadius: "50%",
               animation: "spin 1s linear infinite"
             }}></div>
@@ -568,195 +580,244 @@ export default function ExplorarProductos() {
           <>
             <div className="grid-container" style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: "25px",
+              gridTemplateColumns: "repeat(6, 1fr)",
+              gap: "20px",
               marginBottom: "50px"
             }}>
-              {productosFiltrados.map(p => (
-                <div
-                  key={p.idProducto}
-                  style={{
-                    background: "white",
-                    borderRadius: "16px",
-                    overflow: "hidden",
-                    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
-                    transition: "all 0.4s ease",
-                    cursor: "pointer",
-                    position: "relative",
-                    border: "1px solid #f1f5f9"
-                  }}
-                  onClick={() => navigate(`/producto/${p.idProducto}`)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-8px)";
-                    e.currentTarget.style.boxShadow = "0 15px 35px rgba(0, 0, 0, 0.15)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.08)";
-                  }}
-                >
-                  {/* Imagen del producto */}
-                  <div style={{
-                    position: "relative",
-                    overflow: "hidden",
-                    height: "200px",
-                    background: "#f8f9fa"
-                  }}>
-                    <img
-                      src={p.imagenProducto}
-                      alt={p.nombreProducto}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        transition: "transform 0.5s ease"
-                      }}
-                    />
-                    
-                    {/* Badge de stock - CON NARANJA */}
-                    <div style={{
-                      position: "absolute",
-                      top: "15px",
-                      right: "15px",
-                      background: p.stockProducto <= 0 ? "#EF4444" : (p.stockProducto <= 10 ? "#F59E0B" : "#10B981"),
-                      color: "white",
-                      padding: "6px 14px",
-                      borderRadius: "20px",
-                      fontSize: "12px",
-                      fontWeight: "700",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "5px",
-                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
-                      zIndex: "2",
-                      fontFamily: "'Inter', sans-serif"
-                    }}>
-                      {p.stockProducto <= 0 ? (
-                        <>✗ Agotado</>
-                      ) : p.stockProducto <= 10 ? (
-                        <>⚡ {p.stockProducto} disponibles</>
-                      ) : (
-                        <>✓ Disponible</>
-                      )}
-                    </div>
-                  </div>
+              {productosFiltrados.map(p => {
+                // Verificar si el usuario está logueado
+                const usuario = JSON.parse(localStorage.getItem("user"));
+                const token = localStorage.getItem("authToken");
+                const puedeAgregar = usuario && token;
 
-                  {/* Información del producto */}
-                  <div style={{ padding: "22px" }}>
-                    {/* Nombre del producto */}
-                    <h3 style={{
-                      fontSize: "18px",
-                      fontWeight: "700",
-                      color: "#2C3E50",
-                      margin: "0 0 8px 0",
-                      lineHeight: "1.3",
-                      minHeight: "46px",
-                      fontFamily: "'Inter', sans-serif"
-                    }}>
-                      {p.nombreProducto}
-                    </h3>
-
-                    {/* Categoría */}
-                    <div style={{
+                return (
+                  <div
+                    key={p.idProducto}
+                    style={{
+                      background: "white",
+                      borderRadius: "16px",
+                      overflow: "hidden",
+                      boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
+                      transition: "all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                      cursor: "pointer",
+                      position: "relative",
+                      border: "2px solid #f1f5f9",
+                      height: "100%",
                       display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      marginBottom: "12px"
+                      flexDirection: "column"
+                    }}
+                    onClick={() => navigate(`/producto/${p.idProducto}`)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-8px)";
+                      e.currentTarget.style.boxShadow = "0 20px 40px rgba(255, 107, 53, 0.2)";
+                      e.currentTarget.style.borderColor = "#FF6B35";
+                      e.currentTarget.style.background = "linear-gradient(135deg, #ffffff 0%, #fff8f5 100%)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.08)";
+                      e.currentTarget.style.borderColor = "#f1f5f9";
+                      e.currentTarget.style.background = "white";
+                    }}
+                  >
+                    {/* Imagen del producto */}
+                    <div style={{
+                      position: "relative",
+                      overflow: "hidden",
+                      height: "180px",
+                      background: "#f8f9fa",
+                      transition: "all 0.4s ease"
                     }}>
-                      <span style={{
-                        fontSize: "12px",
-                        color: "#64748b",
-                        background: "#f1f5f9",
-                        padding: "4px 10px",
-                        borderRadius: "12px",
-                        fontWeight: "600",
-                        fontFamily: "'Inter', sans-serif"
+                      <img
+                        src={p.imagenProducto}
+                        alt={p.nombreProducto}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          transition: "transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.transform = "scale(1.1)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.transform = "scale(1)";
+                        }}
+                      />
+                      
+                      {/* Badge de stock */}
+                      <div style={{
+                        position: "absolute",
+                        top: "12px",
+                        right: "12px",
+                        background: p.stockProducto <= 0 ? "#EF4444" : (p.stockProducto <= 10 ? "#F59E0B" : "#10B981"),
+                        color: "white",
+                        padding: "5px 12px",
+                        borderRadius: "20px",
+                        fontSize: "11px",
+                        fontWeight: "700",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+                        zIndex: "2",
+                        fontFamily: "'Inter', sans-serif",
+                        transition: "all 0.3s ease"
                       }}>
-                        {p.nombreSubcategoria || p.nombreCategoria || "General"}
-                      </span>
+                        {p.stockProducto <= 0 ? (
+                          <>✗ Agotado</>
+                        ) : p.stockProducto <= 10 ? (
+                          <>⚡ {p.stockProducto} disp.</>
+                        ) : (
+                          <>✓ Disponible</>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Valoración */}
-                    {p.promedioValoracion !== undefined && p.promedioValoracion > 0 && (
+                    {/* Información del producto */}
+                    <div style={{ 
+                      padding: "18px", 
+                      flex: "1",
+                      display: "flex",
+                      flexDirection: "column"
+                    }}>
+                      {/* Nombre del producto */}
+                      <h3 style={{
+                        fontSize: "15px",
+                        fontWeight: "700",
+                        color: "#2C3E50",
+                        margin: "0 0 8px 0",
+                        lineHeight: "1.3",
+                        minHeight: "40px",
+                        fontFamily: "'Inter', sans-serif",
+                        transition: "color 0.3s ease"
+                      }}>
+                        {p.nombreProducto}
+                      </h3>
+
+                      {/* Categoría */}
                       <div style={{
                         display: "flex",
                         alignItems: "center",
                         gap: "8px",
-                        marginBottom: "15px"
+                        marginBottom: "10px"
                       }}>
-                        <StarRating rating={p.promedioValoracion || 0} />
                         <span style={{
-                          fontSize: "13px",
+                          fontSize: "11px",
                           color: "#64748b",
+                          background: "#f1f5f9",
+                          padding: "3px 8px",
+                          borderRadius: "10px",
                           fontWeight: "600",
-                          fontFamily: "'Inter', sans-serif"
+                          fontFamily: "'Inter', sans-serif",
+                          transition: "all 0.3s ease"
                         }}>
-                          {p.promedioValoracion.toFixed(1)}
+                          {p.nombreSubcategoria || p.nombreCategoria || "General"}
                         </span>
                       </div>
-                    )}
 
-                    {/* Pie del producto */}
-                    <div style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginTop: "15px"
-                    }}>
-                      {/* Precio - NARANJA */}
-                      <div>
+                      {/* Valoración */}
+                      {p.promedioValoracion !== undefined && p.promedioValoracion > 0 && (
                         <div style={{
-                          fontSize: "28px",
-                          fontWeight: "800",
-                          color: "#FF6B35", // NARANJA
-                          lineHeight: "1",
-                          fontFamily: "'Inter', sans-serif"
-                        }}>
-                          ${p.precioProducto.toFixed(2)}
-                        </div>
-                      </div>
-
-                      {/* Botón de agregar - NARANJA */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAgregarCarrito(p);
-                        }}
-                        disabled={p.stockProducto <= 0}
-                        style={{
-                          background: p.stockProducto <= 0 ? "#94a3b8" : "#FF6B35", // NARANJA
-                          width: "50px",
-                          height: "50px",
-                          borderRadius: "14px",
-                          border: "none",
                           display: "flex",
-                          justifyContent: "center",
                           alignItems: "center",
-                          cursor: p.stockProducto > 0 ? "pointer" : "not-allowed",
-                          transition: "all 0.3s ease",
-                          fontSize: "22px"
-                        }}
-                        onMouseEnter={(e) => {
-                          if (p.stockProducto > 0) {
-                            e.currentTarget.style.transform = "scale(1.1)";
-                            e.currentTarget.style.background = "#FF8E53";
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (p.stockProducto > 0) {
-                            e.currentTarget.style.transform = "scale(1)";
-                            e.currentTarget.style.background = "#FF6B35";
-                          }
-                        }}
-                      >
-                        <span style={{ color: "white" }}>
-                          {p.stockProducto > 0 ? "🛒" : "✗"}
-                        </span>
-                      </button>
+                          gap: "6px",
+                          marginBottom: "12px"
+                        }}>
+                          <StarRating rating={p.promedioValoracion || 0} size="16px" />
+                          <span style={{
+                            fontSize: "12px",
+                            color: "#64748b",
+                            fontWeight: "600",
+                            fontFamily: "'Inter', sans-serif"
+                          }}>
+                            {p.promedioValoracion.toFixed(1)}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Pie del producto */}
+                      <div style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginTop: "auto",
+                        paddingTop: "15px",
+                        borderTop: "1px solid #f1f5f9"
+                      }}>
+                        {/* Precio */}
+                        <div>
+                          <div style={{
+                            fontSize: "22px",
+                            fontWeight: "800",
+                            color: "#FF6B35",
+                            lineHeight: "1",
+                            fontFamily: "'Inter', sans-serif",
+                            transition: "all 0.3s ease"
+                          }}>
+                            ${p.precioProducto.toFixed(2)}
+                          </div>
+                          {p.precioAnterior && p.precioAnterior > p.precioProducto && (
+                            <div style={{
+                              fontSize: "12px",
+                              color: "#94a3b8",
+                              textDecoration: "line-through",
+                              marginTop: "2px"
+                            }}>
+                              ${p.precioAnterior.toFixed(2)}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Botón de agregar - SIEMPRE VISIBLE */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAgregarCarrito(p);
+                          }}
+                          disabled={p.stockProducto <= 0}
+                          style={{
+                            background: p.stockProducto <= 0 ? "#94a3b8" : "#FF6B35",
+                            width: "44px",
+                            height: "44px",
+                            borderRadius: "12px",
+                            border: "none",
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            cursor: p.stockProducto > 0 ? "pointer" : "not-allowed",
+                            transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                            fontSize: "20px",
+                            position: "relative",
+                            overflow: "hidden"
+                          }}
+                          onMouseEnter={(e) => {
+                            if (p.stockProducto > 0) {
+                              e.currentTarget.style.transform = "scale(1.15) rotate(5deg)";
+                              e.currentTarget.style.background = "#FF8E53";
+                              e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 107, 53, 0.4)";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (p.stockProducto > 0) {
+                              e.currentTarget.style.transform = "scale(1)";
+                              e.currentTarget.style.background = "#FF6B35";
+                              e.currentTarget.style.boxShadow = "none";
+                            }
+                          }}
+                        >
+                          <span style={{ 
+                            color: "white",
+                            transition: "transform 0.3s ease"
+                          }}>
+                            {p.stockProducto > 0 ? "🛒" : "✗"}
+                          </span>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* FINAL */}
@@ -823,10 +884,11 @@ export default function ExplorarProductos() {
                 setBusqueda("");
                 setFiltroCategoria("");
                 setFiltroSubcategoria("");
+                notificaciones.info("Búsqueda restablecida", "Se muestran todos los productos disponibles", "📊");
               }}
               style={{
                 padding: "16px 36px",
-                background: "#FF6B35", // NARANJA
+                background: "#FF6B35",
                 color: "white",
                 border: "none",
                 borderRadius: "12px",
@@ -839,10 +901,12 @@ export default function ExplorarProductos() {
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = "translateY(-3px)";
                 e.currentTarget.style.background = "#FF8E53";
+                e.currentTarget.style.boxShadow = "0 10px 25px rgba(255, 107, 53, 0.3)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "translateY(0)";
                 e.currentTarget.style.background = "#FF6B35";
+                e.currentTarget.style.boxShadow = "none";
               }}
             >
               Mostrar todos los productos
@@ -879,18 +943,32 @@ export default function ExplorarProductos() {
           }
         }
         
-        /* Responsive */
+        /* Responsive para 6 cards */
+        @media (max-width: 1400px) {
+          .grid-container {
+            grid-template-columns: repeat(5, 1fr) !important;
+          }
+        }
+        
+        @media (max-width: 1200px) {
+          .grid-container {
+            grid-template-columns: repeat(4, 1fr) !important;
+          }
+        }
+        
+        @media (max-width: 992px) {
+          .grid-container {
+            grid-template-columns: repeat(3, 1fr) !important;
+          }
+        }
+        
         @media (max-width: 768px) {
           .grid-container {
-            grid-templateColumns: repeat(auto-fill, minmax(250px, 1fr)) !important;
+            grid-template-columns: repeat(2, 1fr) !important;
           }
           
           h1 {
             font-size: 36px !important;
-          }
-          
-          .filtros-container {
-            grid-template-columns: 1fr !important;
           }
         }
         
