@@ -1,20 +1,23 @@
-// src/pages/consumidor/EditarPerfilConsumidor.jsx - VERSIÓN CON LAYOUT LADO A LADO
+// src/pages/consumidor/EditarPerfilConsumidor.jsx - VERSIÓN UNIFICADA CON NOTIFICACIONES
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { obtenerPerfil, actualizarPerfil } from "../../services/perfilService";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import Footer from "../../components/Footer";
+import Notificaciones from "../../components/Notificaciones";
+import useNotification from "../../hooks/useNotification";
 
 export default function EditarPerfilConsumidor() {
   const [perfil, setPerfil] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
   const [circlePositions, setCirclePositions] = useState([]);
   const [validationErrors, setValidationErrors] = useState({});
   const navigate = useNavigate();
+
+  // Usar el hook de notificaciones (reemplaza los estados error y success)
+  const { notificacion, setNotificacion, notificaciones } = useNotification();
 
   const nombreRef = useRef("");
   const apellidoRef = useRef("");
@@ -67,7 +70,10 @@ export default function EditarPerfilConsumidor() {
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (!token) {
-      navigate("/LoginModal");
+      notificaciones.advertenciaLogin();
+      setTimeout(() => {
+        navigate("/LoginModal");
+      }, 1500);
       return;
     }
     cargarPerfil();
@@ -76,7 +82,6 @@ export default function EditarPerfilConsumidor() {
   const cargarPerfil = async () => {
     try {
       setLoading(true);
-      setError(null);
       const data = await obtenerPerfil();
       setPerfil(data);
       
@@ -91,9 +96,10 @@ export default function EditarPerfilConsumidor() {
           setFechaNacimiento(date);
         }
       }
+      
     } catch (error) {
       console.error("Error al cargar perfil:", error);
-      setError("No se pudo cargar el perfil. Por favor, intenta nuevamente.");
+      notificaciones.error("Error al cargar", "No se pudo cargar tu perfil. Intenta nuevamente.", "caja");
     } finally {
       setLoading(false);
     }
@@ -152,15 +158,17 @@ export default function EditarPerfilConsumidor() {
   const handleGuardarCambios = async () => {
     try {
       setSaving(true);
-      setError(null);
-      setSuccess(false);
       setValidationErrors({});
       
+      // Validar campos
       if (!validarCampos()) {
         setSaving(false);
-        setError("Por favor corrige los errores en el formulario");
+        notificaciones.advertencia("Error en el formulario", "Hay campos que necesitan ser corregidos", "⚠️");
         return;
       }
+      
+      // Mostrar notificación de proceso iniciado
+      notificaciones.info("Guardando cambios", "Procesando tu información...", "💾");
       
       const datosActualizados = {
         nombre: nombreRef.current.trim(),
@@ -172,22 +180,64 @@ export default function EditarPerfilConsumidor() {
 
       await actualizarPerfil(datosActualizados);
       
-      setSuccess(true);
+      // Mostrar notificación de éxito
+      notificaciones.exito("¡Perfil actualizado!", "Tus cambios se han guardado correctamente", "✅");
       
+      // Redirigir después de un breve delay
       setTimeout(() => {
-        navigate("/perfil");
+        notificaciones.info("Redirigiendo", "Volviendo a tu perfil...", "👤");
+        setTimeout(() => {
+          navigate("/perfil");
+        }, 1000);
       }, 2000);
       
     } catch (error) {
       console.error("Error al guardar:", error);
-      setError(error.message || "No se pudo guardar los cambios. Por favor, intenta nuevamente.");
+      notificaciones.error("Error al guardar", "No se pudieron guardar los cambios. Intenta nuevamente.", "❌");
     } finally {
       setSaving(false);
     }
   };
 
   const handleCancelar = () => {
-    navigate("/perfil");
+    notificaciones.advertencia("Cambios descartados", "No se guardaron los cambios realizados", "🗑️");
+    setTimeout(() => {
+      navigate("/perfil");
+    }, 1000);
+  };
+
+  const handleLimpiarCampos = () => {
+    if (!perfil) return;
+    
+    nombreRef.current = perfil.nombre || "";
+    apellidoRef.current = perfil.apellido || "";
+    direccionRef.current = perfil.direccionConsumidor || "";
+    telefonoRef.current = perfil.telefonoConsumidor || "";
+    setFechaNacimiento(perfil.fechaNacimiento ? new Date(perfil.fechaNacimiento) : null);
+    setValidationErrors({});
+    
+    // Actualizar los valores en los inputs del DOM
+    document.querySelectorAll('input, textarea').forEach(input => {
+      const name = input.name || input.getAttribute('data-field');
+      if (name) {
+        switch(name) {
+          case 'nombre':
+            input.value = perfil.nombre || "";
+            break;
+          case 'apellido':
+            input.value = perfil.apellido || "";
+            break;
+          case 'direccion':
+            input.value = perfil.direccionConsumidor || "";
+            break;
+          case 'telefono':
+            input.value = perfil.telefonoConsumidor || "";
+            break;
+        }
+      }
+    });
+    
+    notificaciones.info("Campos restablecidos", "Todos los campos han sido restablecidos a sus valores originales", "🔄");
   };
 
   if (loading) {
@@ -229,6 +279,12 @@ export default function EditarPerfilConsumidor() {
   const InputField = ({ label, defaultValue, inputRef, placeholder, type = "text", disabled = false, isTextArea = false, fieldName }) => {
     const hasError = validationErrors[fieldName];
     
+    const handleDisabledClick = () => {
+      if (disabled) {
+        notificaciones.advertencia("Campo bloqueado", "Este campo no se puede modificar", "bloqueo");
+      }
+    };
+    
     return (
       <div style={{ marginBottom: "22px" }}>
         <label style={{
@@ -255,6 +311,7 @@ export default function EditarPerfilConsumidor() {
                 setValidationErrors(newErrors);
               }
             }}
+            onClick={handleDisabledClick}
             placeholder={placeholder}
             disabled={disabled}
             style={{
@@ -298,6 +355,7 @@ export default function EditarPerfilConsumidor() {
                 setValidationErrors(newErrors);
               }
             }}
+            onClick={handleDisabledClick}
             placeholder={placeholder}
             disabled={disabled}
             style={{
@@ -350,99 +408,106 @@ export default function EditarPerfilConsumidor() {
             </span>
           </div>
         )}
-        {disabled && (
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "7px",
-            marginTop: "7px",
-            padding: "7px 11px",
-            background: "#FEE2E2",
-            borderRadius: "7px",
-            border: "1px solid #FECACA"
-          }}>
-            <span style={{ fontSize: "13px" }}>🔒</span>
-            <span style={{
-              color: "#DC2626",
-              fontSize: "11px",
-              fontWeight: "600",
-              fontFamily: "'Inter', sans-serif"
-            }}>
-              Este campo no se puede modificar
-            </span>
-          </div>
-        )}
       </div>
     );
   };
 
-  const LockedField = ({ label, value }) => (
-    <div style={{ marginBottom: "22px" }}>
-      <label style={{
-        display: "block",
-        fontSize: "12px",
-        color: "#64748b",
-        fontWeight: "600",
-        marginBottom: "8px",
-        marginTop: "4px",
-        fontFamily: "'Inter', sans-serif",
-        letterSpacing: "0.5px",
-        textTransform: "uppercase"
-      }}>
-        {label}
-      </label>
-      <div style={{
-        backgroundColor: "#f8f9fa",
-        border: "2px solid #e5e7eb",
-        borderRadius: "12px",
-        padding: "12px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center"
-      }}>
-        <span style={{
-          fontSize: "14px",
+  const LockedField = ({ label, value }) => {
+    const handleClick = () => {
+      notificaciones.advertencia("Campo bloqueado", "Este campo no se puede modificar. Contacta con soporte si necesitas cambios.", "bloqueo");
+    };
+    
+    return (
+      <div style={{ marginBottom: "22px" }}>
+        <label style={{
+          display: "block",
+          fontSize: "12px",
           color: "#64748b",
-          fontWeight: "500",
-          fontFamily: "'Inter', sans-serif"
+          fontWeight: "600",
+          marginBottom: "8px",
+          marginTop: "4px",
+          fontFamily: "'Inter', sans-serif",
+          letterSpacing: "0.5px",
+          textTransform: "uppercase"
         }}>
-          {value || "No especificado"}
-        </span>
-        <div style={{
-          backgroundColor: "#FEE2E2",
-          width: "30px",
-          height: "30px",
-          borderRadius: "15px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center"
-        }}>
-          <span style={{ color: "#DC2626", fontSize: "13px" }}>🔒</span>
+          {label}
+        </label>
+        <div 
+          style={{
+            backgroundColor: "#f8f9fa",
+            border: "2px solid #e5e7eb",
+            borderRadius: "12px",
+            padding: "12px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            cursor: "pointer",
+            transition: "all 0.3s ease"
+          }}
+          onClick={handleClick}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = "#f1f5f9";
+            e.currentTarget.style.borderColor = "#FF6B35";
+            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(255, 107, 53, 0.1)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = "#f8f9fa";
+            e.currentTarget.style.borderColor = "#e5e7eb";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        >
+          <span style={{
+            fontSize: "14px",
+            color: "#64748b",
+            fontWeight: "500",
+            fontFamily: "'Inter', sans-serif"
+          }}>
+            {value || "No especificado"}
+          </span>
+          <div style={{
+            backgroundColor: "#FEE2E2",
+            width: "30px",
+            height: "30px",
+            borderRadius: "15px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "all 0.3s ease"
+          }}>
+            <span style={{ color: "#DC2626", fontSize: "13px" }}>🔒</span>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  const ActionButton = ({ children, onClick, variant = "primary", disabled = false, icon }) => {
+  const ActionButton = ({ children, onClick, variant = "primary", disabled = false, icon, title }) => {
     const isPrimary = variant === "primary";
+    const isSecondary = variant === "secondary";
+    const isTertiary = variant === "tertiary";
 
     return (
       <button
         onClick={onClick}
         disabled={disabled}
+        title={title}
         style={{
           padding: "11px 20px",
           background: disabled 
             ? "#e5e7eb" 
             : isPrimary 
             ? "#FF6B35" 
-            : "white",
+            : isSecondary
+            ? "white"
+            : "#10B981",
           color: disabled 
             ? "#94a3b8" 
             : isPrimary 
             ? "white" 
-            : "#FF6B35",
-          border: isPrimary ? "none" : "2px solid #FF6B35",
+            : isSecondary
+            ? "#FF6B35"
+            : "white",
+          border: isSecondary ? "2px solid #FF6B35" : "none",
           borderRadius: "11px",
           fontWeight: "700",
           fontSize: "13px",
@@ -463,10 +528,14 @@ export default function EditarPerfilConsumidor() {
               e.currentTarget.style.transform = "translateY(-2px)";
               e.currentTarget.style.boxShadow = "0 6px 16px rgba(255, 107, 53, 0.35)";
               e.currentTarget.style.background = "#FF8E53";
-            } else {
+            } else if (isSecondary) {
               e.currentTarget.style.transform = "translateY(-2px)";
               e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 107, 53, 0.2)";
               e.currentTarget.style.background = "rgba(255, 107, 53, 0.1)";
+            } else if (isTertiary) {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.2)";
+              e.currentTarget.style.background = "#34D399";
             }
           }
         }}
@@ -474,7 +543,7 @@ export default function EditarPerfilConsumidor() {
           if (!disabled) {
             e.currentTarget.style.transform = "translateY(0)";
             e.currentTarget.style.boxShadow = isPrimary ? "0 4px 12px rgba(255, 107, 53, 0.25)" : "none";
-            e.currentTarget.style.background = isPrimary ? "#FF6B35" : "white";
+            e.currentTarget.style.background = isPrimary ? "#FF6B35" : isSecondary ? "white" : "#10B981";
           }
         }}
       >
@@ -489,8 +558,19 @@ export default function EditarPerfilConsumidor() {
       minHeight: "100vh",
       background: "#f8f9fa",
       fontFamily: "'Inter', sans-serif",
-      overflowX: "hidden"
+      overflowX: "hidden",
+      position: "relative"
     }}>
+      {/* COMPONENTE DE NOTIFICACIONES (reemplaza los mensajes en línea) */}
+      <Notificaciones
+        notificacion={notificacion}
+        setNotificacion={setNotificacion}
+        position="top-right"
+        autoClose={4000}
+        showProgress={true}
+        pauseOnHover={true}
+      />
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
         
@@ -505,16 +585,6 @@ export default function EditarPerfilConsumidor() {
           40% { transform: translate(-15px, 20px) scale(0.92); }
           60% { transform: translate(10px, 15px) scale(1.05); }
           80% { transform: translate(-20px, -15px) scale(0.98); }
-        }
-        
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        
-        @keyframes slideIn {
-          from { transform: translateX(-20px); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
         }
         
         @keyframes pulse {
@@ -532,7 +602,7 @@ export default function EditarPerfilConsumidor() {
         .react-datepicker {
           font-family: 'Inter', sans-serif !important;
           border: 2px solid #e5e7eb !important;
-          borderRadius: 16px !important;
+          border-radius: 16px !important;
           overflow: hidden;
           box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15) !important;
         }
@@ -758,75 +828,12 @@ export default function EditarPerfilConsumidor() {
         </div>
       </div>
 
-      {/* CONTENIDO PRINCIPAL */}
+      {/* CONTENIDO PRINCIPAL - SIN MENSAJES DUPLICADOS */}
       <div style={{
         maxWidth: "1100px",
         margin: "0 auto",
         padding: "0 20px 36px 20px"
       }}>
-        {/* MENSAJES */}
-        {error && (
-          <div style={{
-            backgroundColor: "#FEF2F2",
-            border: "2px solid #FECACA",
-            borderRadius: "11px",
-            padding: "14px 18px",
-            marginBottom: "22px",
-            display: "flex",
-            alignItems: "center",
-            gap: "11px",
-            animation: "slideIn 0.3s ease-out"
-          }}>
-            <div style={{
-              width: "30px",
-              height: "30px",
-              borderRadius: "15px",
-              backgroundColor: "#DC2626",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0
-            }}>
-              <span style={{ color: "white", fontSize: "15px" }}>❌</span>
-            </div>
-            <span style={{ color: "#DC2626", fontWeight: "600", fontFamily: "'Inter', sans-serif", fontSize: "14px" }}>{error}</span>
-          </div>
-        )}
-
-        {success && (
-          <div style={{
-            backgroundColor: "#D1FAE5",
-            border: "2px solid #A7F3D0",
-            borderRadius: "11px",
-            padding: "14px 18px",
-            marginBottom: "22px",
-            display: "flex",
-            alignItems: "center",
-            gap: "11px",
-            animation: "fadeIn 0.3s ease-out"
-          }}>
-            <div style={{
-              width: "30px",
-              height: "30px",
-              borderRadius: "15px",
-              backgroundColor: "#10B981",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0
-            }}>
-              <span style={{ color: "white", fontSize: "15px" }}>✅</span>
-            </div>
-            <div>
-              <span style={{ color: "#065F46", fontWeight: "600", display: "block", fontFamily: "'Inter', sans-serif", fontSize: "14px" }}>
-                ¡Perfil actualizado correctamente!
-              </span>
-              <span style={{ color: "#047857", fontSize: "13px", fontFamily: "'Inter', sans-serif" }}>
-                Redirigiendo al perfil...
-              </span>
-            </div>
-          </div>
-        )}
 
         {/* 🔥 SECCIONES LADO A LADO */}
         <div style={{
@@ -1066,11 +1073,11 @@ export default function EditarPerfilConsumidor() {
           </div>
         </div>
 
-        {/* BOTONES - VERSIÓN COMPACTA */}
+        {/* BOTONES */}
         <div style={{
           background: "white",
           borderRadius: "16px",
-          padding: "18px 22px",
+          padding: "22px 26px",
           boxShadow: "0 6px 20px rgba(0, 0, 0, 0.08)",
           border: "1px solid #f1f5f9"
         }}>
@@ -1079,54 +1086,105 @@ export default function EditarPerfilConsumidor() {
             alignItems: "center",
             justifyContent: "space-between",
             flexWrap: "wrap",
-            gap: "14px"
+            gap: "16px",
+            marginBottom: "18px"
           }}>
             {/* Info lado izquierdo */}
             <div style={{
               display: "flex",
               alignItems: "center",
-              gap: "12px",
+              gap: "14px",
               flex: "1",
-              minWidth: "250px"
+              minWidth: "280px"
             }}>
               <div style={{
-                width: "42px",
-                height: "42px",
-                borderRadius: "11px",
+                width: "48px",
+                height: "48px",
+                borderRadius: "12px",
                 background: "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%)",
                 display: "flex",
                 justifyContent: "center",
                 alignItems: "center",
-                boxShadow: "0 6px 18px rgba(255, 107, 53, 0.3)",
+                boxShadow: "0 6px 20px rgba(255, 107, 53, 0.3)",
                 flexShrink: 0
               }}>
-                <span style={{ fontSize: "20px" }}>💾</span>
+                <span style={{ fontSize: "22px" }}>💾</span>
               </div>
               <div>
                 <h3 style={{
                   fontFamily: "'Playfair Display', serif",
-                  fontSize: "16px",
+                  fontSize: "18px",
                   fontWeight: "800",
                   color: "#2C3E50",
-                  margin: "0 0 3px 0"
+                  margin: "0 0 4px 0"
                 }}>
                   ¿Listo para guardar?
                 </h3>
                 <p style={{
                   color: "#64748b",
-                  fontSize: "11px",
+                  fontSize: "12px",
                   margin: "0",
                   fontFamily: "'Inter', sans-serif"
                 }}>
-                  Revisa que todo esté correcto
+                  Revisa que todo esté correcto antes de guardar
                 </p>
               </div>
             </div>
 
-            {/* Botones lado derecho */}
+            {/* Botón de limpiar campos */}
             <div style={{
               display: "flex",
-              gap: "10px",
+              gap: "12px",
+              flexWrap: "wrap"
+            }}>
+              <ActionButton
+                onClick={handleLimpiarCampos}
+                disabled={saving}
+                variant="tertiary"
+                icon="🔄"
+                title="Restablecer todos los campos a sus valores originales"
+              >
+                Limpiar
+              </ActionButton>
+            </div>
+          </div>
+
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "14px",
+            paddingTop: "18px",
+            borderTop: "2px solid #f1f5f9"
+          }}>
+            {/* Información de estado */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px"
+            }}>
+              <div style={{
+                width: "14px",
+                height: "14px",
+                borderRadius: "50%",
+                background: saving ? "#F59E0B" : "#3B82F6",
+                animation: saving ? "pulse 1.5s ease-in-out infinite" : "none"
+              }}></div>
+              <span style={{
+                fontSize: "12px",
+                color: "#64748b",
+                fontWeight: "600",
+                fontFamily: "'Inter', sans-serif"
+              }}>
+                {saving ? "Guardando cambios..." : "Listo para guardar"}
+              </span>
+            </div>
+
+            {/* Botones principales */}
+            <div style={{
+              display: "flex",
+              gap: "12px",
               flexWrap: "wrap"
             }}>
               <ActionButton
@@ -1134,17 +1192,19 @@ export default function EditarPerfilConsumidor() {
                 disabled={saving}
                 variant="secondary"
                 icon="✕"
+                title="Cancelar y volver al perfil sin guardar cambios"
               >
                 Cancelar
               </ActionButton>
               
               <ActionButton
                 onClick={handleGuardarCambios}
-                disabled={saving || success}
+                disabled={saving}
                 variant="primary"
-                icon={saving ? "⏳" : success ? "✅" : "💾"}
+                icon={saving ? "⏳" : "💾"}
+                title="Guardar los cambios realizados en el perfil"
               >
-                {saving ? "Guardando..." : success ? "¡Guardado!" : "Guardar"}
+                {saving ? "Guardando..." : "Guardar Cambios"}
               </ActionButton>
             </div>
           </div>
@@ -1154,32 +1214,77 @@ export default function EditarPerfilConsumidor() {
             <div style={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              gap: "9px",
-              marginTop: "12px",
-              padding: "9px",
+              justifyContent: "space-between",
+              marginTop: "18px",
+              padding: "14px",
               backgroundColor: "rgba(255, 107, 53, 0.08)",
-              borderRadius: "9px",
-              animation: "fadeIn 0.3s ease"
+              borderRadius: "12px",
+              animation: "fadeIn 0.3s ease",
+              border: "1px solid rgba(255, 107, 53, 0.2)"
             }}>
               <div style={{
-                width: "15px",
-                height: "15px",
-                border: "2px solid #f1f5f9",
-                borderTop: "2px solid #FF6B35",
-                borderRadius: "50%",
-                animation: "spin 1s linear infinite"
-              }}></div>
-              <span style={{
-                color: "#FF6B35",
-                fontSize: "12px",
-                fontWeight: "600",
-                fontFamily: "'Inter', sans-serif"
+                display: "flex",
+                alignItems: "center",
+                gap: "12px"
               }}>
-                Guardando cambios...
-              </span>
+                <div style={{
+                  width: "22px",
+                  height: "22px",
+                  border: "3px solid #f1f5f9",
+                  borderTop: "3px solid #FF6B35",
+                  borderRadius: "50%",
+                  animation: "spin 1s linear infinite"
+                }}></div>
+                <div>
+                  <span style={{
+                    color: "#FF6B35",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    fontFamily: "'Inter', sans-serif",
+                    display: "block"
+                  }}>
+                    Guardando cambios...
+                  </span>
+                  <span style={{
+                    color: "#FF8E53",
+                    fontSize: "11px",
+                    fontFamily: "'Inter', sans-serif",
+                    display: "block"
+                  }}>
+                    Por favor, no cierres esta página
+                  </span>
+                </div>
+              </div>
+              <div style={{
+                width: "60px",
+                height: "6px",
+                background: "rgba(255, 107, 53, 0.2)",
+                borderRadius: "3px",
+                overflow: "hidden"
+              }}>
+                <div style={{
+                  width: "40%",
+                  height: "100%",
+                  background: "#FF6B35",
+                  borderRadius: "3px",
+                  animation: "loadingBar 2s ease-in-out infinite"
+                }}></div>
+              </div>
             </div>
           )}
+
+          {/* Animación para la barra de carga */}
+          <style>{`
+            @keyframes loadingBar {
+              0% { transform: translateX(-100%); }
+              50% { transform: translateX(150%); }
+              100% { transform: translateX(300%); }
+            }
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+          `}</style>
         </div>
       </div>
 

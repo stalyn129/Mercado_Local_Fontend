@@ -157,9 +157,13 @@ export default function ExplorarProductos() {
     return cumpleBusqueda && cumpleCategoria && cumpleSubcategoria;
   });
 
-  // 🔥 FUNCIÓN PARA AGREGAR AL CARRITO - CON NOTIFICACIÓN DE LOGIN
+  // 🔥 FUNCIÓN CORREGIDA - SOLO CONSUMIDORES LOGUEADOS PUEDEN AGREGAR AL CARRITO
   const handleAgregarCarrito = async (producto) => {
+    console.log("=== DEBUG: Iniciando handleAgregarCarrito ===");
+    console.log("Producto a agregar:", producto);
+    
     if (producto.stockProducto <= 0) {
+      console.log("Producto sin stock, mostrando error");
       notificaciones.errorStock();
       return;
     }
@@ -168,22 +172,49 @@ export default function ExplorarProductos() {
     const usuario = JSON.parse(localStorage.getItem("user"));
     const token = localStorage.getItem("authToken");
 
+    console.log("Usuario desde localStorage:", usuario);
+    console.log("Token presente:", !!token);
+
     if (!usuario || !token) {
-      // MOSTRAR NOTIFICACIÓN DE LOGIN REQUERIDO
+      // Usuario NO LOGUEADO
+      console.log("Usuario no logueado, mostrando advertencia");
       notificaciones.advertencia("Inicia sesión", "Debes iniciar sesión para agregar productos al carrito", "🔒");
       
-      // Redirigir al login después de un breve tiempo
       setTimeout(() => {
         navigate("/LoginModal");
       }, 1500);
       return;
     }
 
+    // ✅ Verificar si el usuario es CONSUMIDOR (usando el campo 'rol')
+    console.log("Rol del usuario:", usuario.rol);
+    console.log("Es CONSUMIDOR?", usuario.rol === "CONSUMIDOR");
+    
+    if (usuario.rol !== "CONSUMIDOR") {
+      // Usuario es VENDEDOR o tiene otro rol
+      console.log("Usuario NO es consumidor, bloqueando acceso");
+      notificaciones.advertencia(
+        "Acceso restringido", 
+        "Los vendedores no pueden agregar productos al carrito. Solo los consumidores pueden realizar compras.", 
+        "🚫"
+      );
+      return;
+    }
+
+    console.log("✅ Usuario ES CONSUMIDOR, procediendo a agregar al carrito");
+    
+    // ✅ Usuario ES CONSUMIDOR LOGUEADO - puede agregar al carrito
     try {
+      console.log("Llamando a agregarCarrito con:", { 
+        idProducto: producto.idProducto, 
+        cantidad: 1,
+        producto: producto.nombreProducto 
+      });
       await agregarCarrito(producto.idProducto, 1);
       notificaciones.exitoAgregarCarrito(producto.nombreProducto);
+      console.log("✅ Producto agregado exitosamente");
     } catch (error) {
-      console.error(error);
+      console.error("❌ Error al agregar al carrito:", error);
       notificaciones.error(
         "Error al agregar", 
         "No se pudo agregar el producto al carrito",
@@ -585,10 +616,24 @@ export default function ExplorarProductos() {
               marginBottom: "50px"
             }}>
               {productosFiltrados.map(p => {
-                // Verificar si el usuario está logueado
+                // Verificar estado del usuario
                 const usuario = JSON.parse(localStorage.getItem("user"));
                 const token = localStorage.getItem("authToken");
-                const puedeAgregar = usuario && token;
+                
+                // Determinar quién puede agregar al carrito
+                const usuarioLogueado = usuario && token;
+                const esConsumidor = usuarioLogueado && usuario.rol === "CONSUMIDOR";
+                const esVendedor = usuarioLogueado && usuario.rol === "VENDEDOR";
+                const puedeAgregar = esConsumidor && p.stockProducto > 0;
+
+                // Debug en consola
+                console.log("=== DEBUG por producto ===");
+                console.log("Producto:", p.nombreProducto);
+                console.log("Usuario logueado:", usuarioLogueado);
+                console.log("Usuario rol:", usuario?.rol);
+                console.log("Es consumidor:", esConsumidor);
+                console.log("Puede agregar:", puedeAgregar);
+                console.log("Stock:", p.stockProducto);
 
                 return (
                   <div
@@ -769,50 +814,115 @@ export default function ExplorarProductos() {
                           )}
                         </div>
 
-                        {/* Botón de agregar - SIEMPRE VISIBLE */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAgregarCarrito(p);
-                          }}
-                          disabled={p.stockProducto <= 0}
-                          style={{
-                            background: p.stockProducto <= 0 ? "#94a3b8" : "#FF6B35",
-                            width: "44px",
-                            height: "44px",
-                            borderRadius: "12px",
-                            border: "none",
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            cursor: p.stockProducto > 0 ? "pointer" : "not-allowed",
-                            transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-                            fontSize: "20px",
-                            position: "relative",
-                            overflow: "hidden"
-                          }}
-                          onMouseEnter={(e) => {
-                            if (p.stockProducto > 0) {
-                              e.currentTarget.style.transform = "scale(1.15) rotate(5deg)";
-                              e.currentTarget.style.background = "#FF8E53";
-                              e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 107, 53, 0.4)";
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (p.stockProducto > 0) {
+                        {/* Botón de agregar - SIEMPRE VISIBLE CON CARRO NARANJA */}
+                        <div style={{ position: "relative" }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              console.log("Clic en botón para producto:", p.nombreProducto);
+                              handleAgregarCarrito(p);
+                            }}
+                            style={{
+                              background: "#FF6B35",
+                              width: "44px",
+                              height: "44px",
+                              borderRadius: "12px",
+                              border: "none",
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              cursor: "pointer", // SIEMPRE pointer para que se vea clickeable
+                              transition: "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                              fontSize: "20px",
+                              position: "relative",
+                              overflow: "hidden"
+                            }}
+                            onMouseEnter={(e) => {
+                              if (puedeAgregar) {
+                                // Efecto normal para consumidor
+                                e.currentTarget.style.transform = "scale(1.15) rotate(5deg)";
+                                e.currentTarget.style.background = "#FF8E53";
+                                e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 107, 53, 0.4)";
+                              } else if (p.stockProducto > 0) {
+                                // Efecto bloqueado para no consumidores (solo si hay stock)
+                                e.currentTarget.style.transform = "scale(1)";
+                                e.currentTarget.style.background = "#FF6B35";
+                                e.currentTarget.style.opacity = "0.6";
+                                e.currentTarget.style.filter = "grayscale(30%)";
+                              }
+                            }}
+                            onMouseLeave={(e) => {
                               e.currentTarget.style.transform = "scale(1)";
                               e.currentTarget.style.background = "#FF6B35";
                               e.currentTarget.style.boxShadow = "none";
-                            }
-                          }}
-                        >
-                          <span style={{ 
-                            color: "white",
-                            transition: "transform 0.3s ease"
-                          }}>
-                            {p.stockProducto > 0 ? "🛒" : "✗"}
-                          </span>
-                        </button>
+                              e.currentTarget.style.opacity = "1";
+                              e.currentTarget.style.filter = "none";
+                            }}
+                          >
+                            <span style={{ 
+                              color: "white",
+                              transition: "transform 0.3s ease"
+                            }}>
+                              {p.stockProducto <= 0 ? "✗" : "🛒"}
+                            </span>
+                            
+                            {/* Efecto de bloqueo superpuesto para NO consumidores (solo si hay stock) */}
+                            {p.stockProducto > 0 && !puedeAgregar && (
+                              <div style={{
+                                position: "absolute",
+                                top: "0",
+                                left: "0",
+                                width: "100%",
+                                height: "100%",
+                                background: "rgba(255, 107, 53, 0.7)",
+                                borderRadius: "12px",
+                                display: "flex",
+                                justifyContent: "center",
+                                alignItems: "center",
+                                fontSize: "20px",
+                                color: "white",
+                                backdropFilter: "blur(2px)"
+                              }}>
+                                🛒
+                              </div>
+                            )}
+                          </button>
+                          
+                          {/* Tooltip informativo SOLO para no consumidores */}
+                          {p.stockProducto > 0 && !puedeAgregar && (
+                            <div style={{
+                              position: "absolute",
+                              top: "-40px",
+                              right: "0",
+                              background: "#2C3E50",
+                              color: "white",
+                              padding: "5px 10px",
+                              borderRadius: "6px",
+                              fontSize: "11px",
+                              fontWeight: "600",
+                              whiteSpace: "nowrap",
+                              opacity: "0",
+                              transform: "translateY(10px)",
+                              transition: "all 0.3s ease",
+                              pointerEvents: "none",
+                              zIndex: "100"
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.opacity = "1";
+                              e.currentTarget.style.transform = "translateY(0)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.opacity = "0";
+                              e.currentTarget.style.transform = "translateY(10px)";
+                            }}>
+                              {!usuarioLogueado 
+                                ? "Inicia sesión como consumidor para comprar" 
+                                : esVendedor
+                                ? "Solo consumidores pueden comprar"
+                                : "No disponible"}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
