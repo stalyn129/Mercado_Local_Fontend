@@ -22,7 +22,7 @@ export default function Factura() {
 
   const facturaRef = useRef();
 
-  // Función para mostrar toast
+  // Función para mostrar toast (manteniendo colores similares)
   const mostrarToast = (mensaje, tipo = "info") => {
     const toast = document.createElement("div");
     toast.style.cssText = `
@@ -30,13 +30,14 @@ export default function Factura() {
       top: 20px;
       right: 20px;
       padding: 12px 24px;
-      border-radius: 8px;
+      border-radius: 12px;
       color: white;
       font-weight: 600;
       z-index: 1000;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
       animation: slideIn 0.3s ease;
       max-width: 400px;
+      font-family: 'Inter', sans-serif;
     `;
     
     if (tipo === "success") {
@@ -141,7 +142,6 @@ export default function Factura() {
     try {
       setDescargandoPDF(true);
       
-      // Si no hay factura en backend, usar PDF local
       if (!facturaBackend || !facturaBackend.idFactura) {
         console.log("No hay factura backend, usando PDF local");
         await descargarPDFLocal();
@@ -150,7 +150,6 @@ export default function Factura() {
       
       const token = localStorage.getItem("authToken");
       
-      // Intentar con el endpoint que existe (según tu controller)
       const response = await fetch(`${API_URL}/api/facturas/${facturaBackend.idFactura}/descargar-pdf`, {
         headers: { 
           Authorization: `Bearer ${token}`,
@@ -171,7 +170,6 @@ export default function Factura() {
         
         mostrarToast("📥 PDF descargado del servidor", "success");
       } else {
-        // Si falla, usar PDF local
         throw new Error("Endpoint no disponible");
       }
       
@@ -191,7 +189,6 @@ export default function Factura() {
     try {
       setViendoPDF(true);
       
-      // Si no hay factura en backend, usar PDF local
       if (!facturaBackend || !facturaBackend.idFactura) {
         console.log("No hay factura backend, usando PDF local");
         await verPDFLocal();
@@ -200,7 +197,6 @@ export default function Factura() {
       
       const token = localStorage.getItem("authToken");
       
-      // Intentar con el endpoint que existe
       const response = await fetch(`${API_URL}/api/facturas/${facturaBackend.idFactura}/pdf`, {
         headers: { 
           Authorization: `Bearer ${token}`,
@@ -213,12 +209,10 @@ export default function Factura() {
         const url = window.URL.createObjectURL(blob);
         window.open(url, '_blank');
         
-        // Liberar memoria después de un tiempo
         setTimeout(() => {
           window.URL.revokeObjectURL(url);
         }, 10000);
       } else {
-        // Si falla, usar PDF local
         throw new Error("Endpoint no disponible");
       }
       
@@ -240,7 +234,6 @@ export default function Factura() {
         throw new Error("Elemento de factura no encontrado");
       }
       
-      // Aplicar estilos optimizados para PDF
       const originalStyles = {
         boxShadow: elemento.style.boxShadow,
         border: elemento.style.border,
@@ -249,7 +242,7 @@ export default function Factura() {
       };
       
       elemento.style.boxShadow = 'none';
-      elemento.style.border = '1px solid #ddd';
+      elemento.style.border = '1px solid #e5e7eb';
       elemento.style.margin = '0';
       elemento.style.padding = '20px';
       
@@ -264,7 +257,6 @@ export default function Factura() {
         windowHeight: elemento.scrollHeight
       });
       
-      // Restaurar estilos originales
       Object.assign(elemento.style, originalStyles);
       
       const imgData = canvas.toDataURL("image/png", 1.0);
@@ -281,7 +273,6 @@ export default function Factura() {
 
       pdf.addImage(imgData, "PNG", imgX, imgY, imgWidth * ratio, imgHeight * ratio);
       
-      // Abrir en nueva ventana
       const pdfBlob = pdf.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
       window.open(pdfUrl, '_blank');
@@ -302,7 +293,6 @@ export default function Factura() {
         throw new Error("Elemento de factura no encontrado");
       }
       
-      // Aplicar estilos optimizados para PDF
       const originalStyles = {
         boxShadow: elemento.style.boxShadow,
         border: elemento.style.border,
@@ -311,7 +301,7 @@ export default function Factura() {
       };
       
       elemento.style.boxShadow = 'none';
-      elemento.style.border = '1px solid #ddd';
+      elemento.style.border = '1px solid #e5e7eb';
       elemento.style.margin = '0';
       elemento.style.padding = '20px';
       
@@ -326,7 +316,6 @@ export default function Factura() {
         windowHeight: elemento.scrollHeight
       });
       
-      // Restaurar estilos originales
       Object.assign(elemento.style, originalStyles);
       
       const imgData = canvas.toDataURL("image/png", 1.0);
@@ -501,7 +490,6 @@ export default function Factura() {
       
       const cargarDatosCompletos = async () => {
         try {
-          // 1. Intentar obtener factura del backend
           const facturaExistente = await obtenerFacturaBackend(idPedido);
           
           if (facturaExistente) {
@@ -513,7 +501,6 @@ export default function Factura() {
             return;
           }
           
-          // 2. Si no hay factura, cargar datos del pedido
           const [pedidoData, detallesData] = await Promise.all([
             fetch(`${API_URL}/pedidos/${idPedido}`, {
               headers: { Authorization: `Bearer ${token}` }
@@ -622,7 +609,7 @@ export default function Factura() {
     return estados[estado] || { color: "#6B7280", bg: "#F3F4F6", texto: estado || "Desconocido" };
   };
 
-  // Componente de círculos flotantes
+  // Componente de círculos flotantes con colores de tu app
   const FloatingCircles = () => (
     <div className="floating-circles no-print" style={{
       position: 'fixed',
@@ -639,7 +626,7 @@ export default function Factura() {
         width: '150px',
         height: '150px',
         borderRadius: '50%',
-        backgroundColor: 'rgba(255, 107, 53, 0.1)',
+        backgroundColor: 'rgba(255, 107, 53, 0.15)',
         top: '10%',
         left: '5%',
         filter: 'blur(40px)',
@@ -650,7 +637,7 @@ export default function Factura() {
         width: '120px',
         height: '120px',
         borderRadius: '50%',
-        backgroundColor: 'rgba(52, 152, 219, 0.08)',
+        backgroundColor: 'rgba(52, 211, 153, 0.15)',
         top: '60%',
         right: '10%',
         filter: 'blur(30px)',
@@ -683,7 +670,7 @@ export default function Factura() {
             display: "inline-block",
             width: "50px",
             height: "50px",
-            border: "4px solid #f0f0f0",
+            border: "4px solid #f1f5f9",
             borderTop: "4px solid #FF6B35",
             borderRadius: "50%",
             animation: "spin 1s linear infinite"
@@ -691,8 +678,9 @@ export default function Factura() {
           <p style={{
             marginTop: "15px",
             fontSize: "16px",
-            color: "#1F2937",
-            fontWeight: "500"
+            color: "#2C3E50",
+            fontWeight: "500",
+            fontFamily: "'Inter', sans-serif"
           }}>
             Cargando factura...
           </p>
@@ -717,37 +705,51 @@ export default function Factura() {
         <div style={{
           background: "white",
           padding: "40px",
-          borderRadius: "12px",
+          borderRadius: "16px",
           textAlign: "center",
-          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
-          border: "1px solid #FF6B35",
+          boxShadow: "0 8px 30px rgba(0, 0, 0, 0.08)",
+          border: "2px solid #FF6B35",
           position: 'relative',
           zIndex: 1,
           maxWidth: "400px"
         }}>
           <div style={{ fontSize: "48px", marginBottom: "20px", color: "#FF6B35" }}>❌</div>
-          <h2 style={{ color: "#1F2937", marginBottom: "10px", fontSize: "20px", fontWeight: "600" }}>Error al cargar</h2>
-          <p style={{ color: "#6B7280", marginBottom: "25px", fontSize: "14px" }}>
+          <h2 style={{ 
+            color: "#2C3E50", 
+            marginBottom: "10px", 
+            fontSize: "20px", 
+            fontWeight: "700",
+            fontFamily: "'Inter', sans-serif"
+          }}>Error al cargar</h2>
+          <p style={{ 
+            color: "#64748b", 
+            marginBottom: "25px", 
+            fontSize: "14px",
+            fontFamily: "'Inter', sans-serif"
+          }}>
             No se pudo cargar la información de la factura
           </p>
           <button
             onClick={() => navigate("/mis-pedidos")}
             style={{
-              padding: "12px 24px",
+              padding: "14px 28px",
               background: "#FF6B35",
               color: "white",
               border: "none",
-              borderRadius: "8px",
-              fontWeight: "600",
+              borderRadius: "12px",
+              fontWeight: "700",
               cursor: "pointer",
               fontSize: "14px",
-              transition: "all 0.3s ease"
+              transition: "all 0.3s ease",
+              fontFamily: "'Inter', sans-serif"
             }}
             onMouseEnter={(e) => {
               e.target.style.background = "#FF8E53";
+              e.target.style.transform = "translateY(-2px)";
             }}
             onMouseLeave={(e) => {
               e.target.style.background = "#FF6B35";
+              e.target.style.transform = "translateY(0)";
             }}
           >
             Volver a mis pedidos
@@ -769,7 +771,7 @@ export default function Factura() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700;800&display=swap');
         
         @keyframes spin {
           0% { transform: rotate(0deg); }
@@ -804,7 +806,8 @@ export default function Factura() {
             border: none !important;
             box-shadow: none !important;
             font-size: 12px !important;
-            color: black !important;
+            color: #2C3E50 !important;
+            font-family: 'Inter', sans-serif !important;
           }
 
           .no-print,
@@ -820,12 +823,12 @@ export default function Factura() {
           
           .factura-container th,
           .factura-container td {
-            border: 1px solid #ddd !important;
+            border: 1px solid #e5e7eb !important;
             padding: 6px 8px !important;
           }
           
           .factura-container th {
-            background-color: #f5f5f5 !important;
+            background-color: #f1f5f9 !important;
             -webkit-print-color-adjust: exact !important;
             color-adjust: exact !important;
           }
@@ -837,7 +840,7 @@ export default function Factura() {
         background: "#f8f9fa",
         padding: "20px",
         position: 'relative',
-        fontFamily: "'Inter', sans-serif"
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
       }}>
         <FloatingCircles />
 
@@ -846,54 +849,83 @@ export default function Factura() {
           <div className="no-print" style={{
             maxWidth: "800px",
             margin: "0 auto 20px auto",
-            background: "linear-gradient(135deg, #FF6B35, #FF8E53)",
-            color: "white",
-            padding: "15px 20px",
-            borderRadius: "8px",
+            background: "white",
+            color: "#2C3E50",
+            padding: "20px 25px",
+            borderRadius: "16px",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            boxShadow: "0 4px 12px rgba(255, 107, 53, 0.3)"
+            boxShadow: "0 8px 30px rgba(0, 0, 0, 0.08)",
+            border: "2px solid #FF6B35"
           }}>
-            <div>
-              <div style={{ fontWeight: "600", fontSize: "16px", marginBottom: "4px" }}>
-                ⚠️ Factura no generada
+            <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+              <div style={{
+                fontSize: "24px",
+                color: "#FF6B35"
+              }}>
+                ⚠️
               </div>
-              <div style={{ fontSize: "14px", opacity: 0.9 }}>
-                Este pedido está pagado pero no tiene factura. Genere la factura para efectos tributarios.
+              <div>
+                <div style={{ 
+                  fontWeight: "700", 
+                  fontSize: "16px", 
+                  marginBottom: "4px",
+                  fontFamily: "'Inter', sans-serif"
+                }}>
+                  Factura no generada
+                </div>
+                <div style={{ 
+                  fontSize: "14px", 
+                  color: "#64748b",
+                  fontFamily: "'Inter', sans-serif"
+                }}>
+                  Este pedido está pagado pero no tiene factura. Genere la factura para efectos tributarios.
+                </div>
               </div>
             </div>
             <button
               onClick={handleCrearFactura}
               disabled={creandoFactura}
               style={{
-                padding: "10px 20px",
-                background: "white",
-                color: "#FF6B35",
+                padding: "12px 24px",
+                background: "#FF6B35",
+                color: "white",
                 border: "none",
-                borderRadius: "6px",
-                fontWeight: "600",
+                borderRadius: "12px",
+                fontWeight: "700",
                 fontSize: "14px",
                 cursor: "pointer",
                 transition: "all 0.3s ease",
-                minWidth: "150px",
-                opacity: creandoFactura ? 0.7 : 1
+                minWidth: "180px",
+                opacity: creandoFactura ? 0.7 : 1,
+                fontFamily: "'Inter', sans-serif",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px"
               }}
               onMouseEnter={(e) => {
-                if (!creandoFactura) e.target.style.background = "#FFF2E8";
+                if (!creandoFactura) {
+                  e.target.style.background = "#FF8E53";
+                  e.target.style.transform = "translateY(-2px)";
+                }
               }}
               onMouseLeave={(e) => {
-                if (!creandoFactura) e.target.style.background = "white";
+                if (!creandoFactura) {
+                  e.target.style.background = "#FF6B35";
+                  e.target.style.transform = "translateY(0)";
+                }
               }}
             >
               {creandoFactura ? (
                 <>
-                  <span style={{ marginRight: "8px" }}>⏳</span>
+                  <span>⏳</span>
                   Generando...
                 </>
               ) : (
                 <>
-                  <span style={{ marginRight: "8px" }}>📄</span>
+                  <span>📄</span>
                   Generar Factura
                 </>
               )}
@@ -910,8 +942,8 @@ export default function Factura() {
             margin: "0 auto",
             background: "white",
             padding: "30px",
-            borderRadius: "12px",
-            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
+            borderRadius: "16px",
+            boxShadow: "0 8px 30px rgba(0, 0, 0, 0.08)",
             border: facturaBackend ? "2px solid #10B981" : "2px solid #FF6B35",
             position: 'relative',
             zIndex: 1
@@ -925,13 +957,15 @@ export default function Factura() {
               right: "20px",
               background: "#10B981",
               color: "white",
-              padding: "6px 12px",
-              borderRadius: "4px",
+              padding: "8px 16px",
+              borderRadius: "20px",
               fontSize: "12px",
               fontWeight: "700",
               textTransform: "uppercase",
               letterSpacing: "1px",
-              zIndex: 2
+              zIndex: 2,
+              fontFamily: "'Inter', sans-serif",
+              boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)"
             }}>
               📋 Factura Oficial
             </div>
@@ -944,21 +978,25 @@ export default function Factura() {
             alignItems: "flex-start",
             marginBottom: "25px",
             paddingBottom: "20px",
-            borderBottom: "2px solid #FFD3BE"
+            borderBottom: "2px solid #f1f5f9"
           }}>
             <div>
               <div style={{
+                fontFamily: "'Playfair Display', 'Georgia', serif",
                 fontSize: "24px",
-                fontWeight: "800",
+                fontWeight: "700",
                 color: "#FF6B35",
-                marginBottom: "4px"
+                marginBottom: "4px",
+                letterSpacing: "1px"
               }}>
                 MY HARVEST
               </div>
               <div style={{
                 fontSize: "12px",
-                color: "#6B7280",
-                letterSpacing: "1px"
+                color: "#64748b",
+                letterSpacing: "1px",
+                fontWeight: "500",
+                fontFamily: "'Inter', sans-serif"
               }}>
                 MERCADO LOCAL
               </div>
@@ -968,9 +1006,10 @@ export default function Factura() {
               textAlign: "right"
             }}>
               <div style={{
+                fontFamily: "'Playfair Display', 'Georgia', serif",
                 fontSize: "28px",
-                fontWeight: "900",
-                color: "#1F2937",
+                fontWeight: "800",
+                color: "#2C3E50",
                 marginBottom: "8px"
               }}>
                 FACTURA
@@ -978,12 +1017,13 @@ export default function Factura() {
               {tipoFactura === "consolidada" && (
                 <div style={{
                   fontSize: "12px",
-                  color: "#9C27B0",
-                  fontWeight: "600",
+                  color: "#8B5CF6",
+                  fontWeight: "700",
                   background: "#F3E5F5",
-                  padding: "4px 10px",
-                  borderRadius: "4px",
-                  display: "inline-block"
+                  padding: "6px 12px",
+                  borderRadius: "20px",
+                  display: "inline-block",
+                  fontFamily: "'Inter', sans-serif"
                 }}>
                   Consolidada
                 </div>
@@ -994,77 +1034,101 @@ export default function Factura() {
           {/* NÚMERO DE FACTURA */}
           <div style={{
             textAlign: "center",
-            padding: "20px",
-            marginBottom: "25px",
+            padding: "25px",
+            marginBottom: "30px",
             background: facturaBackend ? "#D1FAE5" : "#FFF2E8",
-            borderRadius: "8px",
-            border: facturaBackend ? "1px dashed #10B981" : "1px dashed #FF6B35"
+            borderRadius: "12px",
+            border: facturaBackend ? "2px solid #10B981" : "2px solid #FF6B35"
           }}>
             <div style={{
               fontSize: "11px",
               color: facturaBackend ? "#10B981" : "#FF6B35",
-              fontWeight: "600",
+              fontWeight: "700",
               marginBottom: "6px",
               textTransform: "uppercase",
-              letterSpacing: "1.5px"
+              letterSpacing: "1.5px",
+              fontFamily: "'Inter', sans-serif"
             }}>
               N° FACTURA
             </div>
             <div style={{
-              fontSize: "24px",
+              fontSize: "28px",
               fontWeight: "800",
               color: facturaBackend ? "#10B981" : "#FF6B35",
-              marginBottom: "4px"
+              marginBottom: "4px",
+              fontFamily: "'Inter', sans-serif"
             }}>
               {numeroFactura}
             </div>
-            <div style={{ fontSize: "13px", color: "#9CA3AF" }}>
+            <div style={{ 
+              fontSize: "13px", 
+              color: "#94a3b8",
+              fontFamily: "'Inter', sans-serif"
+            }}>
               {tipoFactura === "consolidada" 
                 ? `Compra #${facturaData.idCompraUnificada || idCompra}` 
                 : `Pedido #${facturaData.idPedido}`}
             </div>
           </div>
 
-          {/* INFORMACIÓN EN 2 COLUMNAS */}
+          {/* DETALLES DEL PEDIDO - DISEÑO MEJORADO (2 FILAS) */}
           <div style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "25px",
             marginBottom: "30px"
           }}>
-            {/* DETALLES */}
-            <div>
-              <h3 style={{
-                fontSize: "14px",
-                fontWeight: "700",
-                color: "#1F2937",
-                marginBottom: "15px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px"
-              }}>
-                <span style={{ color: "#FF6B35" }}>📋</span>
-                {tipoFactura === "consolidada" ? "Detalles de la Compra" : "Detalles del Pedido"}
-              </h3>
-              
+            <h3 style={{
+              fontSize: "14px",
+              fontWeight: "700",
+              color: "#2C3E50",
+              marginBottom: "15px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontFamily: "'Inter', sans-serif"
+            }}>
+              <span style={{ color: "#FF6B35" }}>📋</span>
+              {tipoFactura === "consolidada" ? "Detalles de la Compra" : "Detalles del Pedido"}
+            </h3>
+            
+            <div style={{
+              background: facturaBackend ? "#F0FDF4" : "#FFF7ED",
+              padding: "25px",
+              borderRadius: "12px",
+              border: facturaBackend ? "2px solid #86EFAC" : "2px solid #FDBA74",
+              boxShadow: facturaBackend 
+                ? "0 2px 8px rgba(22, 163, 74, 0.1)" 
+                : "0 2px 8px rgba(251, 146, 60, 0.1)"
+            }}>
+              {/* PRIMERA FILA - Fecha y Método de pago */}
               <div style={{
-                background: "#F8F9FA",
-                padding: "18px",
-                borderRadius: "8px",
-                border: "1px solid #E5E7EB"
+                display: "flex",
+                gap: "20px",
+                marginBottom: "15px"
               }}>
-                <div style={{ marginBottom: "12px" }}>
+                {/* FECHA DE EMISIÓN */}
+                <div style={{
+                  flex: 1,
+                  background: "white",
+                  padding: "16px",
+                  borderRadius: "10px",
+                  border: facturaBackend ? "1px solid #86EFAC" : "1px solid #FDBA74",
+                  transition: "all 0.3s ease"
+                }}>
                   <div style={{
                     fontSize: "11px",
-                    color: "#6B7280",
-                    marginBottom: "4px"
+                    color: facturaBackend ? "#10B981" : "#FF6B35",
+                    marginBottom: "6px",
+                    fontWeight: "700",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    fontFamily: "'Inter', sans-serif"
                   }}>
                     Fecha de emisión
                   </div>
                   <div style={{
                     fontSize: "14px",
-                    color: "#1F2937",
-                    fontWeight: "600"
+                    color: "#2C3E50",
+                    fontWeight: "600",
+                    fontFamily: "'Inter', sans-serif"
                   }}>
                     {facturaBackend 
                       ? formatearFecha(facturaBackend.fechaEmision)
@@ -1073,18 +1137,31 @@ export default function Factura() {
                   </div>
                 </div>
 
-                <div style={{ marginBottom: "12px" }}>
+                {/* MÉTODO DE PAGO */}
+                <div style={{
+                  flex: 1,
+                  background: "white",
+                  padding: "16px",
+                  borderRadius: "10px",
+                  border: facturaBackend ? "1px solid #86EFAC" : "1px solid #FDBA74",
+                  transition: "all 0.3s ease"
+                }}>
                   <div style={{
                     fontSize: "11px",
-                    color: "#6B7280",
-                    marginBottom: "4px"
+                    color: facturaBackend ? "#10B981" : "#FF6B35",
+                    marginBottom: "6px",
+                    fontWeight: "700",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    fontFamily: "'Inter', sans-serif"
                   }}>
                     Método de pago
                   </div>
                   <div style={{
                     fontSize: "14px",
-                    color: "#1F2937",
-                    fontWeight: "600"
+                    color: "#2C3E50",
+                    fontWeight: "600",
+                    fontFamily: "'Inter', sans-serif"
                   }}>
                     {facturaBackend?.metodoPago || 
                      (facturaData.metodoPago === "EFECTIVO" && "Efectivo") ||
@@ -1093,145 +1170,215 @@ export default function Factura() {
                      facturaData.metodoPago || "No especificado"}
                   </div>
                 </div>
-
-                {/* DATOS DEL CLIENTE SI HAY FACTURA BACKEND */}
-                {facturaBackend && (
-                  <>
-                    <div style={{ marginBottom: "8px", paddingTop: "12px", borderTop: "1px solid #E5E7EB" }}>
-                      <div style={{
-                        fontSize: "11px",
-                        color: "#6B7280",
-                        marginBottom: "4px"
-                      }}>
-                        Cliente
-                      </div>
-                      <div style={{
-                        fontSize: "14px",
-                        color: "#1F2937",
-                        fontWeight: "600"
-                      }}>
-                        {facturaBackend.nombreCliente} {facturaBackend.apellidoCliente}
-                      </div>
-                    </div>
-                    <div style={{ marginBottom: "8px" }}>
-                      <div style={{
-                        fontSize: "11px",
-                        color: "#6B7280",
-                        marginBottom: "4px"
-                      }}>
-                        Cédula/RUC
-                      </div>
-                      <div style={{
-                        fontSize: "14px",
-                        color: "#1F2937",
-                        fontWeight: "600"
-                      }}>
-                        {facturaBackend.cedulaCliente}
-                      </div>
-                    </div>
-                    <div style={{ marginBottom: "8px" }}>
-                      <div style={{
-                        fontSize: "11px",
-                        color: "#6B7280",
-                        marginBottom: "4px"
-                      }}>
-                        Email
-                      </div>
-                      <div style={{
-                        fontSize: "14px",
-                        color: "#1F2937",
-                        fontWeight: "600"
-                      }}>
-                        {facturaBackend.correoCliente}
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {tipoFactura === "consolidada" && facturaData.cantidadPedidos && (
-                  <div>
-                    <div style={{
-                      fontSize: "11px",
-                      color: "#6B7280",
-                      marginBottom: "4px"
-                    }}>
-                      Pedidos incluidos
-                    </div>
-                    <div style={{
-                      fontSize: "14px",
-                      color: "#1F2937",
-                      fontWeight: "600"
-                    }}>
-                      {facturaData.cantidadPedidos} pedido(s)
-                    </div>
-                  </div>
-                )}
               </div>
-            </div>
 
-            {/* ESTADO */}
-            <div>
-              <h3 style={{
-                fontSize: "14px",
-                fontWeight: "700",
-                color: "#1F2937",
-                marginBottom: "15px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px"
-              }}>
-                <span style={{ color: "#FF6B35" }}>📊</span>
-                Estado Actual
-              </h3>
-              
+              {/* SEGUNDA FILA - N° de Pedido/Compra y Pedidos incluidos */}
               <div style={{
-                background: estadoInfo.bg,
-                border: `2px solid ${estadoInfo.color}`,
-                borderRadius: "8px",
-                padding: "20px",
-                textAlign: "center"
+                display: "flex",
+                gap: "20px"
               }}>
+                {/* N° DE PEDIDO/COMPRA */}
                 <div style={{
-                  fontSize: "12px",
-                  color: "#6B7280",
-                  marginBottom: "6px",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
-                  fontWeight: "600"
+                  flex: 1,
+                  background: "white",
+                  padding: "16px",
+                  borderRadius: "10px",
+                  border: facturaBackend ? "1px solid #86EFAC" : "1px solid #FDBA74",
+                  transition: "all 0.3s ease"
                 }}>
-                  ESTADO ACTUAL
-                </div>
-                <div style={{
-                  fontSize: "18px",
-                  fontWeight: "700",
-                  color: estadoInfo.color,
-                  marginBottom: "8px"
-                }}>
-                  {estadoInfo.texto}
-                </div>
-                {tipoFactura === "consolidada" && (
                   <div style={{
                     fontSize: "11px",
-                    color: estadoInfo.color,
-                    fontStyle: "italic"
+                    color: facturaBackend ? "#10B981" : "#FF6B35",
+                    marginBottom: "6px",
+                    fontWeight: "700",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    fontFamily: "'Inter', sans-serif"
                   }}>
-                    Todos los pedidos están {estadoInfo.texto.toLowerCase()}
+                    {tipoFactura === "consolidada" ? "N° de Compra" : "N° de Pedido"}
                   </div>
-                )}
+                  <div style={{
+                    fontSize: "14px",
+                    color: "#2C3E50",
+                    fontWeight: "600",
+                    fontFamily: "'Inter', sans-serif"
+                  }}>
+                    {tipoFactura === "consolidada" 
+                      ? `#${facturaData.idCompraUnificada || idCompra}` 
+                      : `#${facturaData.idPedido}`}
+                  </div>
+                </div>
+
+                {/* PEDIDOS INCLUIDOS (solo para consolidada) o ESTADO */}
+                <div style={{
+                  flex: 1,
+                  background: "white",
+                  padding: "16px",
+                  borderRadius: "10px",
+                  border: facturaBackend ? "1px solid #86EFAC" : "1px solid #FDBA74",
+                  transition: "all 0.3s ease"
+                }}>
+                  {tipoFactura === "consolidada" && facturaData.cantidadPedidos ? (
+                    <>
+                      <div style={{
+                        fontSize: "11px",
+                        color: facturaBackend ? "#10B981" : "#FF6B35",
+                        marginBottom: "6px",
+                        fontWeight: "700",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                        fontFamily: "'Inter', sans-serif"
+                      }}>
+                        Pedidos incluidos
+                      </div>
+                      <div style={{
+                        fontSize: "14px",
+                        color: "#2C3E50",
+                        fontWeight: "600",
+                        fontFamily: "'Inter', sans-serif"
+                      }}>
+                        {facturaData.cantidadPedidos} pedido(s)
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{
+                        fontSize: "11px",
+                        color: facturaBackend ? "#10B981" : "#FF6B35",
+                        marginBottom: "6px",
+                        fontWeight: "700",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                        fontFamily: "'Inter', sans-serif"
+                      }}>
+                        Estado
+                      </div>
+                      <div style={{
+                        fontSize: "14px",
+                        color: "#2C3E50",
+                        fontWeight: "600",
+                        fontFamily: "'Inter', sans-serif"
+                      }}>
+                        {facturaData.estadoPedido || facturaData.estado || "No especificado"}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* PRODUCTOS - SIN COLUMNA VENDEDOR */}
+          {/* INFORMACIÓN DEL CLIENTE (solo para facturas oficiales) */}
+          {facturaBackend && (
+            <div style={{ marginBottom: "30px" }}>
+              <h3 style={{
+                fontSize: "14px",
+                fontWeight: "700",
+                color: "#2C3E50",
+                marginBottom: "15px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                fontFamily: "'Inter', sans-serif"
+              }}>
+                <span style={{ color: "#FF6B35" }}>👤</span>
+                Información del Cliente
+              </h3>
+              
+              <div style={{
+                background: "#F0F9FF",
+                padding: "25px",
+                borderRadius: "12px",
+                border: "2px solid #BAE6FD",
+                boxShadow: "0 2px 8px rgba(56, 189, 248, 0.1)"
+              }}>
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                  gap: "20px"
+                }}>
+                  <div>
+                    <div style={{
+                      fontSize: "11px",
+                      color: "#0EA5E9",
+                      marginBottom: "6px",
+                      fontWeight: "700",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      Cliente
+                    </div>
+                    <div style={{
+                      fontSize: "14px",
+                      color: "#2C3E50",
+                      fontWeight: "600",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      {facturaBackend.nombreCliente} {facturaBackend.apellidoCliente}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div style={{
+                      fontSize: "11px",
+                      color: "#0EA5E9",
+                      marginBottom: "6px",
+                      fontWeight: "700",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      Cédula/RUC
+                    </div>
+                    <div style={{
+                      fontSize: "14px",
+                      color: "#2C3E50",
+                      fontWeight: "600",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      {facturaBackend.cedulaCliente}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <div style={{
+                      fontSize: "11px",
+                      color: "#0EA5E9",
+                      marginBottom: "6px",
+                      fontWeight: "700",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      Email
+                    </div>
+                    <div style={{
+                      fontSize: "14px",
+                      color: "#2C3E50",
+                      fontWeight: "600",
+                      fontFamily: "'Inter', sans-serif",
+                      wordBreak: "break-word"
+                    }}>
+                      {facturaBackend.correoCliente}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* PRODUCTOS */}
           <div style={{ marginBottom: "30px" }}>
             <h3 style={{
               fontSize: "14px",
               fontWeight: "700",
-              color: "#1F2937",
+              color: "#2C3E50",
               marginBottom: "15px",
               display: "flex",
               alignItems: "center",
-              gap: "8px"
+              gap: "8px",
+              fontFamily: "'Inter', sans-serif"
             }}>
               <span style={{ color: "#FF6B35" }}>📦</span>
               {tipoFactura === "consolidada" ? "Productos de la Compra" : "Productos del Pedido"}
@@ -1241,20 +1388,26 @@ export default function Factura() {
               <div style={{
                 background: "#F8F9FA",
                 padding: "30px",
-                borderRadius: "8px",
+                borderRadius: "12px",
                 textAlign: "center",
-                border: "1px dashed #E5E7EB"
+                border: "2px dashed #e5e7eb"
               }}>
-                <div style={{ fontSize: "36px", marginBottom: "12px", color: "#9CA3AF" }}>
+                <div style={{ fontSize: "36px", marginBottom: "12px", color: "#94a3b8" }}>
                   🛒
                 </div>
-                <p style={{ color: "#6B7280", fontSize: "14px" }}>
+                <p style={{ 
+                  color: "#64748b", 
+                  fontSize: "14px",
+                  fontFamily: "'Inter', sans-serif"
+                }}>
                   No se encontraron productos para mostrar
                 </p>
               </div>
             ) : (
               <div style={{
-                overflowX: "auto"
+                overflowX: "auto",
+                borderRadius: "12px",
+                border: "1px solid #e5e7eb"
               }}>
                 <table style={{
                   width: "100%",
@@ -1267,45 +1420,49 @@ export default function Factura() {
                       color: "white"
                     }}>
                       <th style={{
-                        padding: "12px 16px",
+                        padding: "16px",
                         textAlign: "left",
                         fontSize: "12px",
-                        fontWeight: "600",
+                        fontWeight: "700",
                         textTransform: "uppercase",
-                        letterSpacing: "0.5px"
+                        letterSpacing: "0.5px",
+                        fontFamily: "'Inter', sans-serif"
                       }}>
                         Producto
                       </th>
                       <th style={{
-                        padding: "12px 16px",
+                        padding: "16px",
                         textAlign: "center",
                         fontSize: "12px",
-                        fontWeight: "600",
+                        fontWeight: "700",
                         textTransform: "uppercase",
                         letterSpacing: "0.5px",
-                        width: "80px"
+                        width: "80px",
+                        fontFamily: "'Inter', sans-serif"
                       }}>
                         Cant.
                       </th>
                       <th style={{
-                        padding: "12px 16px",
+                        padding: "16px",
                         textAlign: "right",
                         fontSize: "12px",
-                        fontWeight: "600",
+                        fontWeight: "700",
                         textTransform: "uppercase",
                         letterSpacing: "0.5px",
-                        width: "100px"
+                        width: "100px",
+                        fontFamily: "'Inter', sans-serif"
                       }}>
                         Precio Unit.
                       </th>
                       <th style={{
-                        padding: "12px 16px",
+                        padding: "16px",
                         textAlign: "right",
                         fontSize: "12px",
-                        fontWeight: "600",
+                        fontWeight: "700",
                         textTransform: "uppercase",
                         letterSpacing: "0.5px",
-                        width: "100px"
+                        width: "100px",
+                        fontFamily: "'Inter', sans-serif"
                       }}>
                         Subtotal
                       </th>
@@ -1321,40 +1478,45 @@ export default function Factura() {
                         <tr 
                           key={i} 
                           style={{
-                            borderBottom: i < detalles.length - 1 ? "1px solid #ECF2E3" : "none",
-                            backgroundColor: i % 2 === 0 ? "white" : "#FAFBF9"
+                            borderBottom: i < detalles.length - 1 ? "1px solid #f1f5f9" : "none",
+                            backgroundColor: i % 2 === 0 ? "white" : "#f8f9fa"
                           }}
                         >
                           <td style={{
-                            padding: "12px 16px",
+                            padding: "16px",
                             fontSize: "14px",
-                            color: "#1F2937"
+                            color: "#2C3E50",
+                            fontFamily: "'Inter', sans-serif",
+                            fontWeight: "500"
                           }}>
                             {d.nombreProducto || d.producto?.nombreProducto || d.nombre || "Producto"}
                           </td>
                           <td style={{
-                            padding: "12px 16px",
+                            padding: "16px",
                             textAlign: "center",
                             fontSize: "14px",
-                            color: "#1F2937",
-                            fontWeight: "500"
+                            color: "#2C3E50",
+                            fontWeight: "600",
+                            fontFamily: "'Inter', sans-serif"
                           }}>
                             {cantidad}
                           </td>
                           <td style={{
-                            padding: "12px 16px",
+                            padding: "16px",
                             textAlign: "right",
                             fontSize: "14px",
-                            color: "#6B7280"
+                            color: "#64748b",
+                            fontFamily: "'Inter', sans-serif"
                           }}>
                             ${precio.toFixed(2)}
                           </td>
                           <td style={{
-                            padding: "12px 16px",
+                            padding: "16px",
                             textAlign: "right",
                             fontSize: "14px",
                             color: "#FF6B35",
-                            fontWeight: "600"
+                            fontWeight: "700",
+                            fontFamily: "'Inter', sans-serif"
                           }}>
                             ${subtotal.toFixed(2)}
                           </td>
@@ -1370,20 +1532,30 @@ export default function Factura() {
           {/* TOTALES */}
           <div style={{
             background: facturaBackend ? "#D1FAE5" : "#FFF2E8",
-            padding: "25px",
-            borderRadius: "8px",
-            border: facturaBackend ? "1px solid #10B981" : "1px solid #FF6B35",
+            padding: "30px",
+            borderRadius: "12px",
+            border: facturaBackend ? "2px solid #10B981" : "2px solid #FF6B35",
             marginBottom: "25px"
           }}>
             <div style={{
               display: "flex",
               justifyContent: "space-between",
-              marginBottom: "12px"
+              marginBottom: "16px"
             }}>
-              <span style={{ fontSize: "14px", color: "#6B7280" }}>
+              <span style={{ 
+                fontSize: "15px", 
+                color: "#64748b",
+                fontWeight: "500",
+                fontFamily: "'Inter', sans-serif"
+              }}>
                 Subtotal
               </span>
-              <span style={{ fontSize: "15px", fontWeight: "600", color: "#1F2937" }}>
+              <span style={{ 
+                fontSize: "16px", 
+                fontWeight: "600", 
+                color: "#2C3E50",
+                fontFamily: "'Inter', sans-serif"
+              }}>
                 ${totales.subtotal.toFixed(2)}
               </span>
             </div>
@@ -1391,14 +1563,24 @@ export default function Factura() {
             <div style={{
               display: "flex",
               justifyContent: "space-between",
-              marginBottom: "20px",
-              paddingBottom: "15px",
-              borderBottom: facturaBackend ? "1px solid #34D399" : "1px solid #FF8E53"
+              marginBottom: "24px",
+              paddingBottom: "20px",
+              borderBottom: facturaBackend ? "2px solid #34D399" : "2px solid #FF8E53"
             }}>
-              <span style={{ fontSize: "14px", color: "#6B7280" }}>
+              <span style={{ 
+                fontSize: "15px", 
+                color: "#64748b",
+                fontWeight: "500",
+                fontFamily: "'Inter', sans-serif"
+              }}>
                 IVA (12%)
               </span>
-              <span style={{ fontSize: "15px", fontWeight: "600", color: "#1F2937" }}>
+              <span style={{ 
+                fontSize: "16px", 
+                fontWeight: "600", 
+                color: "#2C3E50",
+                fontFamily: "'Inter', sans-serif"
+              }}>
                 ${totales.iva.toFixed(2)}
               </span>
             </div>
@@ -1410,10 +1592,11 @@ export default function Factura() {
             }}>
               <div>
                 <div style={{
-                  fontSize: "16px",
-                  fontWeight: "700",
-                  color: "#1F2937",
-                  marginBottom: "4px"
+                  fontSize: "18px",
+                  fontWeight: "800",
+                  color: "#2C3E50",
+                  marginBottom: "6px",
+                  fontFamily: "'Inter', sans-serif"
                 }}>
                   TOTAL A PAGAR
                 </div>
@@ -1421,7 +1604,8 @@ export default function Factura() {
                   <div style={{
                     fontSize: "12px",
                     color: "#10B981",
-                    fontStyle: "italic"
+                    fontWeight: "600",
+                    fontFamily: "'Inter', sans-serif"
                   }}>
                     Factura registrada en sistema
                   </div>
@@ -1429,17 +1613,19 @@ export default function Factura() {
                 {tipoFactura === "consolidada" && !facturaBackend && (
                   <div style={{
                     fontSize: "12px",
-                    color: "#9C27B0",
-                    fontStyle: "italic"
+                    color: "#8B5CF6",
+                    fontWeight: "600",
+                    fontFamily: "'Inter', sans-serif"
                   }}>
                     Incluye todos los productos
                   </div>
                 )}
               </div>
               <div style={{
-                fontSize: "28px",
+                fontSize: "32px",
                 fontWeight: "800",
-                color: facturaBackend ? "#10B981" : "#FF6B35"
+                color: facturaBackend ? "#10B981" : "#FF6B35",
+                fontFamily: "'Inter', sans-serif"
               }}>
                 ${totales.total.toFixed(2)}
               </div>
@@ -1448,31 +1634,34 @@ export default function Factura() {
 
           {/* FOOTER */}
           <div style={{
-            paddingTop: "20px",
-            borderTop: "1px solid #FFD3BE",
+            paddingTop: "25px",
+            borderTop: "2px solid #f1f5f9",
             textAlign: "center"
           }}>
             <div style={{
-              fontSize: "16px",
-              fontWeight: "700",
+              fontSize: "18px",
+              fontWeight: "800",
               color: "#FF6B35",
-              marginBottom: "8px"
+              marginBottom: "10px",
+              fontFamily: "'Inter', sans-serif"
             }}>
               My Harvest
             </div>
             <p style={{
-              fontSize: "13px",
-              color: "#6B7280",
-              margin: "0 0 8px 0",
-              lineHeight: "1.5"
+              fontSize: "14px",
+              color: "#64748b",
+              margin: "0 0 10px 0",
+              lineHeight: "1.6",
+              fontFamily: "'Inter', sans-serif"
             }}>
               Gracias por confiar en nuestra plataforma de productos frescos y locales
             </p>
             <p style={{
-              fontSize: "11px",
-              color: "#9CA3AF",
+              fontSize: "12px",
+              color: "#94a3b8",
               margin: 0,
-              fontStyle: "italic"
+              fontWeight: "500",
+              fontFamily: "'Inter', sans-serif"
             }}>
               {facturaBackend 
                 ? "Documento válido para efectos tributarios" 
@@ -1484,9 +1673,9 @@ export default function Factura() {
         {/* BOTONES DE ACCIÓN */}
         <div className="no-print" style={{
           maxWidth: "800px",
-          margin: "30px auto 0 auto",
+          margin: "40px auto 0 auto",
           display: "flex",
-          gap: "12px",
+          gap: "15px",
           justifyContent: "center",
           flexWrap: "wrap"
         }}>
@@ -1496,25 +1685,35 @@ export default function Factura() {
               onClick={handleCrearFactura}
               disabled={creandoFactura}
               style={{
-                padding: "12px 24px",
+                padding: "16px 28px",
                 background: "#FF6B35",
                 color: "white",
                 border: "none",
-                borderRadius: "8px",
-                fontWeight: "600",
-                fontSize: "14px",
+                borderRadius: "12px",
+                fontWeight: "700",
+                fontSize: "15px",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                gap: "8px",
+                gap: "10px",
                 transition: "all 0.3s ease",
-                opacity: creandoFactura ? 0.7 : 1
+                opacity: creandoFactura ? 0.7 : 1,
+                fontFamily: "'Inter', sans-serif",
+                boxShadow: "0 4px 12px rgba(255, 107, 53, 0.2)"
               }}
               onMouseEnter={(e) => {
-                if (!creandoFactura) e.target.style.background = "#FF8E53";
+                if (!creandoFactura) {
+                  e.target.style.background = "#FF8E53";
+                  e.target.style.transform = "translateY(-3px)";
+                  e.target.style.boxShadow = "0 6px 20px rgba(255, 107, 53, 0.3)";
+                }
               }}
               onMouseLeave={(e) => {
-                if (!creandoFactura) e.target.style.background = "#FF6B35";
+                if (!creandoFactura) {
+                  e.target.style.background = "#FF6B35";
+                  e.target.style.transform = "translateY(0)";
+                  e.target.style.boxShadow = "0 4px 12px rgba(255, 107, 53, 0.2)";
+                }
               }}
             >
               {creandoFactura ? (
@@ -1535,25 +1734,41 @@ export default function Factura() {
             onClick={descargarPDFBackend}
             disabled={descargandoPDF}
             style={{
-              padding: "12px 24px",
+              padding: "16px 28px",
               background: facturaBackend ? "#10B981" : "#FF6B35",
               color: "white",
               border: "none",
-              borderRadius: "8px",
-              fontWeight: "600",
-              fontSize: "14px",
+              borderRadius: "12px",
+              fontWeight: "700",
+              fontSize: "15px",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              gap: "8px",
+              gap: "10px",
               transition: "all 0.3s ease",
-              opacity: descargandoPDF ? 0.7 : 1
+              opacity: descargandoPDF ? 0.7 : 1,
+              fontFamily: "'Inter', sans-serif",
+              boxShadow: facturaBackend 
+                ? "0 4px 12px rgba(16, 185, 129, 0.2)" 
+                : "0 4px 12px rgba(255, 107, 53, 0.2)"
             }}
             onMouseEnter={(e) => {
-              if (!descargandoPDF) e.target.style.background = facturaBackend ? "#34D399" : "#FF8E53";
+              if (!descargandoPDF) {
+                e.target.style.background = facturaBackend ? "#34D399" : "#FF8E53";
+                e.target.style.transform = "translateY(-3px)";
+                e.target.style.boxShadow = facturaBackend 
+                  ? "0 6px 20px rgba(16, 185, 129, 0.3)" 
+                  : "0 6px 20px rgba(255, 107, 53, 0.3)";
+              }
             }}
             onMouseLeave={(e) => {
-              if (!descargandoPDF) e.target.style.background = facturaBackend ? "#10B981" : "#FF6B35";
+              if (!descargandoPDF) {
+                e.target.style.background = facturaBackend ? "#10B981" : "#FF6B35";
+                e.target.style.transform = "translateY(0)";
+                e.target.style.boxShadow = facturaBackend 
+                  ? "0 4px 12px rgba(16, 185, 129, 0.2)" 
+                  : "0 4px 12px rgba(255, 107, 53, 0.2)";
+              }
             }}
           >
             {descargandoPDF ? (
@@ -1573,25 +1788,35 @@ export default function Factura() {
             onClick={verPDFBackend}
             disabled={viendoPDF}
             style={{
-              padding: "12px 24px",
+              padding: "16px 28px",
               background: "#3B82F6",
               color: "white",
               border: "none",
-              borderRadius: "8px",
-              fontWeight: "600",
-              fontSize: "14px",
+              borderRadius: "12px",
+              fontWeight: "700",
+              fontSize: "15px",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              gap: "8px",
+              gap: "10px",
               transition: "all 0.3s ease",
-              opacity: viendoPDF ? 0.7 : 1
+              opacity: viendoPDF ? 0.7 : 1,
+              fontFamily: "'Inter', sans-serif",
+              boxShadow: "0 4px 12px rgba(59, 130, 246, 0.2)"
             }}
             onMouseEnter={(e) => {
-              if (!viendoPDF) e.target.style.background = "#2563EB";
+              if (!viendoPDF) {
+                e.target.style.background = "#2563EB";
+                e.target.style.transform = "translateY(-3px)";
+                e.target.style.boxShadow = "0 6px 20px rgba(59, 130, 246, 0.3)";
+              }
             }}
             onMouseLeave={(e) => {
-              if (!viendoPDF) e.target.style.background = "#3B82F6";
+              if (!viendoPDF) {
+                e.target.style.background = "#3B82F6";
+                e.target.style.transform = "translateY(0)";
+                e.target.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.2)";
+              }
             }}
           >
             {viendoPDF ? (
@@ -1610,24 +1835,30 @@ export default function Factura() {
           <button
             onClick={() => window.print()}
             style={{
-              padding: "12px 24px",
+              padding: "16px 28px",
               background: "white",
               color: facturaBackend ? "#10B981" : "#FF6B35",
-              border: `1px solid ${facturaBackend ? "#10B981" : "#FF6B35"}`,
-              borderRadius: "8px",
-              fontWeight: "600",
-              fontSize: "14px",
+              border: `2px solid ${facturaBackend ? "#10B981" : "#FF6B35"}`,
+              borderRadius: "12px",
+              fontWeight: "700",
+              fontSize: "15px",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              gap: "8px",
-              transition: "all 0.3s ease"
+              gap: "10px",
+              transition: "all 0.3s ease",
+              fontFamily: "'Inter', sans-serif",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)"
             }}
             onMouseEnter={(e) => {
               e.target.style.background = facturaBackend ? "#D1FAE5" : "#FFF2E8";
+              e.target.style.transform = "translateY(-3px)";
+              e.target.style.boxShadow = "0 6px 20px rgba(0, 0, 0, 0.1)";
             }}
             onMouseLeave={(e) => {
               e.target.style.background = "white";
+              e.target.style.transform = "translateY(0)";
+              e.target.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.05)";
             }}
           >
             <span>🖨️</span>
@@ -1641,26 +1872,32 @@ export default function Factura() {
                 state: { compraData: facturaData }
               })}
               style={{
-                padding: "12px 24px",
+                padding: "16px 28px",
                 background: "white",
-                color: "#1F2937",
-                border: "1px solid #E5E7EB",
-                borderRadius: "8px",
-                fontWeight: "600",
-                fontSize: "14px",
+                color: "#2C3E50",
+                border: "2px solid #e5e7eb",
+                borderRadius: "12px",
+                fontWeight: "700",
+                fontSize: "15px",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                gap: "8px",
-                transition: "all 0.3s ease"
+                gap: "10px",
+                transition: "all 0.3s ease",
+                fontFamily: "'Inter', sans-serif",
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)"
             }}
               onMouseEnter={(e) => {
-                e.target.style.background = "#F8F9FA";
-                e.target.style.borderColor = "#1F2937";
+                e.target.style.background = "#f8f9fa";
+                e.target.style.borderColor = "#2C3E50";
+                e.target.style.transform = "translateY(-3px)";
+                e.target.style.boxShadow = "0 6px 20px rgba(0, 0, 0, 0.1)";
               }}
               onMouseLeave={(e) => {
                 e.target.style.background = "white";
-                e.target.style.borderColor = "#E5E7EB";
+                e.target.style.borderColor = "#e5e7eb";
+                e.target.style.transform = "translateY(0)";
+                e.target.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.05)";
               }}
             >
               <span>🛍️</span>
@@ -1670,26 +1907,32 @@ export default function Factura() {
             <button
               onClick={() => navigate(`/pedido/${idPedido}`)}
               style={{
-                padding: "12px 24px",
+                padding: "16px 28px",
                 background: "white",
-                color: "#1F2937",
-                border: "1px solid #E5E7EB",
-                borderRadius: "8px",
-                fontWeight: "600",
-                fontSize: "14px",
+                color: "#2C3E50",
+                border: "2px solid #e5e7eb",
+                borderRadius: "12px",
+                fontWeight: "700",
+                fontSize: "15px",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                gap: "8px",
-                transition: "all 0.3s ease"
+                gap: "10px",
+                transition: "all 0.3s ease",
+                fontFamily: "'Inter', sans-serif",
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)"
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = "#F8F9FA";
-                e.target.style.borderColor = "#1F2937";
+                e.target.style.background = "#f8f9fa";
+                e.target.style.borderColor = "#2C3E50";
+                e.target.style.transform = "translateY(-3px)";
+                e.target.style.boxShadow = "0 6px 20px rgba(0, 0, 0, 0.1)";
               }}
               onMouseLeave={(e) => {
                 e.target.style.background = "white";
-                e.target.style.borderColor = "#E5E7EB";
+                e.target.style.borderColor = "#e5e7eb";
+                e.target.style.transform = "translateY(0)";
+                e.target.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.05)";
               }}
             >
               <span>📦</span>
