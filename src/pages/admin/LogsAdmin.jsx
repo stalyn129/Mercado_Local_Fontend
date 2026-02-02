@@ -24,6 +24,9 @@ import {
   Layers,
   AlertOctagon
 } from "lucide-react";
+// IMPORTACIONES DE NOTIFICACIONES
+import Notificaciones from "../../components/Notificaciones";
+import useNotification from "../../hooks/useNotification";
 
 const API_URL = "http://localhost:8080";
 
@@ -37,6 +40,13 @@ export default function LogsAdmin() {
   const [circlePositions, setCirclePositions] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // =================== USO DE NOTIFICACIONES ===================
+  const {
+    notificacion,
+    setNotificacion,
+    notificaciones
+  } = useNotification();
 
   // =================== CÍRCULOS FLOTANTES ===================
   useEffect(() => {
@@ -111,12 +121,16 @@ export default function LogsAdmin() {
     if (!token) {
       setError("No hay token de autenticación");
       setLoading(false);
+      notificaciones.advertenciaLogin();
       return;
     }
 
     setLoading(true);
     setRefreshing(true);
     setError(null);
+    
+    // Notificación de inicio de carga
+    notificaciones.info("Cargando registros", "Obteniendo logs del sistema...", "reloj");
 
     fetch(`${API_URL}/admin/logs`, {
       headers: {
@@ -128,15 +142,32 @@ export default function LogsAdmin() {
         return res.json();
       })
       .then(data => {
-        setLogs(Array.isArray(data) ? data : []);
+        const logsArray = Array.isArray(data) ? data : [];
+        setLogs(logsArray);
         setLoading(false);
         setRefreshing(false);
+        
+        // Notificación de éxito
+        if (logsArray.length > 0) {
+          notificaciones.exito(
+            "Registros cargados", 
+            `Se cargaron ${logsArray.length} registros correctamente`,
+            "check"
+          );
+        } else {
+          notificaciones.advertencia(
+            "Sin registros", 
+            "No se encontraron registros en el sistema", 
+            "caja"
+          );
+        }
       })
       .catch(err => {
         console.error(err);
         setError(err.message);
         setLoading(false);
         setRefreshing(false);
+        notificaciones.errorConexion();
       });
   };
 
@@ -157,6 +188,15 @@ export default function LogsAdmin() {
   });
 
   const exportLogs = () => {
+    if (filteredLogs.length === 0) {
+      notificaciones.advertencia(
+        "Sin datos para exportar", 
+        "No hay registros que coincidan con los filtros aplicados", 
+        "caja"
+      );
+      return;
+    }
+    
     const dataStr = JSON.stringify(filteredLogs, null, 2);
     const dataBlob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(dataBlob);
@@ -165,6 +205,13 @@ export default function LogsAdmin() {
     link.download = `logs_${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     URL.revokeObjectURL(url);
+    
+    // Notificación de éxito
+    notificaciones.exito(
+      "Logs exportados", 
+      `Se han exportado ${filteredLogs.length} registros en formato JSON`,
+      "exportar"
+    );
   };
 
   const getLogTypeColor = (tipo) => {
@@ -216,6 +263,12 @@ export default function LogsAdmin() {
   const limpiarFiltros = () => {
     setFilter("");
     setFilterType("all");
+    notificaciones.info("Filtros limpiados", "Se han restablecido todos los filtros", "check");
+  };
+
+  const handleRefresh = () => {
+    notificaciones.infoProcesoIniciado();
+    fetchLogs();
   };
 
   // =================== COMPONENTE SELECTOR DE FILTROS ===================
@@ -270,6 +323,22 @@ export default function LogsAdmin() {
                     onClick={() => {
                       setFilterType(type);
                       setShowFilters(false);
+                      if (type !== "all") {
+                        const count = logs.filter(l => l.tipo === type).length;
+                        notificaciones.info(
+                          "Filtro aplicado", 
+                          `Mostrando ${type === "info" ? "información" : 
+                           type === "warning" ? "advertencias" : 
+                           type === "error" ? "errores" : "éxitos"} (${count} registros)`, 
+                          "config"
+                        );
+                      } else {
+                        notificaciones.info(
+                          "Filtro aplicado", 
+                          "Mostrando todos los tipos de registros", 
+                          "config"
+                        );
+                      }
                     }}
                     style={{
                       ...styles.opcionFiltro,
@@ -312,6 +381,16 @@ export default function LogsAdmin() {
   if (loading) {
     return (
       <div style={styles.container}>
+        {/* COMPONENTE DE NOTIFICACIONES */}
+        <Notificaciones 
+          notificacion={notificacion}
+          setNotificacion={setNotificacion}
+          position="top-right"
+          autoClose={5000}
+          showProgress={true}
+          pauseOnHover={true}
+        />
+        
         {/* Círculos flotantes */}
         {circlePositions.map(circle => (
           <div 
@@ -345,6 +424,16 @@ export default function LogsAdmin() {
 
   return (
     <div style={styles.container}>
+      {/* COMPONENTE DE NOTIFICACIONES */}
+      <Notificaciones 
+        notificacion={notificacion}
+        setNotificacion={setNotificacion}
+        position="top-right"
+        autoClose={5000}
+        showProgress={true}
+        pauseOnHover={true}
+      />
+      
       {/* Círculos flotantes */}
       {circlePositions.map(circle => (
         <div 
@@ -402,7 +491,7 @@ export default function LogsAdmin() {
             <div style={styles.refreshButtonContainer}>
               <button
                 style={styles.refreshButton}
-                onClick={fetchLogs}
+                onClick={handleRefresh}
                 disabled={refreshing}
               >
                 <RefreshCw size={18} /> {refreshing ? "Actualizando..." : "Actualizar registros"}
@@ -479,7 +568,7 @@ export default function LogsAdmin() {
             <p style={styles.errorText}>
               {error}
             </p>
-            <button onClick={() => window.location.reload()} style={styles.errorButton}>
+            <button onClick={handleRefresh} style={styles.errorButton}>
               <RefreshCw size={16} />
               Reintentar
             </button>
