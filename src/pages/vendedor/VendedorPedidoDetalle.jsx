@@ -20,6 +20,9 @@ export default function VendedorPedidoDetalle() {
   const [mostrarComprobante, setMostrarComprobante] = useState(false);
   const [numeroPedidoVendedor, setNumeroPedidoVendedor] = useState(null);
   const [contadorPedidosVendedor, setContadorPedidosVendedor] = useState(0);
+  const [mostrarModalConfirmacion, setMostrarModalConfirmacion] = useState(false);
+  const [accionModal, setAccionModal] = useState(null);
+  const [motivoRechazo, setMotivoRechazo] = useState("");
   
   // Usar el hook de notificaciones
   const {
@@ -103,6 +106,8 @@ export default function VendedorPedidoDetalle() {
       if (res.ok) {
         const data = await res.json();
         setInfoPago(data);
+      } else if (res.status !== 404) {
+        console.log("⚠️ No se pudo cargar información adicional del pago");
       }
     } catch (err) {
       console.error("❌ Error cargando información de pago:", err);
@@ -235,23 +240,16 @@ export default function VendedorPedidoDetalle() {
     }
   };
 
-  // Función para VERIFICAR PAGO
-  const verificarPago = async () => {
+  // Función para ejecutar la verificación de pago
+  const ejecutarVerificacionPago = async (aprobado) => {
     if (!user || !pedido) return;
-
-    if (!window.confirm(
-      "¿Estás seguro de que el pago ha sido recibido y verificado?\n\n" +
-      "✅ Aprobar: El pago se marca como confirmado y el pedido puede procesarse"
-    )) {
-      return;
-    }
 
     setVerificando(true);
 
     try {
       const requestBody = {
-        aprobado: true,
-        motivo: "Pago verificado correctamente por el vendedor"
+        aprobado: aprobado,
+        motivo: aprobado ? "Pago verificado correctamente por el vendedor" : motivoRechazo
       };
 
       const res = await fetch(`${API_URL}/pedidos/${pedido.idPedido}/verificar-pago`, {
@@ -266,12 +264,17 @@ export default function VendedorPedidoDetalle() {
       if (res.ok) {
         const pedidoActualizado = await res.json();
         
-        notificaciones.exito("Pago Verificado", "El pago ha sido aprobado correctamente", "check");
+        if (aprobado) {
+          notificaciones.exito("Pago Verificado", "El pago ha sido aprobado correctamente", "check");
+        } else {
+          notificaciones.exito("Pago Rechazado", "Se ha notificado al cliente para que re-suba el comprobante");
+        }
         
         setPedido(prev => ({
           ...prev,
-          estadoPago: pedidoActualizado.estadoPago || "PAGADO",
+          estadoPago: pedidoActualizado.estadoPago || (aprobado ? "PAGADO" : "RECHAZADO"),
           fechaVerificacionPago: pedidoActualizado.fechaVerificacionPago || new Date().toISOString(),
+          motivoRechazo: pedidoActualizado.motivoRechazo || motivoRechazo,
           verificadoPor: pedidoActualizado.verificadoPor || user.idVendedor.toString()
         }));
         
@@ -304,86 +307,32 @@ export default function VendedorPedidoDetalle() {
       notificaciones.error("Error de Conexión", "No se pudo conectar con el servidor");
     } finally {
       setVerificando(false);
+      setMostrarModalConfirmacion(false);
+      setMotivoRechazo("");
     }
+  };
+
+  // Función para VERIFICAR PAGO
+  const verificarPago = async () => {
+    if (!user || !pedido) return;
+
+    setAccionModal("aprobar");
+    setMostrarModalConfirmacion({
+      titulo: "Verificar Pago",
+      mensaje: "¿Estás seguro de que el pago ha sido recibido y verificado?",
+    });
   };
 
   // Función para RECHAZAR PAGO
   const rechazarPago = async () => {
     if (!user || !pedido) return;
 
-    const motivo = prompt(
-      "Ingresa el motivo del rechazo del pago:\n\n" +
-      "Ejemplos:\n" +
-      "• Comprobante ilegible\n" +
-      "• Monto incorrecto\n" +
-      "• Información del banco no coincide\n" +
-      "• Comprobante no corresponde al pedido",
-      "Comprobante no cumple con los requisitos"
-    );
-
-    if (!motivo || motivo.trim() === "") {
-      notificaciones.advertencia("Motivo Requerido", "Debes ingresar un motivo para rechazar el pago");
-      return;
-    }
-
-    if (!window.confirm(
-      `⚠️ ¿Estás seguro de rechazar el pago?\n\n` +
-      `Motivo: ${motivo.trim()}\n\n` +
-      `✅ El cliente será notificado para que re-suba el comprobante.`
-    )) {
-      return;
-    }
-
-    setVerificando(true);
-
-    try {
-      const requestBody = {
-        aprobado: false,
-        motivo: motivo.trim()
-      };
-
-      const res = await fetch(`${API_URL}/pedidos/${pedido.idPedido}/verificar-pago`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${user.token}`
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (res.ok) {
-        const pedidoActualizado = await res.json();
-        
-        notificaciones.exito("Pago Rechazado", "Se ha notificado al cliente para que re-suba el comprobante");
-        
-        setPedido(prev => ({
-          ...prev,
-          estadoPago: pedidoActualizado.estadoPago || "RECHAZADO",
-          fechaVerificacionPago: pedidoActualizado.fechaVerificacionPago || new Date().toISOString(),
-          motivoRechazo: pedidoActualizado.motivoRechazo || motivo.trim(),
-          verificadoPor: pedidoActualizado.verificadoPor || user.idVendedor.toString()
-        }));
-        
-        setTimeout(() => {
-          cargarPedidoDetalle(user.token);
-          cargarInfoPago(user.token);
-        }, 1000);
-        
-      } else {
-        const errorText = await res.text();
-        try {
-          const errorData = JSON.parse(errorText);
-          notificaciones.error("Error al Rechazar", errorData.message || errorData.error);
-        } catch {
-          notificaciones.error("Error", "No se pudo rechazar el pago");
-        }
-      }
-    } catch (err) {
-      console.error("❌ Error al rechazar pago:", err);
-      notificaciones.error("Error de Conexión", "No se pudo conectar con el servidor");
-    } finally {
-      setVerificando(false);
-    }
+    setAccionModal("rechazar");
+    setMostrarModalConfirmacion({
+      titulo: "Rechazar Pago",
+      mensaje: "Ingresa el motivo del rechazo del pago:",
+      mostrarInput: true
+    });
   };
 
   // Función para CAMBIAR ESTADO DEL PEDIDO
@@ -410,8 +359,16 @@ export default function VendedorPedidoDetalle() {
       return;
     }
 
-    if (!window.confirm(`¿Cambiar estado a ${mapearNombreEstado(nuevoEstado)}?`)) return;
+    setAccionModal("cambiarEstado");
+    setMostrarModalConfirmacion({
+      titulo: "Cambiar Estado",
+      mensaje: `¿Cambiar estado a ${mapearNombreEstado(nuevoEstado)}?`,
+      nuevoEstado: nuevoEstado
+    });
+  };
 
+  // Función para ejecutar el cambio de estado
+  const ejecutarCambioEstado = async (nuevoEstado) => {
     try {
       const res = await fetch(`${API_URL}/pedidos/vendedor/${pedido.idPedido}/estado`, {
         method: "PUT",
@@ -447,6 +404,8 @@ export default function VendedorPedidoDetalle() {
     } catch (err) {
       console.error("❌ Error al cambiar estado:", err);
       notificaciones.error("Error de Conexión", "No se pudo conectar con el servidor");
+    } finally {
+      setMostrarModalConfirmacion(false);
     }
   };
 
@@ -645,8 +604,7 @@ export default function VendedorPedidoDetalle() {
     };
   };
 
-  const puedeVerificarPago = (pedido?.estadoPago === "EN_VERIFICACION" || 
-                            pedido?.estadoPago === "PENDIENTE") && 
+  const puedeVerificarPago = pedido?.estadoPago === "EN_VERIFICACION" && 
                             pedido?.metodoPago === "TRANSFERENCIA";
 
   const esPagoEfectivo = pedido?.metodoPago === "EFECTIVO" && pedido?.estadoPago === "PENDIENTE";
@@ -2141,6 +2099,164 @@ export default function VendedorPedidoDetalle() {
 
       <Footer />
 
+      {/* Modal de Confirmación Personalizado */}
+      {mostrarModalConfirmacion && (
+        <div style={{
+          position: "fixed",
+          top: "0",
+          left: "0",
+          right: "0",
+          bottom: "0",
+          background: "rgba(0, 0, 0, 0.7)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: "9999",
+          backdropFilter: "blur(5px)",
+          animation: "fadeIn 0.3s ease-out"
+        }}>
+          <div style={{
+            background: "linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 1) 100%)",
+            borderRadius: "24px",
+            padding: "35px",
+            maxWidth: "500px",
+            width: "90%",
+            boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+            border: "1px solid rgba(255, 255, 255, 0.4)",
+            animation: "fadeIn 0.4s ease-out"
+          }}>
+            <div style={{
+              fontSize: "42px",
+              textAlign: "center",
+              marginBottom: "20px",
+              background: "linear-gradient(135deg, #FF6B35, #8B5CF6)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent"
+            }}>
+              ⚠️
+            </div>
+            
+            <h3 style={{
+              fontFamily: "'Playfair Display', serif",
+              fontSize: "28px",
+              fontWeight: "800",
+              color: "#2C3E50",
+              textAlign: "center",
+              marginBottom: "15px"
+            }}>
+              {mostrarModalConfirmacion.titulo}
+            </h3>
+            
+            <p style={{
+              color: "#64748b",
+              fontSize: "16px",
+              lineHeight: "1.6",
+              textAlign: "center",
+              marginBottom: "30px",
+              background: "rgba(241, 245, 249, 0.6)",
+              padding: "20px",
+              borderRadius: "14px",
+              border: "1px solid rgba(229, 231, 235, 0.5)"
+            }}>
+              {mostrarModalConfirmacion.mensaje}
+            </p>
+
+            {mostrarModalConfirmacion.mostrarInput && (
+              <div style={{ marginBottom: "25px" }}>
+                <textarea
+                  value={motivoRechazo}
+                  onChange={(e) => setMotivoRechazo(e.target.value)}
+                  placeholder="Ej: Comprobante ilegible, monto incorrecto, información del banco no coincide..."
+                  style={{
+                    width: "100%",
+                    padding: "15px",
+                    borderRadius: "12px",
+                    border: "2px solid rgba(239, 68, 68, 0.3)",
+                    fontSize: "14px",
+                    fontFamily: "'Inter', sans-serif",
+                    minHeight: "120px",
+                    resize: "vertical",
+                    background: "rgba(248, 250, 252, 0.9)",
+                    color: "#2C3E50"
+                  }}
+                />
+              </div>
+            )}
+            
+            <div style={{
+              display: "flex",
+              gap: "15px",
+              justifyContent: "center"
+            }}>
+              <button
+                onClick={() => {
+                  if (accionModal === "aprobar") {
+                    ejecutarVerificacionPago(true);
+                  } else if (accionModal === "rechazar") {
+                    if (!motivoRechazo.trim()) {
+                      notificaciones.advertencia("Motivo Requerido", "Debes ingresar un motivo para rechazar el pago");
+                      return;
+                    }
+                    ejecutarVerificacionPago(false);
+                  } else if (accionModal === "cambiarEstado") {
+                    ejecutarCambioEstado(mostrarModalConfirmacion.nuevoEstado);
+                  }
+                }}
+                style={{
+                  padding: "16px 32px",
+                  background: accionModal === "aprobar" 
+                    ? "linear-gradient(135deg, #10B981 0%, #34D399 100%)" 
+                    : accionModal === "rechazar"
+                    ? "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)"
+                    : "linear-gradient(135deg, #3B82F6 0%, #2563eb 100%)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "14px",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  fontWeight: "800",
+                  transition: "all 0.3s ease",
+                  boxShadow: accionModal === "aprobar" 
+                    ? "0 6px 20px rgba(16, 185, 129, 0.4)" 
+                    : accionModal === "rechazar"
+                    ? "0 6px 20px rgba(239, 68, 68, 0.4)"
+                    : "0 6px 20px rgba(59, 130, 246, 0.4)",
+                  flex: "1",
+                  maxWidth: "200px"
+                }}
+              >
+                {accionModal === "aprobar" ? "✅ Aprobar" : 
+                 accionModal === "rechazar" ? "❌ Rechazar" : 
+                 "✅ Cambiar Estado"}
+              </button>
+              
+              <button
+                onClick={() => {
+                  setMostrarModalConfirmacion(false);
+                  setMotivoRechazo("");
+                }}
+                style={{
+                  padding: "16px 32px",
+                  background: "linear-gradient(135deg, #64748b 0%, #475569 100%)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "14px",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                  fontWeight: "800",
+                  transition: "all 0.3s ease",
+                  boxShadow: "0 6px 20px rgba(100, 116, 139, 0.4)",
+                  flex: "1",
+                  maxWidth: "200px"
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700;800;900&display=swap');
         
@@ -2294,129 +2410,6 @@ export default function VendedorPedidoDetalle() {
           }
         }
       `}</style>
-
-      {/* Modal de Confirmación Personalizado */}
-{mostrarModalConfirmacion && (
-  <div style={{
-    position: "fixed",
-    top: "0",
-    left: "0",
-    right: "0",
-    bottom: "0",
-    background: "rgba(0, 0, 0, 0.7)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: "9999",
-    backdropFilter: "blur(5px)",
-    animation: "fadeIn 0.3s ease-out"
-  }}>
-    <div style={{
-      background: "linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 1) 100%)",
-      borderRadius: "24px",
-      padding: "35px",
-      maxWidth: "500px",
-      width: "90%",
-      boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
-      border: "1px solid rgba(255, 255, 255, 0.4)",
-      animation: "fadeIn 0.4s ease-out"
-    }}>
-      <div style={{
-        fontSize: "42px",
-        textAlign: "center",
-        marginBottom: "20px",
-        background: "linear-gradient(135deg, #FF6B35, #8B5CF6)",
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent"
-      }}>
-        ⚠️
-      </div>
-      
-      <h3 style={{
-        fontFamily: "'Playfair Display', serif",
-        fontSize: "28px",
-        fontWeight: "800",
-        color: "#2C3E50",
-        textAlign: "center",
-        marginBottom: "15px"
-      }}>
-        {tituloConfirmacion}
-      </h3>
-      
-      <p style={{
-        color: "#64748b",
-        fontSize: "16px",
-        lineHeight: "1.6",
-        textAlign: "center",
-        marginBottom: "30px",
-        background: "rgba(241, 245, 249, 0.6)",
-        padding: "20px",
-        borderRadius: "14px",
-        border: "1px solid rgba(229, 231, 235, 0.5)"
-      }}>
-        {mensajeConfirmacion}
-      </p>
-      
-      <div style={{
-        display: "flex",
-        gap: "15px",
-        justifyContent: "center"
-      }}>
-        <button
-          onClick={() => {
-            if (accionConfirmacion === "aprobar") {
-              ejecutarVerificacionPago(true);
-            } else if (accionConfirmacion === "rechazar") {
-              ejecutarRechazoPago();
-            }
-            setMostrarModalConfirmacion(false);
-          }}
-          style={{
-            padding: "16px 32px",
-            background: accionConfirmacion === "aprobar" 
-              ? "linear-gradient(135deg, #10B981 0%, #34D399 100%)" 
-              : "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)",
-            color: "white",
-            border: "none",
-            borderRadius: "14px",
-            cursor: "pointer",
-            fontSize: "16px",
-            fontWeight: "800",
-            transition: "all 0.3s ease",
-            boxShadow: accionConfirmacion === "aprobar" 
-              ? "0 6px 20px rgba(16, 185, 129, 0.4)" 
-              : "0 6px 20px rgba(239, 68, 68, 0.4)",
-            flex: "1",
-            maxWidth: "200px"
-          }}
-        >
-          {accionConfirmacion === "aprobar" ? "✅ Aprobar" : "❌ Rechazar"}
-        </button>
-        
-        <button
-          onClick={() => setMostrarModalConfirmacion(false)}
-          style={{
-            padding: "16px 32px",
-            background: "linear-gradient(135deg, #64748b 0%, #475569 100%)",
-            color: "white",
-            border: "none",
-            borderRadius: "14px",
-            cursor: "pointer",
-            fontSize: "16px",
-            fontWeight: "800",
-            transition: "all 0.3s ease",
-            boxShadow: "0 6px 20px rgba(100, 116, 139, 0.4)",
-            flex: "1",
-            maxWidth: "200px"
-          }}
-        >
-          Cancelar
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
     </div>
   );
 }
