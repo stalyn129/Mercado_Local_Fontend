@@ -29,8 +29,14 @@ import {
   BarChart,
   Check,
   AlertTriangle,
-  Info
+  Info,
+  Ban,
+  Lock,
+  Unlock,
+  ShieldAlert
 } from "lucide-react";
+import Notificaciones from "../../components/Notificaciones";
+import useNotification from "../../hooks/useNotification";
 
 export default function ProductosAdmin() {
   const API_URL = "http://localhost:8080";
@@ -51,9 +57,17 @@ export default function ProductosAdmin() {
   const [busqueda, setBusqueda] = useState("");
 
   const [modalData, setModalData] = useState(null);
+  const [productoParaDesactivar, setProductoParaDesactivar] = useState(null);
+  const [productoParaReactivar, setProductoParaReactivar] = useState(null);
+  const [alertaDesactivar, setAlertaDesactivar] = useState(false);
+  const [alertaReactivar, setAlertaReactivar] = useState(false);
   
-  // Estado para notificaciones flotantes
-  const [notifications, setNotifications] = useState([]);
+  // NUEVO: Hook de notificaciones
+  const {
+    notificacion,
+    setNotificacion,
+    notificaciones
+  } = useNotification();
 
   // =================== Círculos flotantes ===================
   useEffect(() => {
@@ -100,28 +114,6 @@ export default function ProductosAdmin() {
 
     return () => clearInterval(interval);
   }, []);
-
-  // =================== Función para mostrar notificaciones flotantes ===================
-  const showNotification = (message, type = "success") => {
-    const id = Date.now();
-    const notification = {
-      id,
-      message,
-      type,
-      timestamp: new Date()
-    };
-    
-    setNotifications(prev => [notification, ...prev]);
-    
-    // Remover automáticamente después de 5 segundos
-    setTimeout(() => {
-      removeNotification(id);
-    }, 5000);
-  };
-
-  const removeNotification = (id) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== id));
-  };
 
   // =================== Cargar Categorías ===================
   useEffect(() => {
@@ -187,12 +179,23 @@ export default function ProductosAdmin() {
   async function cargarProductos() {
     setLoading(true);
     try {
+      notificaciones.info(
+        "Cargando productos...",
+        "Obteniendo datos del catálogo",
+        "caja"
+      );
+
       const res = await fetch(`${API_URL}/productos/admin/listar`); // Endpoint para admin
       const raw = await res.text();
 
       if (!raw || raw.trim() === "") {
         console.error("⚠️ El backend devolvió una respuesta vacía.");
         setProductos([]);
+        notificaciones.advertencia(
+          "Catálogo vacío",
+          "No se encontraron productos en el sistema",
+          "caja"
+        );
         return;
       }
 
@@ -223,9 +226,21 @@ export default function ProductosAdmin() {
       });
       
       setProductos(productosProcesados);
+      
+      // Mostrar notificación de éxito
+      notificaciones.exito(
+        "Productos cargados", 
+        `Se cargaron ${productosProcesados.length} productos correctamente`,
+        "check"
+      );
 
     } catch (e) {
       console.error("❌ Error cargando productos:", e);
+      notificaciones.error(
+        "Error al cargar productos", 
+        "No se pudieron obtener los datos del catálogo",
+        "alerta"
+      );
     }
 
     setLoading(false);
@@ -315,14 +330,46 @@ export default function ProductosAdmin() {
   const totalVendedores = [...new Set(productos.map(p => p.idVendedor))].length;
   const productosConImagen = productos.filter(p => obtenerImagenProducto(p)).length;
 
+  // NUEVO: Función para mostrar alerta de desactivación
+  function mostrarAlertaDesactivar(producto) {
+    setProductoParaDesactivar(producto);
+    setAlertaDesactivar(true);
+  }
+
+  // NUEVO: Función para mostrar alerta de reactivación
+  function mostrarAlertaReactivar(producto) {
+    setProductoParaReactivar(producto);
+    setAlertaReactivar(true);
+  }
+
+  // NUEVO: Función para cerrar alertas
+  function cerrarAlertaDesactivar() {
+    setAlertaDesactivar(false);
+    setProductoParaDesactivar(null);
+  }
+
+  function cerrarAlertaReactivar() {
+    setAlertaReactivar(false);
+    setProductoParaReactivar(null);
+  }
+
   // =================== BORRADO LÓGICO - DESACTIVAR PRODUCTO ===================
-  const desactivarProducto = async (id) => {
-    if (!confirm("¿Estás seguro de desactivar este producto?")) return;
+  const realizarDesactivacion = async () => {
+    if (!productoParaDesactivar) return;
+    
+    const { idProducto, nombreProducto } = productoParaDesactivar;
 
     try {
       const token = localStorage.getItem("token");
       
-      const res = await fetch(`${API_URL}/productos/${id}/desactivar`, {
+      // Mostrar notificación de proceso
+      notificaciones.info(
+        "Desactivando producto...",
+        `Procesando solicitud para ${nombreProducto}`,
+        "reloj"
+      );
+
+      const res = await fetch(`${API_URL}/productos/${idProducto}/desactivar`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -336,7 +383,7 @@ export default function ProductosAdmin() {
       if (res.ok) {
         // Actualizar el estado local
         setProductos(prev => prev.map(p => 
-          p.idProducto === id ? { 
+          p.idProducto === idProducto ? { 
             ...p, 
             activo: false, 
             estado: "Inactivo",
@@ -345,24 +392,50 @@ export default function ProductosAdmin() {
           } : p
         ));
         
-        showNotification("✅ Producto desactivado correctamente", "success");
+        // Mostrar notificación de éxito
+        notificaciones.advertencia(
+          "⚠️ Producto desactivado",
+          `${nombreProducto} ha sido deshabilitado del catálogo`,
+          "bloqueo"
+        );
+        
+        cerrarAlertaDesactivar();
       } else {
-        showNotification(`❌ Error: ${data.error || "No se pudo desactivar"}`, "error");
+        notificaciones.error(
+          "Error al desactivar",
+          data.error || "No se pudo desactivar el producto",
+          "error"
+        );
+        cerrarAlertaDesactivar();
       }
     } catch (e) {
       console.error("Error desactivando:", e);
-      showNotification("Error desactivando producto", "error");
+      notificaciones.error(
+        "Error de conexión",
+        "No se pudo conectar con el servidor",
+        "alerta"
+      );
+      cerrarAlertaDesactivar();
     }
   };
 
   // =================== BORRADO LÓGICO - REACTIVAR PRODUCTO ===================
-  const reactivarProducto = async (id) => {
-    if (!confirm("¿Reactivar este producto?")) return;
+  const realizarReactivacion = async () => {
+    if (!productoParaReactivar) return;
+    
+    const { idProducto, nombreProducto } = productoParaReactivar;
 
     try {
       const token = localStorage.getItem("token");
       
-      const res = await fetch(`${API_URL}/productos/${id}/reactivar`, {
+      // Mostrar notificación de proceso
+      notificaciones.info(
+        "Reactivando producto...",
+        `Procesando solicitud para ${nombreProducto}`,
+        "reloj"
+      );
+
+      const res = await fetch(`${API_URL}/productos/${idProducto}/reactivar`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -375,7 +448,7 @@ export default function ProductosAdmin() {
       if (res.ok) {
         // Actualizar el estado local
         setProductos(prev => prev.map(p => 
-          p.idProducto === id ? { 
+          p.idProducto === idProducto ? { 
             ...p, 
             activo: true, 
             estado: "Disponible",
@@ -383,13 +456,31 @@ export default function ProductosAdmin() {
             fechaDesactivacion: null
           } : p
         ));
-        showNotification("✅ Producto reactivado correctamente", "success");
+        
+        // Mostrar notificación de éxito
+        notificaciones.exito(
+          "✅ Producto reactivado",
+          `${nombreProducto} ahora está disponible en el catálogo`,
+          "check"
+        );
+        
+        cerrarAlertaReactivar();
       } else {
-        showNotification(`❌ Error: ${data.error || "No se pudo reactivar"}`, "error");
+        notificaciones.error(
+          "Error al reactivar",
+          data.error || "No se pudo reactivar el producto",
+          "error"
+        );
+        cerrarAlertaReactivar();
       }
     } catch (e) {
       console.error("Error reactivando:", e);
-      showNotification("Error reactivando producto", "error");
+      notificaciones.error(
+        "Error de conexión",
+        "No se pudo conectar con el servidor",
+        "alerta"
+      );
+      cerrarAlertaReactivar();
     }
   };
 
@@ -401,18 +492,57 @@ export default function ProductosAdmin() {
       id: producto.idProducto,
       nombreProducto: producto.nombreProducto || "",
       precioProducto: producto.precioProducto || "",
-      // NO incluir stockProducto ni unidad
     });
+    
+    notificaciones.info(
+      "Modo edición",
+      `Editando producto: ${producto.nombreProducto}`,
+      "edit"
+    );
   }
 
   function cancelarEdicion() {
+    const producto = productos.find(p => p.idProducto === editando);
+    if (producto) {
+      notificaciones.info(
+        "Edición cancelada",
+        `No se guardaron cambios para ${producto.nombreProducto}`,
+        "x"
+      );
+    }
     setEditando(null);
     setFormEdit({});
   }
 
   async function guardarEdicion() {
+    // Validaciones
+    if (!formEdit.nombreProducto.trim()) {
+      notificaciones.advertencia(
+        "Nombre requerido",
+        "El nombre del producto no puede estar vacío",
+        "alerta"
+      );
+      return;
+    }
+    
+    if (!formEdit.precioProducto || formEdit.precioProducto <= 0) {
+      notificaciones.advertencia(
+        "Precio inválido",
+        "El precio debe ser mayor a cero",
+        "dinero"
+      );
+      return;
+    }
+
     try {
       const token = localStorage.getItem("token");
+      
+      // Mostrar notificación de proceso
+      notificaciones.info(
+        "Guardando cambios...",
+        "Actualizando información del producto",
+        "reloj"
+      );
       
       const res = await fetch(`${API_URL}/productos/${formEdit.id}`, {
         method: "PUT",
@@ -423,7 +553,6 @@ export default function ProductosAdmin() {
         body: JSON.stringify({
           nombreProducto: formEdit.nombreProducto,
           precioProducto: formEdit.precioProducto
-          // NO enviar stockProducto ni unidad
         })
       });
 
@@ -437,15 +566,28 @@ export default function ProductosAdmin() {
           } : p
         ));
         
-        showNotification("✅ Producto actualizado correctamente", "success");
+        // Mostrar notificación de éxito
+        notificaciones.exito(
+          "✅ Producto actualizado",
+          "Los cambios se han guardado correctamente",
+          "check"
+        );
         cancelarEdicion();
       } else {
         const error = await res.json();
-        showNotification("❌ Error: " + error.error, "error");
+        notificaciones.error(
+          "Error al guardar",
+          error.error || "No se pudo actualizar el producto",
+          "error"
+        );
       }
     } catch (e) {
       console.error("Error guardando:", e);
-      showNotification("Error actualizando producto: " + e.message, "error");
+      notificaciones.error(
+        "Error de conexión",
+        "No se pudo conectar con el servidor",
+        "alerta"
+      );
     }
   }
 
@@ -456,16 +598,31 @@ export default function ProductosAdmin() {
     setVendedorSel("");
     setEstadoSel("");
     setBusqueda("");
-    showNotification("Filtros limpiados", "info");
+    
+    notificaciones.info(
+      "Filtros limpiados",
+      "Se restablecieron todos los filtros de búsqueda",
+      "filter"
+    );
   }
 
   if (loading) {
     return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner}></div>
-        <div style={styles.loadingContent}>
-          <h3 style={styles.loadingTitle}>Cargando productos...</h3>
-          <p style={styles.loadingText}>Obteniendo datos del sistema</p>
+      <div style={styles.container}>
+        <Notificaciones 
+          notificacion={notificacion} 
+          setNotificacion={setNotificacion}
+          position="bottom-right"
+          autoClose={5000}
+          showProgress={true}
+          pauseOnHover={true}
+        />
+        <div style={styles.loadingContainer}>
+          <div style={styles.spinner}></div>
+          <div style={styles.loadingContent}>
+            <h3 style={styles.loadingTitle}>Cargando productos...</h3>
+            <p style={styles.loadingText}>Obteniendo datos del sistema</p>
+          </div>
         </div>
       </div>
     );
@@ -473,39 +630,113 @@ export default function ProductosAdmin() {
 
   return (
     <div style={styles.container}>
-      {/* Notificaciones flotantes */}
-      <div style={styles.notificationsContainer}>
-        {notifications.map((notification) => (
-          <div
-            key={notification.id}
-            style={{
-              ...styles.notification,
-              backgroundColor: notification.type === 'success' ? '#10B981' : 
-                              notification.type === 'error' ? '#EF4444' : '#3B82F6',
-              animation: 'slideIn 0.3s ease-out'
-            }}
-          >
-            <div style={styles.notificationContent}>
-              {notification.type === 'success' && <Check size={18} />}
-              {notification.type === 'error' && <AlertTriangle size={18} />}
-              {notification.type === 'info' && <Info size={18} />}
-              <span style={styles.notificationText}>{notification.message}</span>
+      {/* Componente de Notificaciones */}
+      <Notificaciones 
+        notificacion={notificacion} 
+        setNotificacion={setNotificacion}
+        position="bottom-right"
+        autoClose={5000}
+        showProgress={true}
+        pauseOnHover={true}
+      />
+
+      {/* ALERTA PARA DESACTIVAR PRODUCTO */}
+      {alertaDesactivar && productoParaDesactivar && (
+        <div style={styles.alertaOverlay}>
+          <div style={styles.alertaModal}>
+            <div style={styles.alertaHeader}>
+              <div style={{...styles.alertaIcono, backgroundColor: `${styles.colors.warning}20`, color: styles.colors.warning}}>
+                <EyeOff size={48} />
+              </div>
+              <h3 style={styles.alertaTitulo}>¿Desactivar producto?</h3>
             </div>
-            <button
-              onClick={() => removeNotification(notification.id)}
-              style={styles.notificationClose}
-            >
-              <X size={16} />
-            </button>
-            <div 
-              style={{
-                ...styles.notificationProgress,
-                animation: 'progressBar 5s linear forwards'
-              }}
-            />
+            
+            <div style={styles.alertaContenido}>
+              <p style={styles.alertaMensaje}>¿Confirmas desactivar "{productoParaDesactivar.nombreProducto}"?</p>
+              <p style={styles.alertaDetalles}>El producto será removido del catálogo público y no estará disponible para compras.</p>
+              
+              <div style={{...styles.alertaAdvertencia, borderColor: styles.colors.warning, backgroundColor: `${styles.colors.warning}10`}}>
+                <ShieldAlert size={16} style={{color: styles.colors.warning}} />
+                <span style={{fontWeight: 'bold', color: styles.colors.warning}}>IMPORTANTE: Los usuarios no podrán ver ni comprar este producto</span>
+              </div>
+              
+              <div style={styles.alertaConsecuencias}>
+                <h4 style={styles.consecuenciasTitulo}>Consecuencias:</h4>
+                <ul style={styles.consecuenciasLista}>
+                  <li>✓ No visible en el catálogo público</li>
+                  <li>✓ No disponible para compras</li>
+                  <li>✓ Conserva todos sus datos</li>
+                  <li>✓ Puede reactivarse en cualquier momento</li>
+                </ul>
+              </div>
+            </div>
+            
+            <div style={styles.alertaBotones}>
+              <button
+                onClick={cerrarAlertaDesactivar}
+                style={styles.alertaBotonCancelar}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={realizarDesactivacion}
+                style={{...styles.alertaBotonAccion, backgroundColor: styles.colors.warning}}
+              >
+                Desactivar
+              </button>
+            </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
+
+      {/* ALERTA PARA REACTIVAR PRODUCTO */}
+      {alertaReactivar && productoParaReactivar && (
+        <div style={styles.alertaOverlay}>
+          <div style={styles.alertaModal}>
+            <div style={styles.alertaHeader}>
+              <div style={{...styles.alertaIcono, backgroundColor: `${styles.colors.success}20`, color: styles.colors.success}}>
+                <RefreshCw size={48} />
+              </div>
+              <h3 style={styles.alertaTitulo}>¿Reactivar producto?</h3>
+            </div>
+            
+            <div style={styles.alertaContenido}>
+              <p style={styles.alertaMensaje}>¿Confirmas reactivar "{productoParaReactivar.nombreProducto}"?</p>
+              <p style={styles.alertaDetalles}>El producto volverá a estar disponible en el catálogo público.</p>
+              
+              <div style={{...styles.alertaAdvertencia, borderColor: styles.colors.success, backgroundColor: `${styles.colors.success}10`}}>
+                <CheckCircle size={16} style={{color: styles.colors.success}} />
+                <span style={{fontWeight: 'bold', color: styles.colors.success}}>El producto será visible y disponible para compras</span>
+              </div>
+              
+              <div style={styles.alertaConsecuencias}>
+                <h4 style={styles.consecuenciasTitulo}>Consecuencias:</h4>
+                <ul style={styles.consecuenciasLista}>
+                  <li>✓ Visible en el catálogo público</li>
+                  <li>✓ Disponible para compras</li>
+                  <li>✓ Aparecerá en búsquedas</li>
+                  <li>✓ Puede agregarse al carrito</li>
+                </ul>
+              </div>
+            </div>
+            
+            <div style={styles.alertaBotones}>
+              <button
+                onClick={cerrarAlertaReactivar}
+                style={styles.alertaBotonCancelar}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={realizarReactivacion}
+                style={{...styles.alertaBotonAccion, backgroundColor: styles.colors.success}}
+              >
+                Reactivar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header con diseño igual al Dashboard */}
       <div style={styles.headerContainer}>
@@ -545,7 +776,6 @@ export default function ProductosAdmin() {
               style={styles.refreshButton}
               onClick={() => {
                 cargarProductos();
-                showNotification("Actualizando catálogo...", "info");
               }}
               disabled={loading}
             >
@@ -947,7 +1177,7 @@ export default function ProductosAdmin() {
                                 <Edit2 size={16} />
                               </button>
                               <button
-                                onClick={() => desactivarProducto(p.idProducto)}
+                                onClick={() => mostrarAlertaDesactivar(p)}
                                 style={{...styles.actionButton, backgroundColor: '#EF444410', color: '#EF4444'}}
                                 title="Deshabilitar producto"
                               >
@@ -956,7 +1186,7 @@ export default function ProductosAdmin() {
                             </>
                           ) : (
                             <button
-                              onClick={() => reactivarProducto(p.idProducto)}
+                              onClick={() => mostrarAlertaReactivar(p)}
                               style={{...styles.actionButton, backgroundColor: '#10B98110', color: '#10B981'}}
                               title="Reactivar producto"
                             >
@@ -1118,7 +1348,7 @@ export default function ProductosAdmin() {
               {!modalData.activo ? (
                 <button
                   onClick={() => {
-                    reactivarProducto(modalData.idProducto);
+                    mostrarAlertaReactivar(modalData);
                     setModalData(null);
                   }}
                   style={styles.modalButton}
@@ -1129,7 +1359,7 @@ export default function ProductosAdmin() {
               ) : (
                 <button
                   onClick={() => {
-                    desactivarProducto(modalData.idProducto);
+                    mostrarAlertaDesactivar(modalData);
                     setModalData(null);
                   }}
                   style={{...styles.modalButton, backgroundColor: '#EF4444'}}
@@ -1178,96 +1408,176 @@ export default function ProductosAdmin() {
           100% { transform: rotate(360deg); }
         }
 
-        @keyframes slideIn {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
-        @keyframes progressBar {
-          from {
-            width: 100%;
-          }
-          to {
-            width: 0%;
-          }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>
   );
 }
 
-// ESTILOS ACTUALIZADOS CON BORRADO LÓGICO Y UNIDADES
+// ESTILOS ACTUALIZADOS CON BORRADO LÓGICO, UNIDADES Y ALERTAS
 const styles = {
+  colors: {
+    primary: '#FF6B35',
+    secondary: '#8B5CF6',
+    success: '#10B981',
+    warning: '#F59E0B',
+    danger: '#EF4444',
+    info: '#3B82F6'
+  },
+  
+  // ALERTAS
+  alertaOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backdropFilter: 'blur(4px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10000,
+    animation: 'fadeIn 0.3s ease-out'
+  },
+  
+  alertaModal: {
+    backgroundColor: 'white',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    width: '90%',
+    maxWidth: '500px',
+    overflow: 'hidden',
+    animation: 'slideUp 0.4s ease-out'
+  },
+  
+  alertaHeader: {
+    padding: '32px 32px 20px',
+    textAlign: 'center',
+    borderBottom: '1px solid #e5e7eb'
+  },
+  
+  alertaIcono: {
+    width: '80px',
+    height: '80px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '0 auto 20px',
+    border: `2px solid currentColor`
+  },
+  
+  alertaTitulo: {
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#111827',
+    margin: 0
+  },
+  
+  alertaContenido: {
+    padding: '32px',
+    borderBottom: '1px solid #e5e7eb'
+  },
+  
+  alertaMensaje: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#374151',
+    margin: '0 0 16px 0',
+    textAlign: 'center'
+  },
+  
+  alertaDetalles: {
+    fontSize: '16px',
+    color: '#6b7280',
+    margin: '0 0 24px 0',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  
+  alertaAdvertencia: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '16px',
+    borderRadius: '12px',
+    border: '2px solid',
+    marginBottom: '24px',
+    fontSize: '15px',
+    fontWeight: '500'
+  },
+  
+  alertaConsecuencias: {
+    marginTop: '24px',
+    padding: '20px',
+    backgroundColor: '#f9fafb',
+    borderRadius: '12px',
+    border: '1px solid #e5e7eb'
+  },
+  
+  consecuenciasTitulo: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#374151',
+    margin: '0 0 12px 0'
+  },
+  
+  consecuenciasLista: {
+    margin: 0,
+    paddingLeft: '20px',
+    color: '#6b7280',
+    fontSize: '14px',
+    lineHeight: '1.8'
+  },
+  
+  alertaBotones: {
+    padding: '24px 32px',
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end'
+  },
+  
+  alertaBotonCancelar: {
+    padding: '14px 28px',
+    backgroundColor: '#f3f4f6',
+    color: '#374151',
+    border: 'none',
+    borderRadius: '10px',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    minWidth: '120px'
+  },
+  
+  alertaBotonAccion: {
+    padding: '14px 28px',
+    backgroundColor: '#FF6B35',
+    color: 'white',
+    border: 'none',
+    borderRadius: '10px',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    minWidth: '120px'
+  },
+  
   container: {
     padding: '24px',
     maxWidth: '1400px',
     margin: '0 auto',
     fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
     position: 'relative'
-  },
-  
-  // Notificaciones flotantes
-  notificationsContainer: {
-    position: 'fixed',
-    top: '20px',
-    right: '20px',
-    zIndex: 9999,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-    maxWidth: '350px'
-  },
-  
-  notification: {
-    padding: '16px',
-    borderRadius: '10px',
-    color: 'white',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    position: 'relative',
-    overflow: 'hidden',
-    animation: 'slideIn 0.3s ease-out'
-  },
-  
-  notificationContent: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    flex: 1
-  },
-  
-  notificationText: {
-    fontSize: '14px',
-    fontWeight: '500',
-    flex: 1
-  },
-  
-  notificationClose: {
-    background: 'transparent',
-    border: 'none',
-    color: 'white',
-    cursor: 'pointer',
-    padding: '4px',
-    marginLeft: '8px',
-    opacity: '0.8',
-    transition: 'opacity 0.2s ease'
-  },
-  
-  notificationProgress: {
-    position: 'absolute',
-    bottom: '0',
-    left: '0',
-    height: '3px',
-    background: 'rgba(255, 255, 255, 0.5)',
-    animation: 'progressBar 5s linear forwards'
   },
   
   loadingContainer: {
