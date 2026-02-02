@@ -18,10 +18,15 @@ import {
   Search
 } from "lucide-react";
 
+// IMPORTACIONES CORREGIDAS - Ajusta según tu estructura
+import Notificaciones from "../../components/Notificaciones";
+import useNotification from "../../hooks/useNotification";
+
 ChartJS.register(ArcElement, Tooltip, Legend, BarElement, CategoryScale, LinearScale);
 
 const API_URL = "http://localhost:8080";
 
+// =================== COMPONENTE PRINCIPAL REPORTESADMIN ===================
 export default function ReportesAdmin() {
   const [ventasCat, setVentasCat] = useState([]);
   const [stockProd, setStockProd] = useState([]);
@@ -30,8 +35,8 @@ export default function ReportesAdmin() {
   const [circlePositions, setCirclePositions] = useState([]);
   
   // Estados para filtros
-  const [filtroCategorias, setFiltroCategorias] = useState("all"); // "all" = Todas las categorías
-  const [filtroProductos, setFiltroProductos] = useState("all"); // "all" = Todos los productos
+  const [filtroCategorias, setFiltroCategorias] = useState("all");
+  const [filtroProductos, setFiltroProductos] = useState("all");
   const [busquedaProductos, setBusquedaProductos] = useState('');
   const [mostrarSelectorCategorias, setMostrarSelectorCategorias] = useState(false);
   const [mostrarSelectorProductos, setMostrarSelectorProductos] = useState(false);
@@ -39,6 +44,13 @@ export default function ReportesAdmin() {
   // Estado para interactividad del gráfico de torta
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(null);
   const [statsFromDashboard, setStatsFromDashboard] = useState({ ventas: 0 });
+
+  // =================== USO DE NOTIFICACIONES ===================
+  const {
+    notificacion,
+    setNotificacion,
+    notificaciones
+  } = useNotification();
 
   // =================== CÍRCULOS FLOTANTES ===================
   useEffect(() => {
@@ -88,97 +100,137 @@ export default function ReportesAdmin() {
 
   // Cargar datos reales del backend
   useEffect(() => {
-    const token = localStorage.getItem("authToken") || 
-                  localStorage.getItem("token") || 
-                  sessionStorage.getItem("authToken");
+    const cargarDatos = async () => {
+      const token = localStorage.getItem("authToken") || 
+                    localStorage.getItem("token") || 
+                    sessionStorage.getItem("authToken");
 
-    if (!token) {
-      setError("No se encontró token de autenticación. Por favor, inicia sesión.");
-      setLoading(false);
-      return;
-    }
-
-    Promise.all([
-      // Datos de ventas por categoría
-      fetch(`${API_URL}/reportes/ventas-por-categoria`, {
-        headers: { 
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      }).then(async res => {
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`${res.status} en ventas: ${errorText}`);
-        }
-        return res.json();
-      }),
-
-      // Datos de stock
-      fetch(`${API_URL}/reportes/stock-productos`, {
-        headers: { 
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      }).then(async res => {
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(`${res.status} en stock: ${errorText}`);
-        }
-        return res.json();
-      }),
-
-      // También obtener las estadísticas del dashboard para consistencia
-      fetch(`${API_URL}/api/admin/simple-stats`, {
-        headers: { 
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      }).then(async res => {
-        if (!res.ok) {
-          return { ventas: 0 };
-        }
-        return res.json();
-      })
-    ])
-    .then(([ventasData, stockData, dashboardStats]) => {
-      console.log("📊 Datos de ventas recibidos:", ventasData);
-      console.log("📦 Datos de stock recibidos:", stockData);
-      console.log("📈 Estadísticas del dashboard:", dashboardStats);
-      
-      // Filtrar categorías vacías o con nombre undefined
-      const ventasFiltradas = Array.isArray(ventasData) 
-        ? ventasData.filter(item => 
-            item && 
-            item.categoria && 
-            item.categoria.trim() !== "" && 
-            item.totalVentas !== undefined
-          )
-        : [];
-      
-      // Ordenar ventas de mayor a menor
-      const ventasOrdenadas = ventasFiltradas.sort((a, b) => b.totalVentas - a.totalVentas);
-      
-      // Ordenar stock de mayor a menor
-      const stockOrdenado = Array.isArray(stockData) 
-        ? stockData.sort((a, b) => b.stock - a.stock)
-        : [];
-      
-      setVentasCat(ventasOrdenadas);
-      setStockProd(stockOrdenado);
-      
-      if (dashboardStats && dashboardStats.ventas) {
-        setStatsFromDashboard({ ventas: dashboardStats.ventas });
+      if (!token) {
+        setError("No se encontró token de autenticación. Por favor, inicia sesión.");
+        setLoading(false);
+        notificaciones.advertenciaLogin();
+        return;
       }
-      
-      setLoading(false);
-    })
-    .catch(err => {
-      console.error("❌ Error cargando reportes:", err);
-      setError(err.message || "Error al cargar los reportes. Verifica tus permisos de administrador.");
-      setLoading(false);
-    });
 
+      try {
+        setLoading(true);
+        notificaciones.info("Cargando datos", "Obteniendo información de reportes...", "reloj");
+        
+        const [ventasData, stockData, dashboardStats] = await Promise.all([
+          fetch(`${API_URL}/reportes/ventas-por-categoria`, {
+            headers: { 
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json"
+            }
+          }).then(async res => {
+            if (!res.ok) {
+              const errorText = await res.text();
+              throw new Error(`${res.status} en ventas: ${errorText}`);
+            }
+            return res.json();
+          }),
+
+          fetch(`${API_URL}/reportes/stock-productos`, {
+            headers: { 
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json"
+            }
+          }).then(async res => {
+            if (!res.ok) {
+              const errorText = await res.text();
+              throw new Error(`${res.status} en stock: ${errorText}`);
+            }
+            return res.json();
+          }),
+
+          fetch(`${API_URL}/api/admin/simple-stats`, {
+            headers: { 
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json"
+            }
+          }).then(async res => {
+            if (!res.ok) {
+              return { ventas: 0 };
+            }
+            return res.json();
+          })
+        ]);
+
+        console.log("📊 Datos de ventas recibidos:", ventasData);
+        console.log("📦 Datos de stock recibidos:", stockData);
+        console.log("📈 Estadísticas del dashboard:", dashboardStats);
+        
+        // Filtrar categorías vacías o con nombre undefined
+        const ventasFiltradas = Array.isArray(ventasData) 
+          ? ventasData.filter(item => 
+              item && 
+              item.categoria && 
+              item.categoria.trim() !== "" && 
+              item.totalVentas !== undefined
+            )
+          : [];
+        
+        // Ordenar ventas de mayor a menor
+        const ventasOrdenadas = ventasFiltradas.sort((a, b) => b.totalVentas - a.totalVentas);
+        
+        // Ordenar stock de mayor a menor
+        const stockOrdenado = Array.isArray(stockData) 
+          ? stockData.sort((a, b) => b.stock - a.stock)
+          : [];
+        
+        setVentasCat(ventasOrdenadas);
+        setStockProd(stockOrdenado);
+        
+        if (dashboardStats && dashboardStats.ventas) {
+          setStatsFromDashboard({ ventas: dashboardStats.ventas });
+        }
+        
+        setLoading(false);
+        
+        // Mostrar notificación de éxito solo si hay datos
+        if (ventasOrdenadas.length > 0 || stockOrdenado.length > 0) {
+          notificaciones.exito(
+            "Datos cargados", 
+            `Se cargaron ${ventasOrdenadas.length} categorías y ${stockOrdenado.length} productos correctamente`,
+            "check"
+          );
+        } else {
+          notificaciones.advertencia(
+            "Sin datos", 
+            "No se encontraron datos para mostrar en los reportes", 
+            "caja"
+          );
+        }
+        
+      } catch (err) {
+        console.error("❌ Error cargando reportes:", err);
+        setError(err.message || "Error al cargar los reportes. Verifica tus permisos de administrador.");
+        setLoading(false);
+        notificaciones.error(
+          "Error de conexión", 
+          "No se pudo conectar con el servidor. Verifica tu conexión.", 
+          "banco"
+        );
+      }
+    };
+
+    cargarDatos();
   }, []);
+
+  // =================== FUNCIONES CON NOTIFICACIONES ===================
+  const handleActualizarReportes = () => {
+    notificaciones.infoProcesoIniciado();
+    window.location.reload();
+  };
+
+  const handleSeleccionCategoria = (categoria, total) => {
+    setCategoriaSeleccionada({ categoria, total });
+    notificaciones.info(
+      "Categoría seleccionada", 
+      `Has seleccionado "${categoria}" con ventas de $${total.toFixed(2)}`,
+      "ubicacion"
+    );
+  };
 
   // =================== DATOS FILTRADOS ===================
   const ventasFiltradas = filtroCategorias === "all" 
@@ -196,7 +248,6 @@ export default function ReportesAdmin() {
       : parseInt(filtroProductos) || stockProd.length);
 
   // =================== CALCULAR ESTADÍSTICAS ===================
-  // Usar las ventas del dashboard si están disponibles, sino calcular de las categorías
   const totalVentasCalculado = ventasCat.reduce((sum, v) => sum + (v.totalVentas || 0), 0);
   const totalVentas = statsFromDashboard.ventas > 0 ? statsFromDashboard.ventas : totalVentasCalculado;
   
@@ -253,7 +304,7 @@ export default function ReportesAdmin() {
         const index = elements[0].index;
         const categoria = ventasFiltradas[index].categoria;
         const total = ventasFiltradas[index].totalVentas;
-        setCategoriaSeleccionada({ categoria, total });
+        handleSeleccionCategoria(categoria, total);
       }
     },
     plugins: {
@@ -472,6 +523,11 @@ export default function ReportesAdmin() {
                       onClick={() => {
                         onChange(opcion.value);
                         setMostrar(false);
+                        notificaciones.info(
+                          "Filtro aplicado", 
+                          `Mostrando ${opcion.label.toLowerCase()}`, 
+                          "config"
+                        );
                       }}
                       style={{
                         ...styles.opcionFiltro,
@@ -491,6 +547,11 @@ export default function ReportesAdmin() {
                   onClick={() => {
                     onChange(opcion.value);
                     setMostrar(false);
+                    notificaciones.info(
+                      "Filtro aplicado", 
+                      `Mostrando ${opcion.label.toLowerCase()}`, 
+                      "config"
+                    );
                   }}
                   style={{
                     ...styles.opcionFiltro,
@@ -508,7 +569,7 @@ export default function ReportesAdmin() {
     );
   };
 
-  // Opciones para los filtros (sin mostrar número entre paréntesis)
+  // Opciones para los filtros
   const opcionesCategorias = [
     { value: 3, label: 'Top 3 categorías' },
     { value: 5, label: 'Top 5 categorías' },
@@ -525,6 +586,16 @@ export default function ReportesAdmin() {
 
   return (
     <div style={styles.container}>
+      {/* COMPONENTE DE NOTIFICACIONES */}
+      <Notificaciones 
+        notificacion={notificacion}
+        setNotificacion={setNotificacion}
+        position="top-right"
+        autoClose={5000}
+        showProgress={true}
+        pauseOnHover={true}
+      />
+      
       {/* Círculos flotantes */}
       {circlePositions.map(circle => (
         <div 
@@ -582,7 +653,7 @@ export default function ReportesAdmin() {
             <div style={styles.refreshButtonContainer}>
               <button
                 style={styles.refreshButton}
-                onClick={() => window.location.reload()}
+                onClick={handleActualizarReportes}
                 disabled={loading}
               >
                 <RefreshCw size={18} /> {loading ? "Actualizando..." : "Actualizar reportes"}
@@ -674,7 +745,7 @@ export default function ReportesAdmin() {
             <p style={styles.errorText}>
               {error}
             </p>
-            <button onClick={() => window.location.reload()} style={styles.errorButton}>
+            <button onClick={handleActualizarReportes} style={styles.errorButton}>
               <RefreshCw size={16} />
               Reintentar
             </button>
@@ -690,11 +761,7 @@ export default function ReportesAdmin() {
                     ({ventasFiltradas.length} categorías, {productosFiltrados.length} productos)
                   </span>
                 </h3>
-                <div style={styles.tableActions}>
-                  <button style={styles.exportButton}>
-                    Exportar Reporte
-                  </button>
-                </div>
+                {/* BOTÓN EXPORTAR REPORTE ELIMINADO */}
               </div>
 
               {/* Filtros */}
@@ -760,7 +827,14 @@ export default function ReportesAdmin() {
                           </div>
                         </div>
                         <button
-                          onClick={() => setCategoriaSeleccionada(null)}
+                          onClick={() => {
+                            setCategoriaSeleccionada(null);
+                            notificaciones.info(
+                              "Selección limpiada", 
+                              "Se ha limpiado la categoría seleccionada", 
+                              "check"
+                            );
+                          }}
                           style={styles.seleccionCerrar}
                         >
                           <X size={14} />
@@ -879,6 +953,28 @@ export default function ReportesAdmin() {
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+
+        @keyframes slideInNotification {
+          from {
+            opacity: 0;
+            transform: translateX(100%) translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0) translateY(0);
+          }
+        }
+
+        @keyframes slideOutNotification {
+          from {
+            opacity: 1;
+            transform: translateX(0) translateY(0);
+          }
+          to {
+            opacity: 0;
+            transform: translateX(100%) translateY(-20px);
+          }
         }
       `}</style>
     </div>
@@ -1208,18 +1304,6 @@ const styles = {
   tableActions: {
     display: 'flex',
     gap: '12px'
-  },
-  
-  exportButton: {
-    padding: '8px 16px',
-    background: '#f3f4f6',
-    color: '#374151',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '13px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease'
   },
   
   // Grid de Gráficos
