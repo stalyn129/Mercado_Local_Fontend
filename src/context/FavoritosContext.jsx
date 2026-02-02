@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import API_URL from "../config/api";
 
 const FavoritosContext = createContext();
 
 export function FavoritosProvider({ children }) {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
   const [favoritos, setFavoritos] = useState([]);
   const [loadingFavoritos, setLoadingFavoritos] = useState(true);

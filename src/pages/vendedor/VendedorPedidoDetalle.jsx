@@ -3,12 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import Footer from "../../components/Footer.jsx";
 import Notificaciones from "../../components/Notificaciones.jsx";
 import useNotification from "../../hooks/useNotification.jsx";
+import API_URL from "../../config/api.js";
 
 export default function VendedorPedidoDetalle() {
   const { idPedido } = useParams();
   const navigate = useNavigate();
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
-  
   const [pedido, setPedido] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [productos, setProductos] = useState([]);

@@ -1,5 +1,4 @@
-// src/services/perfilService.js
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+import API_URL from "../config/api.js";
 
 export async function obtenerPerfil() {
   const token = localStorage.getItem("authToken");

@@ -3,12 +3,12 @@ import { useParams, useNavigate } from "react-router-dom";
 import Footer from "../../components/Footer.jsx";
 import Notificaciones from "../../components/Notificaciones.jsx";
 import useNotification from "../../hooks/useNotification.jsx";
+import API_URL from "../../config/api.js";
 
 export default function Pedido() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const API = import.meta.env.VITE_API_URL || "http://localhost:8080";
   const user = JSON.parse(localStorage.getItem("user"));
 
   const [pedido, setPedido] = useState(null);
@@ -41,7 +41,7 @@ export default function Pedido() {
       
       notificaciones.info("Cargando", "Obteniendo detalles del pedido...", "🔄");
 
-      const res = await fetch(`${API}/pedidos/${id}/detalles`, {
+      const res = await fetch(`${API_BASE_URL}/pedidos/${id}/detalles`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -159,7 +159,7 @@ export default function Pedido() {
     try {
       notificaciones.info("Cancelando", "Procesando cancelación del pedido...", "🔄");
       
-      const res = await fetch(`${API}/pedidos/${pedido.id}/cancelar`, {
+      const res = await fetch(`${API_BASE_URL}/pedidos/${pedido.id}/cancelar`, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,

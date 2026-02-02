@@ -5,9 +5,9 @@ import { useFavoritos } from "../../context/FavoritosContext.jsx";
 import { useCarrito } from "../../context/CarritoContext.jsx";
 import Notificaciones from "../../components/Notificaciones.jsx";
 import useNotification from "../../hooks/useNotification.jsx";
+import API_URL from "../../config/api.js";
 
 export default function Favoritos() {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
   const { favoritos, cargarFavoritos } = useFavoritos();
   const { agregarCarrito } = useCarrito();

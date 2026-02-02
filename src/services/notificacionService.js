@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:8080";
+import API_URL from "../config/api.js";
 
 // 📥 Obtener notificaciones del usuario
 export const obtenerNotificaciones = async (idUsuario, token) => {

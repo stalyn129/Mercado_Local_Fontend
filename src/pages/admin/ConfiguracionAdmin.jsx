@@ -17,8 +17,7 @@ import {
 } from "lucide-react";
 import useNotification from "../../hooks/useNotification";
 import Notificaciones from "../../components/Notificaciones";
-
-const API_URL = "http://localhost:8080";
+import API_URL from "../../config/api";
 
 // =================== COMPONENTE DE INPUT NUMÉRICO SEPARADO ===================
 const NumberInputComponent = ({ label, value, onChange, min, max, unit, colorPalette }) => {
@@ -264,9 +263,6 @@ export default function ConfiguracionAdmin() {
       
     } catch (err) {
       let errorMessage = err.message;
-      if (err.message.includes("Failed to fetch")) {
-        errorMessage = "No se pudo conectar con el servidor. Verifica que el backend esté corriendo en http://localhost:8080";
-      }
       
       setError(`Error al cargar configuración: ${errorMessage}`);
       notificaciones.error("Error", errorMessage);

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import Footer from "../../components/Footer.jsx";
+import API_URL from "../../config/api.js";
 
 export default function GestionarPedidos() {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
   const [pedidos, setPedidos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [circlePositions, setCirclePositions] = useState([]);

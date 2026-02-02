@@ -20,6 +20,7 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react';
+import API_URL from "../../config/api";
 
 // NUEVO: Importar componentes de notificación
 import Notificaciones from '../../components/Notificaciones.jsx';
@@ -168,8 +169,8 @@ export default function GestionarCategorias() {
     if (!token) return true; // Por seguridad
     
     const url = esSubcategoria 
-      ? `http://localhost:8080/subcategorias/${id}/productos`
-      : `http://localhost:8080/categorias/${id}/productos`;
+      ? `${API_URL}/subcategorias/${id}/productos`
+      : `${API_URL}/categorias/${id}/productos`;
     
     try {
       const response = await fetchWithTimeout(url, {
@@ -257,7 +258,7 @@ export default function GestionarCategorias() {
       const token = localStorage.getItem('token');
       
       // Cargar categorías principales
-      const response = await fetchWithTimeout('http://localhost:8080/categorias/listar', {
+      const response = await fetchWithTimeout('${API_URL}/categorias/listar', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -294,7 +295,7 @@ export default function GestionarCategorias() {
             let tieneProductosCategoria = false;
             try {
               const verificarResponse = await fetchWithTimeout(
-                `http://localhost:8080/categorias/${cat.idCategoria}/productos-asociados`,
+                `${API_URL}/categorias/${cat.idCategoria}/productos-asociados`,
                 {
                   headers: {
                     'Authorization': `Bearer ${token}`,
@@ -332,7 +333,7 @@ export default function GestionarCategorias() {
 
             // 2. Cargar subcategorías
             const subResponse = await fetchWithTimeout(
-              `http://localhost:8080/subcategorias/categoria/${cat.idCategoria}`,
+              `${API_URL}/subcategorias/categoria/${cat.idCategoria}`,
               {
                 headers: {
                   'Authorization': `Bearer ${token}`,
@@ -354,7 +355,7 @@ export default function GestionarCategorias() {
                   // PRIMERO: Intentar con el endpoint principal
                   try {
                     const verificarSubResponse = await fetchWithTimeout(
-                      `http://localhost:8080/subcategorias/${sub.idSubcategoria}/productos-asociados`,
+                      `${API_URL}/subcategorias/${sub.idSubcategoria}/productos-asociados`,
                       {
                         headers: {
                           'Authorization': `Bearer ${token}`,
@@ -455,7 +456,7 @@ export default function GestionarCategorias() {
       // NUEVO: Notificación de error
       let mensajeError = 'Error al cargar las categorías';
       if (error.message.includes('Failed to fetch') || error.name === 'AbortError') {
-        mensajeError = 'Error de conexión con el servidor. Verifica que el backend esté ejecutándose en http://localhost:8080';
+        mensajeError = 'Error de conexión con el servidor. Verifica que el backend esté ejecutándose en ${API_URL}';
         notificaciones.error(
           "Error de conexión",
           mensajeError,
@@ -549,8 +550,8 @@ export default function GestionarCategorias() {
     
     try {
       const url = formEdit.esSubcategoria 
-        ? `http://localhost:8080/subcategorias/actualizar/${formEdit.id}`
-        : `http://localhost:8080/categorias/actualizar/${formEdit.id}`;
+        ? `${API_URL}/subcategorias/actualizar/${formEdit.id}`
+        : `${API_URL}/categorias/actualizar/${formEdit.id}`;
       
       const body = formEdit.esSubcategoria ? {
         nombreSubcategoria: formEdit.nombreCategoria,
@@ -625,8 +626,8 @@ export default function GestionarCategorias() {
     
     try {
       const url = formData.esSubcategoria 
-        ? 'http://localhost:8080/subcategorias/crear'
-        : 'http://localhost:8080/categorias/crear';
+        ? '${API_URL}/subcategorias/crear'
+        : '${API_URL}/categorias/crear';
       
       const body = formData.esSubcategoria ? {
         nombreSubcategoria: formData.nombreCategoria,
@@ -640,8 +641,8 @@ export default function GestionarCategorias() {
       const method = modoEdicion ? 'PUT' : 'POST';
       const finalUrl = modoEdicion 
         ? (formData.esSubcategoria 
-            ? `http://localhost:8080/subcategorias/actualizar/${categoriaActual.id}`
-            : `http://localhost:8080/categorias/actualizar/${categoriaActual.id}`)
+            ? `${API_URL}/subcategorias/actualizar/${categoriaActual.id}`
+            : `${API_URL}/categorias/actualizar/${categoriaActual.id}`)
         : url;
       
       const token = localStorage.getItem('token');
@@ -719,8 +720,8 @@ export default function GestionarCategorias() {
       
       // 1. VERIFICACIÓN DETALLADA CON EL BACKEND
       const urlVerificar = esSubcategoria 
-        ? `http://localhost:8080/subcategorias/${id}/productos-asociados`
-        : `http://localhost:8080/categorias/${id}/productos-asociados`;
+        ? `${API_URL}/subcategorias/${id}/productos-asociados`
+        : `${API_URL}/categorias/${id}/productos-asociados`;
       
       // NUEVO: Mostrar notificación de verificación
       notificaciones.info(
@@ -799,8 +800,8 @@ export default function GestionarCategorias() {
       
       // 4. ELIMINAR
       const urlEliminar = esSubcategoria 
-        ? `http://localhost:8080/subcategorias/eliminar/${id}`
-        : `http://localhost:8080/categorias/eliminar/${id}`;
+        ? `${API_URL}/subcategorias/eliminar/${id}`
+        : `${API_URL}/categorias/eliminar/${id}`;
       
       const responseEliminar = await fetchWithTimeout(urlEliminar, {
         method: 'DELETE',
@@ -889,7 +890,7 @@ export default function GestionarCategorias() {
         // Endpoint de productos-asociados
         try {
           const response1 = await fetch(
-            `http://localhost:8080/categorias/${cat.id}/productos-asociados`,
+            `${API_URL}/categorias/${cat.id}/productos-asociados`,
             {
               headers: {
                 'Authorization': `Bearer ${token}`,
@@ -914,7 +915,7 @@ export default function GestionarCategorias() {
         // Endpoint de productos (alternativo)
         try {
           const response2 = await fetch(
-            `http://localhost:8080/categorias/${cat.id}/productos`,
+            `${API_URL}/categorias/${cat.id}/productos`,
             {
               headers: {
                 'Authorization': `Bearer ${token}`
@@ -943,7 +944,7 @@ export default function GestionarCategorias() {
             // Endpoint de productos-asociados
             try {
               const response3 = await fetch(
-                `http://localhost:8080/subcategorias/${sub.id}/productos-asociados`,
+                `${API_URL}/subcategorias/${sub.id}/productos-asociados`,
                 {
                   headers: {
                     'Authorization': `Bearer ${token}`,
@@ -969,7 +970,7 @@ export default function GestionarCategorias() {
             // Endpoint de productos (alternativo)
             try {
               const response4 = await fetch(
-                `http://localhost:8080/subcategorias/${sub.id}/productos`,
+                `${API_URL}/subcategorias/${sub.id}/productos`,
                 {
                   headers: {
                     'Authorization': `Bearer ${token}`

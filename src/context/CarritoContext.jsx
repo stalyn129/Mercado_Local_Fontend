@@ -1,11 +1,13 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import API_URL from "../config/api";
+
 
 const CarritoContext = createContext();
 
 export function CarritoProvider({ children }) {
   const [carrito, setCarrito] = useState([]);
   const [loading, setLoading] = useState(false);
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
+  
 
   // ============================
   // HEADERS CON TOKEN

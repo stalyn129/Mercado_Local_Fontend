@@ -10,8 +10,7 @@ import GestionarCategorias from "./GestionarCategorias.jsx";
 
 // Importar el logo
 import logo from '../../assets/Logo.png'; // Ajusta la ruta según tu estructura
-
-const API_BASE_URL = "http://localhost:8080";
+import API_URL from "../../config/api";
 
 // ==================== COMPONENTE DASHBOARD ====================
 function DashboardAdmin() {
@@ -140,7 +139,7 @@ function DashboardAdmin() {
       // 1. Obtener usuarios (endpoint de admin)
       console.log("📊 Obteniendo usuarios...");
 
-      const usuariosResponse = await fetch(`${API_BASE_URL}/api/admin/usuarios`, {
+      const usuariosResponse = await fetch(`${API_URL}/api/admin/usuarios`, {
         method: 'GET',
         headers: headers
       });
@@ -164,7 +163,7 @@ function DashboardAdmin() {
           console.log("📦 Obteniendo productos activos...");
           
           // Usar el endpoint que devuelve todos los productos (como en ProductosAdmin.jsx)
-          const productosResponse = await fetch(`${API_BASE_URL}/productos/admin/listar`, {
+          const productosResponse = await fetch(`${API_URL}/productos/admin/listar`, {
             method: 'GET',
             headers: headers
           });
@@ -186,7 +185,7 @@ function DashboardAdmin() {
             
             // Fallback alternativo
             try {
-              const countResponse = await fetch(`${API_BASE_URL}/productos`, {
+              const countResponse = await fetch(`${API_URL}/productos`, {
                 method: 'GET',
                 headers: headers
               });
@@ -223,7 +222,7 @@ function DashboardAdmin() {
 
           for (const endpoint of endpoints) {
             try {
-              const ventasResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
+              const ventasResponse = await fetch(`${API_URL}${endpoint}`, {
                 method: 'GET',
                 headers: headers
               });

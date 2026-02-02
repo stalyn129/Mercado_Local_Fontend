@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import Footer from "../../components/Footer.jsx";
+import API_URL from "../../config/api.js";
 
 export default function GestionarProductos() {
-  // ✅ CORREGIDO: Usar tu IP para que las imágenes carguen
-  const API_URL = "http://192.168.1.13:8080";
 
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);

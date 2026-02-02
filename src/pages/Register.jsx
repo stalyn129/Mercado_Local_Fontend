@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import Footer from "../components/Footer";
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import API_URL from "../config/api.js"; 
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -233,7 +234,7 @@ export default function Register() {
       });
       
       // Verificar si el usuario ya existe en el backend
-      const response = await fetch(`http://localhost:8080/auth/check-email?email=${userInfo.email}`);
+      const response = await fetch(`${API_URL}/auth/check-email?email=${userInfo.email}`);
       const data = await response.json();
       
       if (data.exists) {
@@ -322,7 +323,7 @@ export default function Register() {
       };
       delete dataToSend.confirmarContrasena;
       
-      const response = await fetch("http://localhost:8080/auth/register-google", {
+      const response = await fetch(`${API_URL}/auth/register-google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataToSend),
@@ -392,7 +393,7 @@ export default function Register() {
     const dataToSend = { ...form };
     delete dataToSend.confirmarContrasena;
     
-    fetch("http://localhost:8080/auth/register", {
+    fetch(`${API_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(dataToSend),

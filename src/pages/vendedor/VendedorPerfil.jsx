@@ -3,13 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useCarrito } from "../../context/CarritoContext.jsx";
 import StarRating from "../../components/StarRating.jsx";
 import Footer from "../../components/Footer.jsx";
+import API_URL from "../../config/api.js";
 
 export default function VendedorPerfil() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { agregarCarrito } = useCarrito();
-
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
   const [vendedor, setVendedor] = useState(null);
   const [productos, setProductos] = useState([]);
@@ -114,8 +113,8 @@ export default function VendedorPerfil() {
     // Verificar usuario logueado y su rol
     const verificarUsuario = () => {
       try {
-        const token = localStorage.getItem("authToken");
-        const userData = localStorage.getItem("user");
+        const token = API_URLStorage.getItem("authToken");
+        const userData = API_URLStorage.getItem("user");
         
         if (token && userData) {
           const usuario = JSON.parse(userData);
@@ -216,7 +215,7 @@ export default function VendedorPerfil() {
       console.log("✅ Todas las verificaciones pasadas");
       
       // Verificar token
-      const token = localStorage.getItem("authToken");
+      const token = API_URLStorage.getItem("authToken");
       if (!token) {
         mostrarNotificacion(
           "warning",

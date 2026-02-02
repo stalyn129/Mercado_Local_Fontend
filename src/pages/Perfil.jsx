@@ -97,7 +97,6 @@ export default function Perfil() {
 
   const cargarEstadisticasVendedor = async (idVendedor, token) => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
       
       notificaciones.info("Cargando estadísticas", "Obteniendo métricas de tu negocio...", "📊");
       

@@ -11,6 +11,7 @@ import {
   Filler
 } from "chart.js";
 import Footer from "../../components/Footer.jsx";
+import API_URL from "../../config/api.js";
 
 // Registrar componentes de Chart.js
 ChartJS.register(
@@ -35,7 +36,6 @@ export default function DashboardVendedor() {
   const [pedidosRecientes, setPedidosRecientes] = useState([]);
   const [circlePositions, setCirclePositions] = useState([]);
   const [chartData, setChartData] = useState(null);
-  const API_BASE_URL = "http://localhost:8080";
 
   // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
   useEffect(() => {
@@ -89,7 +89,7 @@ export default function DashboardVendedor() {
     const token = localStorage.getItem("authToken");
 
     if (!userData || !token || userData.rol !== "VENDEDOR") {
-      window.location.href = "/loginmodal";
+      window.location.href = "/LoginModal";
       return;
     }
 
@@ -103,7 +103,7 @@ export default function DashboardVendedor() {
 
     try {
       // Cargar estadísticas del vendedor
-      const statsResponse = await fetch(`${API_BASE_URL}/vendedor/${vendedorId}/estadisticas`, {
+      const statsResponse = await fetch(`${API_URL}/vendedor/${vendedorId}/estadisticas`, {
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -120,7 +120,7 @@ export default function DashboardVendedor() {
       }
 
       // Cargar pedidos recientes
-      const pedidosResponse = await fetch(`${API_BASE_URL}/vendedor/${vendedorId}/pedidos/recientes`, {
+      const pedidosResponse = await fetch(`${API_URL}/vendedor/${vendedorId}/pedidos/recientes`, {
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"

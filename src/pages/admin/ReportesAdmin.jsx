@@ -21,10 +21,9 @@ import {
 // IMPORTACIONES CORREGIDAS - Ajusta según tu estructura
 import Notificaciones from "../../components/Notificaciones";
 import useNotification from "../../hooks/useNotification";
+import API_URL from "../../config/api";
 
 ChartJS.register(ArcElement, Tooltip, Legend, BarElement, CategoryScale, LinearScale);
-
-const API_URL = "http://localhost:8080";
 
 // =================== COMPONENTE PRINCIPAL REPORTESADMIN ===================
 export default function ReportesAdmin() {

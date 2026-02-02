@@ -1,12 +1,13 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import API_URL from "../../config/api.js";
 
 export default function ProductosPorVendedor() {
   const { id } = useParams();
   const [productos, setProductos] = useState([]);
 
   useEffect(() => {
-    fetch(`http://localhost:8080/api/productos/vendedor/${id}`)
+    fetch(`${API_URL}/api/productos/vendedor/${id}`)
       .then(res => res.json())
       .then(data => setProductos(data));
   }, [id]);

@@ -15,6 +15,7 @@ import {
   RadialLinearScale
 } from 'chart.js';
 import Footer from "../../components/Footer.jsx";
+import API_URL from "../../config/api.js";
 
 // Registrar componentes de Chart.js
 ChartJS.register(
@@ -32,7 +33,6 @@ ChartJS.register(
 );
 
 export default function ReportesAnalisis() {
-  const API_URL = "http://localhost:8080";
   const user = JSON.parse(localStorage.getItem("user"));
 
   const [loading, setLoading] = useState(true);

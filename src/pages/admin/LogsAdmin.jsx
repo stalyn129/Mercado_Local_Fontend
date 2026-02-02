@@ -27,8 +27,7 @@ import {
 // IMPORTACIONES DE NOTIFICACIONES
 import Notificaciones from "../../components/Notificaciones";
 import useNotification from "../../hooks/useNotification";
-
-const API_URL = "http://localhost:8080";
+import API_URL from "../../config/api";
 
 export default function LogsAdmin() {
   const [logs, setLogs] = useState([]);

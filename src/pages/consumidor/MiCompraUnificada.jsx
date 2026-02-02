@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate } from "react-router-dom";
 import Footer from "../../components/Footer.jsx";
 import Notificaciones from "../../components/Notificaciones.jsx";
 import useNotification from "../../hooks/useNotification.jsx";
+import API_URL from "../../config/api.js";
 
 // Helper para formatear dinero
 const money = (value) =>
@@ -54,8 +55,6 @@ export default function MiCompraUnificada() {
   const { idCompra } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
   const [compraData, setCompraData] = useState(null);
   const [loading, setLoading] = useState(true);

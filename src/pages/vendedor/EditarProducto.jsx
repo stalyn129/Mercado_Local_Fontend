@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Footer from "../../components/Footer.jsx";
+import API_URL from "../../config/api.js";
 
 export default function EditarProducto() {
   const { id } = useParams();
   const navigate = useNavigate();
   // ✅ CORREGIDO: Usar tu IP en lugar de localhost
-  const API_URL = "http://localhost:8080";
   const FASTAPI_URL = "http://localhost:8000";
 
   const [producto, setProducto] = useState(null);

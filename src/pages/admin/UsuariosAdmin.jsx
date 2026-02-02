@@ -27,8 +27,7 @@ import {
 } from "lucide-react";
 import Notificaciones from "../../components/Notificaciones";
 import useNotification from "../../hooks/useNotification";
-
-const API = "http://localhost:8080/api/admin/usuarios";
+import API_URL from "../../config/api";
 
 export default function UsuariosAdmin() {
   const [usuarios, setUsuarios] = useState([]);

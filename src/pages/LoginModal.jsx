@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import logo from "../assets/Logo2.png"
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google'
 import { jwtDecode } from 'jwt-decode' // ✅ Instalar: npm install jwt-decode
+import API_BASE_URL from "../config/api.js"
 
 export default function LoginModal() {
   const [email, setEmail] = useState("")
@@ -19,7 +20,6 @@ export default function LoginModal() {
   // ✅ Client ID de Google - VERIFICA QUE SEA CORRECTO
   const GOOGLE_CLIENT_ID = "26624785270-ejsqo4grg2kg48tloel1csngp8brp35d.apps.googleusercontent.com";
   
-  const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080"
 
   // ✅ Función para notificar al carrito después del login
   const notifyCartAfterLogin = () => {
@@ -61,7 +61,7 @@ export default function LoginModal() {
       console.log("Token recibido:", credentialResponse.credential ? "Token presente" : "Token ausente")
       
       // 1. Verificar el token con nuestro backend
-      const verifyResponse = await fetch(`${API_BASE_URL}/auth/verify-google-token`, {
+      const verifyResponse = await fetch(`${API_URL}/auth/verify-google-token`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -99,7 +99,7 @@ export default function LoginModal() {
       // 3. Verificar si el usuario existe
       console.log("🔍 Verificando si el usuario existe...")
       const checkResponse = await fetch(
-        `${API_BASE_URL}/auth/check-email?email=${encodeURIComponent(userInfo.email)}`,
+        `${API_URL}/auth/check-email?email=${encodeURIComponent(userInfo.email)}`,
         {
           headers: {
             'Content-Type': 'application/json'
@@ -149,7 +149,7 @@ export default function LoginModal() {
       
       // 4. Usuario existe, hacer login con Google
       console.log("🔑 Haciendo login con Google...")
-      const loginResponse = await fetch(`${API_BASE_URL}/auth/login-google`, {
+      const loginResponse = await fetch(`${API_URL}/auth/login-google`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -323,7 +323,7 @@ export default function LoginModal() {
     setLoading(true)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

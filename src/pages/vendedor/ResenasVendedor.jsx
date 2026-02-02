@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import Footer from "../../components/Footer.jsx";
+import API_URL from "../../config/api.js";
 
 export default function ResenasVendedor() {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
   const [resenas, setResenas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [productoAbierto, setProductoAbierto] = useState(null);

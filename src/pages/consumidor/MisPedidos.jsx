@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Footer from "../../components/Footer.jsx";
+import API_URL from "../../config/api.js";
 
 // Helper para formatear dinero de forma segura
 const money = (value) =>
@@ -129,7 +130,6 @@ const ordenarPorFecha = (array, fechaKey = 'fechaPedido') => {
 export default function MisPedidos({ modo: modoProp }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
   // 🎯 MODO REAL - Prioridad: prop > state > default
   const modo = modoProp || location.state?.modo || "lista";
