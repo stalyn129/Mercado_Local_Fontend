@@ -1,11 +1,9 @@
 // src/pages/admin/ConfiguracionAdmin.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { 
   Settings, 
   Shield, 
-  Database, 
   Bell, 
-  Globe, 
   Save,
   RefreshCw,
   CheckCircle,
@@ -17,18 +15,102 @@ import {
   AlertTriangle,
   X
 } from "lucide-react";
+import useNotification from "../../hooks/useNotification";
+import Notificaciones from "../../components/Notificaciones";
 
 const API_URL = "http://localhost:8080";
 
+// =================== COMPONENTE DE INPUT NUMÉRICO SEPARADO ===================
+const NumberInputComponent = ({ label, value, onChange, min, max, unit, colorPalette }) => {
+  const inputRef = useRef(null);
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    if (val === "") {
+      onChange(0);
+    } else {
+      const numVal = parseFloat(val);
+      if (!isNaN(numVal)) {
+        onChange(numVal);
+      }
+    }
+  };
+
+  const handleBlur = (e) => {
+    // Primero aplicar estilos visuales
+    e.target.style.borderColor = colorPalette.border;
+    e.target.style.boxShadow = "none";
+    
+    // Luego validar el valor
+    let numVal = parseFloat(e.target.value);
+    if (isNaN(numVal)) {
+      numVal = min || 0;
+      e.target.value = numVal.toString();
+    } else {
+      if (min !== undefined && numVal < min) {
+        numVal = min;
+        e.target.value = numVal.toString();
+      }
+      if (max !== undefined && numVal > max) {
+        numVal = max;
+        e.target.value = numVal.toString();
+      }
+    }
+    onChange(numVal);
+  };
+
+  return (
+    <div style={styles.configInputContainer}>
+      <label style={styles.configLabel(colorPalette)}>{label}</label>
+      <div style={styles.numberInputContainer}>
+        <input
+          ref={inputRef}
+          type="text"
+          value={value || ""}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          style={{
+            all: "unset",
+            boxSizing: "border-box",
+            display: "block",
+            width: "100%",
+            padding: "12px 16px",
+            border: `2px solid ${colorPalette.border}`,
+            borderRadius: "8px",
+            fontSize: "14px",
+            fontWeight: "500",
+            backgroundColor: colorPalette.bgPrimary,
+            color: colorPalette.textPrimary,
+            transition: "all 0.2s ease",
+            fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+          }}
+          onFocus={(e) => {
+            e.target.style.borderColor = colorPalette.primary;
+            e.target.style.boxShadow = `0 0 0 3px ${colorPalette.primary}20`;
+          }}
+          inputMode="decimal"
+        />
+        {unit && <span style={styles.inputUnit(colorPalette)}>{unit}</span>}
+      </div>
+    </div>
+  );
+};
+
+// =================== COMPONENTE PRINCIPAL ===================
 export default function ConfiguracionAdmin() {
   const [circlePositions, setCirclePositions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("seguridad");
   const [config, setConfig] = useState(null);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
   const [currentTheme] = useState("light");
+
+  // Usar el hook de notificaciones
+  const {
+    notificacion,
+    setNotificacion,
+    notificaciones
+  } = useNotification();
 
   // =================== DETECTAR CAMBIO EN PREFERENCIA DEL SISTEMA ===================
   useEffect(() => {
@@ -187,23 +269,14 @@ export default function ConfiguracionAdmin() {
       }
       
       setError(`Error al cargar configuración: ${errorMessage}`);
+      notificaciones.error("Error", errorMessage);
       
       // Configuración por defecto en caso de error
       setConfig({
         tokenExpiration: 24,
         sessionTimeout: 60,
         maxLoginAttempts: 5,
-        require2FA: false,
-        passwordMinLength: 8,
-        emailNotifications: true,
-        systemName: "MercadoLocal-IA",
-        commissionRate: 15,
-        productLimitPerVendor: 50,
-        currency: "USD",
-        timezone: "America/Mexico_City",
-        autoBackup: true,
-        backupFrequency: "daily",
-        keepLogsDays: 30
+        passwordMinLength: 8
       });
     } finally {
       setLoading(false);
@@ -216,7 +289,6 @@ export default function ConfiguracionAdmin() {
     
     setSaving(true);
     setError(null);
-    setSuccess(null);
     
     try {
       const token = localStorage.getItem("token");
@@ -244,7 +316,7 @@ export default function ConfiguracionAdmin() {
         throw new Error(result.error || result.message || "Error al guardar configuración");
       }
       
-      setSuccess("✅ Configuración guardada exitosamente");
+      notificaciones.exito("Configuración guardada", "Los cambios se han guardado correctamente", "config");
       
       // Recargar configuración actualizada después de un breve delay
       setTimeout(() => {
@@ -252,7 +324,9 @@ export default function ConfiguracionAdmin() {
       }, 1000);
       
     } catch (err) {
-      setError(`Error al guardar configuración: ${err.message}`);
+      const errorMsg = `Error al guardar configuración: ${err.message}`;
+      setError(errorMsg);
+      notificaciones.error("Error", err.message);
     } finally {
       setSaving(false);
     }
@@ -264,7 +338,6 @@ export default function ConfiguracionAdmin() {
     
     setLoading(true);
     setError(null);
-    setSuccess(null);
     
     try {
       const token = localStorage.getItem("token");
@@ -293,10 +366,12 @@ export default function ConfiguracionAdmin() {
       
       // Recargar configuración actualizada
       await fetchConfig();
-      setSuccess("⚙️ Configuración restaurada a valores por defecto");
+      notificaciones.exito("Configuración restaurada", "Se han restaurado los valores por defecto", "🔄");
       
     } catch (err) {
-      setError(`Error al restaurar configuración: ${err.message}`);
+      const errorMsg = `Error al restaurar configuración: ${err.message}`;
+      setError(errorMsg);
+      notificaciones.error("Error", err.message);
     } finally {
       setLoading(false);
     }
@@ -330,84 +405,32 @@ export default function ConfiguracionAdmin() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
-      setSuccess("📥 Configuración exportada exitosamente");
+      notificaciones.exito("Configuración exportada", "El archivo se ha descargado correctamente", "💾");
       
     } catch (err) {
-      setError(`Error al exportar configuración: ${err.message}`);
+      const errorMsg = `Error al exportar configuración: ${err.message}`;
+      setError(errorMsg);
+      notificaciones.error("Error", err.message);
     }
   };
 
   // =================== MANEJAR CAMBIOS EN CONFIG ===================
-  const handleConfigChange = (key, value) => {
+  const handleConfigChange = useCallback((key, value) => {
     if (!config) return;
     
     setConfig(prev => ({
       ...prev,
       [key]: value
     }));
-  };
-
-  // =================== COMPONENTE CONFIG INPUT ===================
-  const ConfigInput = ({ label, value, onChange, type = "text", min, max, step, options, unit }) => {
-    return (
-      <div style={styles.configInputContainer}>
-        <label style={styles.configLabel(colorPalette)}>{label}</label>
-        {type === "select" ? (
-          <select 
-            value={value || ""}
-            onChange={(e) => onChange(e.target.value)}
-            style={styles.configSelect(colorPalette)}
-          >
-            {options.map(opt => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        ) : type === "number" ? (
-          <div style={styles.numberInputContainer}>
-            <input
-              type="number"
-              value={value || ""}
-              onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-              min={min}
-              max={max}
-              step={step}
-              style={styles.configNumberInput(colorPalette)}
-            />
-            {unit && <span style={styles.inputUnit(colorPalette)}>{unit}</span>}
-          </div>
-        ) : type === "checkbox" ? (
-          <label style={styles.checkboxContainer}>
-            <input
-              type="checkbox"
-              checked={value || false}
-              onChange={(e) => onChange(e.target.checked)}
-              style={styles.configCheckbox(colorPalette)}
-            />
-            <span style={styles.checkboxLabel(colorPalette)}>
-              {value ? "Activado" : "Desactivado"}
-            </span>
-          </label>
-        ) : (
-          <input
-            type={type}
-            value={value || ""}
-            onChange={(e) => onChange(e.target.value)}
-            style={styles.configTextInput(colorPalette)}
-          />
-        )}
-      </div>
-    );
-  };
+  }, [config]);
 
   // =================== COMPONENTE CONFIG CARD ===================
-  const ConfigCard = ({ title, icon, children, color }) => {
+  const ConfigCard = useCallback(({ title, icon, children, color }) => {
     return (
       <div style={{
         ...styles.configCard(colorPalette),
         borderTop: `4px solid ${color}`,
-        boxShadow: activeTab === title.toLowerCase() ? `0 8px 32px ${color}20` : styles.configCard(colorPalette).boxShadow
+        boxShadow: `0 8px 32px ${color}20`
       }}>
         <div style={styles.configCardHeader}>
           <div style={{
@@ -424,7 +447,7 @@ export default function ConfiguracionAdmin() {
         </div>
       </div>
     );
-  };
+  }, [colorPalette]);
 
   if (loading && !config) {
     return (
@@ -442,6 +465,14 @@ export default function ConfiguracionAdmin() {
 
   return (
     <div style={styles.container(colorPalette)}>
+      {/* Notificaciones */}
+      <Notificaciones 
+        notificacion={notificacion}
+        setNotificacion={setNotificacion}
+        position="top-right"
+        autoClose={4000}
+      />
+      
       {/* Círculos flotantes */}
       {circlePositions.map(circle => (
         <div 
@@ -489,10 +520,10 @@ export default function ConfiguracionAdmin() {
             
             <div style={styles.headerTitleContainer}>
               <h1 style={styles.dashboardHeaderTitle(colorPalette)}>
-                Configuración del Sistema
+                Configuración de Seguridad
               </h1>
               <p style={styles.headerDescription(colorPalette)}>
-                Sistema {config?.systemName || 'MercadoLocal-IA'} • Personaliza y controla todos los parámetros
+                Sistema MercadoLocal-IA • Configura y controla parámetros de seguridad
               </p>
             </div>
             
@@ -504,6 +535,12 @@ export default function ConfiguracionAdmin() {
                   disabled={saving || loading}
                 >
                   <Save size={18} /> {saving ? "Guardando..." : "Guardar cambios"}
+                </button>
+                <button style={styles.exportButton} onClick={handleExportConfig}>
+                  <Download size={18} /> Exportar configuración
+                </button>
+                <button style={styles.resetButton(colorPalette)} onClick={handleReset}>
+                  <RefreshCw size={18} /> Restaurar valores
                 </button>
               </div>
               <div style={styles.timeInfo(colorPalette)}>
@@ -535,21 +572,6 @@ export default function ConfiguracionAdmin() {
           </div>
         )}
 
-        {success && (
-          <div style={styles.successState(colorPalette)}>
-            <div style={styles.successIcon}>
-              <CheckCircle size={24} />
-            </div>
-            <div style={styles.successContent}>
-              <h4 style={styles.successTitle}>Éxito</h4>
-              <p style={styles.successText}>{success}</p>
-            </div>
-            <button onClick={() => setSuccess(null)} style={styles.successButton}>
-              <X size={16} />
-            </button>
-          </div>
-        )}
-
         {/* Stats Cards */}
         <div style={styles.statsGrid}>
           <div style={{...styles.statCard(colorPalette), borderTopColor: colorPalette.primary}}>
@@ -557,7 +579,7 @@ export default function ConfiguracionAdmin() {
               <ShieldCheck size={22} />
             </div>
             <div style={styles.statContent}>
-              <h3 style={styles.statNumber(colorPalette)}>6</h3>
+              <h3 style={styles.statNumber(colorPalette)}>4</h3>
               <p style={styles.statLabel(colorPalette)}>CONFIGURACIONES DE SEGURIDAD</p>
               <span style={styles.statTrend(colorPalette)}>
                 <TrendingUp size={14} /> Sistema protegido
@@ -567,300 +589,96 @@ export default function ConfiguracionAdmin() {
           
           <div style={{...styles.statCard(colorPalette), borderTopColor: colorPalette.warning}}>
             <div style={{...styles.statIcon, backgroundColor: `${colorPalette.warning}20`, color: colorPalette.warning}}>
-              <Globe size={22} />
+              <Shield size={22} />
+            </div>
+            <div style={styles.statContent}>
+              <h3 style={styles.statNumber(colorPalette)}>24</h3>
+              <p style={styles.statLabel(colorPalette)}>HORAS DE EXPIRACIÓN</p>
+              <span style={styles.statTrend(colorPalette)}>
+                <TrendingUp size={14} /> Token configurado
+              </span>
+            </div>
+          </div>
+          
+          <div style={{...styles.statCard(colorPalette), borderTopColor: colorPalette.success}}>
+            <div style={{...styles.statIcon, backgroundColor: `${colorPalette.success}20`, color: colorPalette.success}}>
+              <Bell size={22} />
             </div>
             <div style={styles.statContent}>
               <h3 style={styles.statNumber(colorPalette)}>5</h3>
-              <p style={styles.statLabel(colorPalette)}>PARÁMETROS GLOBALES</p>
+              <p style={styles.statLabel(colorPalette)}>INTENTOS MÁXIMOS</p>
               <span style={styles.statTrend(colorPalette)}>
-                <TrendingUp size={14} /> Configurados activamente
-              </span>
-            </div>
-          </div>
-          
-          <div style={{...styles.statCard(colorPalette), borderTopColor: colorPalette.secondary}}>
-            <div style={{...styles.statIcon, backgroundColor: `${colorPalette.secondary}20`, color: colorPalette.secondary}}>
-              <Database size={22} />
-            </div>
-            <div style={styles.statContent}>
-              <h3 style={styles.statNumber(colorPalette)}>3</h3>
-              <p style={styles.statLabel(colorPalette)}>CONFIGURACIONES DE AUDITORÍA</p>
-              <span style={styles.statTrend(colorPalette)}>
-                <TrendingUp size={14} /> Sistema monitoreado
+                <TrendingUp size={14} /> Login protegido
               </span>
             </div>
           </div>
         </div>
 
-        {/* Tabs Navigation */}
-        <div style={styles.tabsContainer(colorPalette)}>
-          {[
-            { id: "seguridad", label: "Seguridad", icon: <Shield size={18} />, color: colorPalette.primary },
-            { id: "parametros", label: "Parámetros", icon: <Globe size={18} />, color: colorPalette.warning },
-            { id: "auditoria", label: "Auditoría", icon: <Database size={18} />, color: colorPalette.secondary }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                ...styles.tabButton(colorPalette),
-                borderBottom: activeTab === tab.id ? `3px solid ${tab.color}` : '3px solid transparent',
-                color: activeTab === tab.id ? tab.color : colorPalette.textSecondary,
-                background: activeTab === tab.id ? `${tab.color}10` : 'transparent'
-              }}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Configuración Content */}
+        {/* Configuración Content - SOLO SEGURIDAD */}
         <div style={styles.configContent(colorPalette)}>
-          
-          {/* Seguridad */}
-          {activeTab === "seguridad" && config && (
-            <div style={styles.configSection}>
-              <ConfigCard 
-                title="Seguridad" 
-                icon={<Shield size={24} />} 
-                color={colorPalette.primary}
-              >
-                <div style={styles.configGrid}>
-                  <ConfigInput
-                    label="Expiración del token JWT (horas)"
-                    value={config.tokenExpiration}
-                    onChange={(val) => handleConfigChange("tokenExpiration", val)}
-                    type="number"
-                    min={1}
-                    max={720}
-                    unit="horas"
-                  />
-                  
-                  <ConfigInput
-                    label="Tiempo de sesión (minutos)"
-                    value={config.sessionTimeout}
-                    onChange={(val) => handleConfigChange("sessionTimeout", val)}
-                    type="number"
-                    min={5}
-                    max={1440}
-                    unit="minutos"
-                  />
-                  
-                  <ConfigInput
-                    label="Máximo de intentos de login"
-                    value={config.maxLoginAttempts}
-                    onChange={(val) => handleConfigChange("maxLoginAttempts", val)}
-                    type="number"
-                    min={1}
-                    max={10}
-                  />
-                  
-                  <ConfigInput
-                    label="Longitud mínima de contraseña"
-                    value={config.passwordMinLength}
-                    onChange={(val) => handleConfigChange("passwordMinLength", val)}
-                    type="number"
-                    min={6}
-                    max={32}
-                    unit="caracteres"
-                  />
-                  
-                  <ConfigInput
-                    label="Requerir autenticación de dos factores"
-                    value={config.require2FA}
-                    onChange={(val) => handleConfigChange("require2FA", val)}
-                    type="checkbox"
-                  />
-                  
-                  <ConfigInput
-                    label="Notificaciones de seguridad por email"
-                    value={config.emailNotifications}
-                    onChange={(val) => handleConfigChange("emailNotifications", val)}
-                    type="checkbox"
-                  />
-                </div>
-              </ConfigCard>
-              
-              <div style={styles.configTips(colorPalette)}>
-                <div style={styles.tipHeader}>
-                  <AlertTriangle size={18} color={colorPalette.warning} />
-                  <h4 style={styles.tipTitle(colorPalette)}>Recomendaciones de Seguridad</h4>
-                </div>
-                <ul style={styles.tipList}>
-                  <li style={styles.tipListLi(colorPalette)}>Mantén el tiempo de sesión corto para usuarios sensibles</li>
-                  <li style={styles.tipListLi(colorPalette)}>Habilita 2FA para administradores y vendedores</li>
-                  <li style={styles.tipListLi(colorPalette)}>Configura contraseñas de al menos 12 caracteres</li>
-                  <li style={styles.tipListLi(colorPalette)}>Revisa regularmente los logs de seguridad</li>
-                </ul>
+          <div style={styles.configSection}>
+            <ConfigCard 
+              title="Configuración de Seguridad" 
+              icon={<Shield size={24} />} 
+              color={colorPalette.primary}
+            >
+              <div style={styles.configGrid}>
+                <NumberInputComponent
+                  label="Expiración del token JWT (horas)"
+                  value={config?.tokenExpiration}
+                  onChange={(val) => handleConfigChange("tokenExpiration", val)}
+                  min={1}
+                  max={720}
+                  unit="horas"
+                  colorPalette={colorPalette}
+                />
+                
+                <NumberInputComponent
+                  label="Tiempo de sesión (minutos)"
+                  value={config?.sessionTimeout}
+                  onChange={(val) => handleConfigChange("sessionTimeout", val)}
+                  min={5}
+                  max={1440}
+                  unit="minutos"
+                  colorPalette={colorPalette}
+                />
+                
+                <NumberInputComponent
+                  label="Máximo de intentos de login"
+                  value={config?.maxLoginAttempts}
+                  onChange={(val) => handleConfigChange("maxLoginAttempts", val)}
+                  min={1}
+                  max={10}
+                  colorPalette={colorPalette}
+                />
+                
+                <NumberInputComponent
+                  label="Longitud mínima de contraseña"
+                  value={config?.passwordMinLength}
+                  onChange={(val) => handleConfigChange("passwordMinLength", val)}
+                  min={6}
+                  max={32}
+                  unit="caracteres"
+                  colorPalette={colorPalette}
+                />
               </div>
-            </div>
-          )}
-          
-          {/* Parámetros */}
-          {activeTab === "parametros" && config && (
-            <div style={styles.configSection}>
-              <ConfigCard 
-                title="Parámetros Generales" 
-                icon={<Globe size={24} />} 
-                color={colorPalette.warning}
-              >
-                <div style={styles.configGrid}>
-                  <ConfigInput
-                    label="Nombre del sistema"
-                    value={config.systemName}
-                    onChange={(val) => handleConfigChange("systemName", val)}
-                    type="text"
-                  />
-                  
-                  <ConfigInput
-                    label="Comisión de venta (%)"
-                    value={config.commissionRate}
-                    onChange={(val) => handleConfigChange("commissionRate", val)}
-                    type="number"
-                    min={0}
-                    max={100}
-                    step={0.5}
-                    unit="%"
-                  />
-                  
-                  <ConfigInput
-                    label="Límite de productos por vendedor"
-                    value={config.productLimitPerVendor}
-                    onChange={(val) => handleConfigChange("productLimitPerVendor", val)}
-                    type="number"
-                    min={1}
-                    max={1000}
-                  />
-                  
-                  <ConfigInput
-                    label="Moneda principal"
-                    value={config.currency}
-                    onChange={(val) => handleConfigChange("currency", val)}
-                    type="select"
-                    options={[
-                      { value: "USD", label: "USD - Dólar Americano" },
-                      { value: "MXN", label: "MXN - Peso Mexicano" },
-                      { value: "EUR", label: "EUR - Euro" },
-                      { value: "COP", label: "COP - Peso Colombiano" }
-                    ]}
-                  />
-                  
-                  <ConfigInput
-                    label="Zona horaria"
-                    value={config.timezone}
-                    onChange={(val) => handleConfigChange("timezone", val)}
-                    type="select"
-                    options={[
-                      { value: "America/Mexico_City", label: "Ciudad de México" },
-                      { value: "America/Bogota", label: "Bogotá" },
-                      { value: "America/Lima", label: "Lima" },
-                      { value: "America/Santiago", label: "Santiago" },
-                      { value: "UTC", label: "UTC" }
-                    ]}
-                  />
-                </div>
-              </ConfigCard>
-              
-              <div style={styles.configTips(colorPalette)}>
-                <div style={styles.tipHeader}>
-                  <Bell size={18} color={colorPalette.info} />
-                  <h4 style={styles.tipTitle(colorPalette)}>Configuraciones Importantes</h4>
-                </div>
-                <ul style={styles.tipList}>
-                  <li style={styles.tipListLi(colorPalette)}>La comisión de venta se aplica a todas las transacciones</li>
-                  <li style={styles.tipListLi(colorPalette)}>El límite de productos ayuda a mantener la calidad del catálogo</li>
-                  <li style={styles.tipListLi(colorPalette)}>Configura la moneda según tu mercado principal</li>
-                  <li style={styles.tipListLi(colorPalette)}>Las notificaciones mantienen a los usuarios informados</li>
-                </ul>
+            </ConfigCard>
+            
+            <div style={styles.configTips(colorPalette)}>
+              <div style={styles.tipHeader}>
+                <AlertTriangle size={18} color={colorPalette.warning} />
+                <h4 style={styles.tipTitle(colorPalette)}>Recomendaciones de Seguridad</h4>
               </div>
+              <ul style={styles.tipList}>
+                <li style={styles.tipListLi(colorPalette)}>Mantén el tiempo de sesión corto para usuarios sensibles</li>
+                <li style={styles.tipListLi(colorPalette)}>Configura contraseñas de al menos 12 caracteres</li>
+                <li style={styles.tipListLi(colorPalette)}>Revisa regularmente los logs de seguridad</li>
+                <li style={styles.tipListLi(colorPalette)}>Limita intentos de login para prevenir ataques</li>
+                <li style={styles.tipListLi(colorPalette)}>Exporta la configuración regularmente como respaldo</li>
+                <li style={styles.tipListLi(colorPalette)}>Restaura valores por defecto en caso de problemas</li>
+              </ul>
             </div>
-          )}
-          
-          {/* Auditoría */}
-          {activeTab === "auditoria" && config && (
-            <div style={styles.configSection}>
-              <ConfigCard 
-                title="Auditoría & Respaldos" 
-                icon={<Database size={24} />} 
-                color={colorPalette.secondary}
-              >
-                <div style={styles.configGrid}>
-                  <ConfigInput
-                    label="Respaldo automático"
-                    value={config.autoBackup}
-                    onChange={(val) => handleConfigChange("autoBackup", val)}
-                    type="checkbox"
-                  />
-                  
-                  <ConfigInput
-                    label="Frecuencia de respaldo"
-                    value={config.backupFrequency}
-                    onChange={(val) => handleConfigChange("backupFrequency", val)}
-                    type="select"
-                    options={[
-                      { value: "hourly", label: "Cada hora" },
-                      { value: "daily", label: "Diario" },
-                      { value: "weekly", label: "Semanal" },
-                      { value: "monthly", label: "Mensual" }
-                    ]}
-                  />
-                  
-                  <ConfigInput
-                    label="Mantener logs por (días)"
-                    value={config.keepLogsDays}
-                    onChange={(val) => handleConfigChange("keepLogsDays", val)}
-                    type="number"
-                    min={1}
-                    max={365}
-                    unit="días"
-                  />
-                  
-                  <div style={styles.backupActions}>
-                    <button style={styles.backupButton} onClick={handleExportConfig}>
-                      <Download size={16} />
-                      Exportar configuración
-                    </button>
-                    <button style={{...styles.backupButton, background: colorPalette.light, color: colorPalette.dark}} onClick={handleReset}>
-                      <RefreshCw size={16} />
-                      Restaurar valores por defecto
-                    </button>
-                  </div>
-                  
-                  <div style={styles.storageInfo(colorPalette)}>
-                    <h4 style={styles.storageTitle(colorPalette)}>Información de Almacenamiento</h4>
-                    <div style={styles.storageStats}>
-                      <div style={styles.storageStat(colorPalette)}>
-                        <span style={styles.storageLabel(colorPalette)}>Logs del sistema:</span>
-                        <span style={styles.storageValue(colorPalette)}>2.4 GB</span>
-                      </div>
-                      <div style={styles.storageStat(colorPalette)}>
-                        <span style={styles.storageLabel(colorPalette)}>Respaldos totales:</span>
-                        <span style={styles.storageValue(colorPalette)}>15</span>
-                      </div>
-                      <div style={styles.storageStat(colorPalette)}>
-                        <span style={styles.storageLabel(colorPalette)}>Espacio disponible:</span>
-                        <span style={styles.storageValue(colorPalette)}>48.2 GB</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </ConfigCard>
-              
-              <div style={styles.configTips(colorPalette)}>
-                <div style={styles.tipHeader}>
-                  <Database size={18} color={colorPalette.dark} />
-                  <h4 style={styles.tipTitle(colorPalette)}>Recomendaciones de Respaldo</h4>
-                </div>
-                <ul style={styles.tipList}>
-                  <li style={styles.tipListLi(colorPalette)}>Realiza respaldos manuales antes de cambios importantes</li>
-                  <li style={styles.tipListLi(colorPalette)}>Guarda respaldos en ubicaciones externas seguras</li>
-                  <li style={styles.tipListLi(colorPalette)}>Verifica periódicamente la integridad de los respaldos</li>
-                  <li style={styles.tipListLi(colorPalette)}>Mantén un historial de al menos 30 días de logs</li>
-                </ul>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Información del Sistema */}
@@ -868,7 +686,7 @@ export default function ConfiguracionAdmin() {
           <div style={styles.systemInfoContent}>
             <Settings size={16} />
             <span style={{color: colorPalette.textSecondary}}>
-              Panel de Configuración • Sistema {config?.systemName || 'MercadoLocal-IA'} • 
+              Panel de Configuración de Seguridad • Sistema MercadoLocal-IA • 
               Versión 2.1.0 • Última actualización: {new Date().toLocaleDateString('es-ES', { 
                 weekday: 'long', 
                 year: 'numeric', 
@@ -880,7 +698,7 @@ export default function ConfiguracionAdmin() {
         </div>
       </div>
 
-      {/* Estilos globales */}
+      {/* Estilos globales - MINIMALISTAS */}
       <style>{`
         @keyframes floatCircle {
           0%, 100% { 
@@ -910,30 +728,53 @@ export default function ConfiguracionAdmin() {
           to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Estilos globales para dark mode */
-        .dark-mode {
-          background-color: #111827;
-          color: #F9FAFB;
+        /* SOLUCIÓN DEFINITIVA: Estilos directos para inputs */
+        input, select {
+          all: initial;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+          font-size: 14px !important;
+          font-weight: 500 !important;
+          display: block !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+          padding: 12px 16px !important;
+          border: 2px solid #E5E7EB !important;
+          border-radius: 8px !important;
+          background-color: white !important;
+          color: #111827 !important;
+          transition: all 0.2s ease !important;
+          -webkit-appearance: none !important;
+          -moz-appearance: none !important;
+          appearance: none !important;
         }
 
-        .light-mode {
-          background-color: #FFFFFF;
-          color: #111827;
+        input:focus, select:focus {
+          border-color: #FF6B35 !important;
+          outline: none !important;
+          box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1) !important;
         }
 
-        [data-theme="dark"] {
-          background-color: #111827;
-          color: #F9FAFB;
+        input:hover, select:hover {
+          border-color: #D1D5DB !important;
         }
 
-        [data-theme="light"] {
-          background-color: #FFFFFF;
-          color: #111827;
+        /* Permitir selección de texto en inputs */
+        input {
+          user-select: text !important;
+          -webkit-user-select: text !important;
+          -moz-user-select: text !important;
+          -ms-user-select: text !important;
         }
 
-        /* Aplicar tema a todo el body */
-        body {
-          transition: background-color 0.3s ease, color 0.3s ease;
+        /* Remover flechas en inputs numéricos */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+
+        input[type="number"] {
+          -moz-appearance: textfield;
         }
       `}</style>
     </div>
@@ -1065,6 +906,40 @@ const styles = {
     minWidth: '140px'
   },
   
+  exportButton: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    padding: '12px 24px',
+    background: '#3B82F6',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    minWidth: '140px'
+  },
+  
+  resetButton: (palette) => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    padding: '12px 24px',
+    background: palette.light,
+    color: palette.dark,
+    border: `1px solid ${palette.border}`,
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    minWidth: '140px'
+  }),
+  
   timeInfo: (palette) => ({
     padding: '8px 16px',
     background: palette.light,
@@ -1136,51 +1011,6 @@ const styles = {
     background: 'transparent',
     border: 'none',
     color: '#EF4444',
-    cursor: 'pointer',
-    padding: '4px',
-    borderRadius: '4px',
-    display: 'flex',
-    alignItems: 'center'
-  },
-  
-  // Success State
-  successState: (palette) => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-    padding: '20px',
-    background: 'rgba(16, 185, 129, 0.1)',
-    border: `1px solid rgba(16, 185, 129, 0.2)`,
-    borderRadius: '12px',
-    marginBottom: '24px',
-    animation: 'fadeIn 0.3s ease-out'
-  }),
-  
-  successIcon: {
-    color: '#10B981'
-  },
-  
-  successContent: {
-    flex: 1
-  },
-  
-  successTitle: {
-    fontSize: '16px',
-    fontWeight: '700',
-    color: '#10B981',
-    margin: '0 0 4px 0'
-  },
-  
-  successText: {
-    fontSize: '14px',
-    color: '#10B981',
-    margin: 0
-  },
-  
-  successButton: {
-    background: 'transparent',
-    border: 'none',
-    color: '#10B981',
     cursor: 'pointer',
     padding: '4px',
     borderRadius: '4px',
@@ -1297,36 +1127,6 @@ const styles = {
     transition: 'color 0.3s ease'
   }),
   
-  // Tabs
-  tabsContainer: (palette) => ({
-    background: palette.bgSecondary,
-    borderRadius: '12px',
-    padding: '16px 24px',
-    marginBottom: '24px',
-    display: 'flex',
-    gap: '16px',
-    overflowX: 'auto',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-    border: `1px solid ${palette.border}`,
-    transition: 'all 0.3s ease'
-  }),
-  
-  tabButton: (palette) => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '12px 24px',
-    background: 'transparent',
-    border: 'none',
-    fontSize: '15px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    whiteSpace: 'nowrap',
-    borderRadius: '8px',
-    flexShrink: 0
-  }),
-  
   // Config Content
   configContent: (palette) => ({
     background: palette.bgSecondary,
@@ -1402,87 +1202,17 @@ const styles = {
     transition: 'color 0.3s ease'
   }),
   
-  configTextInput: (palette) => ({
-    width: '100%',
-    padding: '12px 16px',
-    border: `2px solid ${palette.border}`,
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '500',
-    transition: 'all 0.2s ease',
-    outline: 'none',
-    background: palette.bgPrimary,
-    color: palette.textPrimary,
-    '&:focus': {
-      borderColor: '#FF6B35'
-    }
-  }),
-  
-  configSelect: (palette) => ({
-    width: '100%',
-    padding: '12px 16px',
-    border: `2px solid ${palette.border}`,
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '500',
-    background: palette.bgPrimary,
-    color: palette.textPrimary,
-    cursor: 'pointer',
-    outline: 'none',
-    transition: 'all 0.2s ease',
-    '&:focus': {
-      borderColor: '#FF6B35'
-    }
-  }),
-  
   numberInputContainer: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px'
   },
   
-  configNumberInput: (palette) => ({
-    flex: 1,
-    padding: '12px 16px',
-    border: `2px solid ${palette.border}`,
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '500',
-    transition: 'all 0.2s ease',
-    outline: 'none',
-    background: palette.bgPrimary,
-    color: palette.textPrimary,
-    '&:focus': {
-      borderColor: '#FF6B35'
-    }
-  }),
-  
   inputUnit: (palette) => ({
     fontSize: '14px',
     fontWeight: '600',
     color: palette.textSecondary,
     minWidth: '60px',
-    transition: 'color 0.3s ease'
-  }),
-  
-  checkboxContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    cursor: 'pointer'
-  },
-  
-  configCheckbox: (palette) => ({
-    width: '20px',
-    height: '20px',
-    cursor: 'pointer',
-    accentColor: '#FF6B35'
-  }),
-  
-  checkboxLabel: (palette) => ({
-    fontSize: '14px',
-    fontWeight: '600',
-    color: palette.textSecondary,
     transition: 'color 0.3s ease'
   }),
   
@@ -1522,79 +1252,6 @@ const styles = {
     color: palette.textSecondary,
     borderBottom: `1px solid ${palette.border}`,
     transition: 'all 0.3s ease'
-  }),
-  
-  // Backup Actions
-  backupActions: {
-    gridColumn: '1 / -1',
-    display: 'flex',
-    gap: '12px',
-    flexWrap: 'wrap'
-  },
-  
-  backupButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '12px 20px',
-    background: '#3B82F6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    flexShrink: 0
-  },
-  
-  // Storage Info
-  storageInfo: (palette) => ({
-    gridColumn: '1 / -1',
-    background: palette.light,
-    borderRadius: '8px',
-    padding: '20px',
-    border: `1px solid ${palette.border}`,
-    transition: 'all 0.3s ease'
-  }),
-  
-  storageTitle: (palette) => ({
-    fontSize: '16px',
-    fontWeight: '600',
-    color: palette.textPrimary,
-    marginBottom: '16px',
-    transition: 'color 0.3s ease'
-  }),
-  
-  storageStats: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '16px'
-  },
-  
-  storageStat: (palette) => ({
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '12px 16px',
-    background: palette.bgPrimary,
-    borderRadius: '6px',
-    border: `1px solid ${palette.border}`,
-    transition: 'all 0.3s ease'
-  }),
-  
-  storageLabel: (palette) => ({
-    fontSize: '14px',
-    color: palette.textSecondary,
-    fontWeight: '500',
-    transition: 'color 0.3s ease'
-  }),
-  
-  storageValue: (palette) => ({
-    fontSize: '16px',
-    fontWeight: '700',
-    color: palette.textPrimary,
-    transition: 'color 0.3s ease'
   }),
   
   // System Info
