@@ -17,8 +17,16 @@ import {
   CheckCircle,
   AlertCircle,
   TrendingUp,
-  Package
+  Package,
+  AlertTriangle,
+  Info,
+  ShieldAlert,
+  Ban,
+  Lock,
+  Unlock
 } from "lucide-react";
+import Notificaciones from "../../components/Notificaciones";
+import useNotification from "../../hooks/useNotification";
 
 const API = "http://localhost:8080/api/admin/usuarios";
 
@@ -33,6 +41,19 @@ export default function UsuariosAdmin() {
   const [filtroEstado, setFiltroEstado] = useState("todos");
   const [circlePositions, setCirclePositions] = useState([]);
   const [userName, setUserName] = useState("");
+  
+  // Estados para alertas
+  const [alertaActivar, setAlertaActivar] = useState(null);
+  const [alertaEliminar, setAlertaEliminar] = useState(null);
+  const [usuarioParaActivar, setUsuarioParaActivar] = useState(null);
+  const [usuarioParaEliminar, setUsuarioParaEliminar] = useState(null);
+  
+  // NUEVO: Hook de notificaciones
+  const {
+    notificacion,
+    setNotificacion,
+    notificaciones
+  } = useNotification();
 
   useEffect(() => {
     // Generar círculos flotantes
@@ -101,6 +122,7 @@ export default function UsuariosAdmin() {
         setMiIdUsuario(payload.idUsuario);
       } catch (e) {
         console.error("Error decodificando token:", e);
+        notificaciones.error("Error de autenticación", "No se pudo verificar tu sesión", "bloqueo");
       }
     }
     return token;
@@ -110,14 +132,6 @@ export default function UsuariosAdmin() {
     obtenerUsuarios();
   }, []);
 
-  useEffect(() => {
-    // Para debug: mostrar los roles únicos de los usuarios
-    if (usuarios.length > 0) {
-      const rolesUnicos = [...new Set(usuarios.map(u => u.rol))];
-      console.log("Roles encontrados en la base de datos:", rolesUnicos);
-    }
-  }, [usuarios]);
-
   async function obtenerUsuarios() {
     setLoading(true);
     const token = getToken();
@@ -126,6 +140,10 @@ export default function UsuariosAdmin() {
       const res = await fetch(API, {
         headers: { Authorization: `Bearer ${token}` }
       });
+
+      if (!res.ok) {
+        throw new Error(`Error ${res.status}: ${res.statusText}`);
+      }
 
       const raw = await res.text();
       if (!raw) {
@@ -141,15 +159,93 @@ export default function UsuariosAdmin() {
         estado: usuario.estado === "Inactivo" ? "Suspendido" : usuario.estado
       }));
       setUsuarios(usuariosMapeados);
+      
+      // Mostrar notificación de éxito
+      notificaciones.exito(
+        "Usuarios cargados", 
+        `Se han cargado ${usuariosMapeados.length} usuarios correctamente`,
+        "banco"
+      );
     } catch (e) {
       console.error("Error cargando usuarios:", e);
-      alert("Error al cargar usuarios: " + e.message);
+      notificaciones.error(
+        "Error al cargar usuarios", 
+        "No se pudieron cargar los datos de usuarios. Verifica tu conexión.",
+        "alerta"
+      );
     }
 
     setLoading(false);
   }
 
-  async function cambiarEstado(id) {
+  // NUEVO: Función para mostrar alerta de activación/desactivación
+  function mostrarAlertaActivar(id) {
+    const usuario = usuarios.find(u => u.id === id);
+    if (!usuario) return;
+
+    setUsuarioParaActivar({ id, usuario });
+    
+    if (usuario.estado === "Activo") {
+      setAlertaActivar({
+        tipo: "warning",
+        titulo: "¿Suspender usuario?",
+        mensaje: `¿Confirmas suspender a ${usuario.nombre} ${usuario.apellido}?`,
+        detalles: "El usuario no podrá acceder al sistema hasta que lo reactives.",
+        icono: <Lock size={48} />,
+        color: "#F59E0B",
+        accion: "Suspender",
+        cancelar: "Cancelar"
+      });
+    } else {
+      setAlertaActivar({
+        tipo: "success",
+        titulo: "¿Activar usuario?",
+        mensaje: `¿Confirmas activar a ${usuario.nombre} ${usuario.apellido}?`,
+        detalles: "El usuario podrá acceder al sistema normalmente.",
+        icono: <Unlock size={48} />,
+        color: "#10B981",
+        accion: "Activar",
+        cancelar: "Cancelar"
+      });
+    }
+  }
+
+  // NUEVO: Función para mostrar alerta de eliminación
+  function mostrarAlertaEliminar(id) {
+    const usuario = usuarios.find(u => u.id === id);
+    if (!usuario) return;
+
+    setUsuarioParaEliminar({ id, usuario });
+    
+    setAlertaEliminar({
+      tipo: "danger",
+      titulo: "¿Eliminar usuario?",
+      mensaje: `¿Confirmas eliminar permanentemente a ${usuario.nombre} ${usuario.apellido}?`,
+      detalles: "⚠️ Esta acción NO se puede deshacer. Todos los datos del usuario serán eliminados.",
+      icono: <Ban size={48} />,
+      color: "#EF4444",
+      accion: "Eliminar",
+      cancelar: "Cancelar",
+      advertencia: "ADVERTENCIA: Esta acción es permanente"
+    });
+  }
+
+  // NUEVO: Función para cerrar alertas
+  function cerrarAlertaActivar() {
+    setAlertaActivar(null);
+    setUsuarioParaActivar(null);
+  }
+
+  function cerrarAlertaEliminar() {
+    setAlertaEliminar(null);
+    setUsuarioParaEliminar(null);
+  }
+
+  // NUEVO: Función que realiza el cambio de estado
+  async function realizarCambioEstado() {
+    if (!usuarioParaActivar) return;
+    
+    const { id, usuario } = usuarioParaActivar;
     const token = getToken();
 
     try {
@@ -159,24 +255,56 @@ export default function UsuariosAdmin() {
       });
 
       if (res.ok) {
+        const nuevoEstado = usuario.estado === "Activo" ? "Suspendido" : "Activo";
+        
+        // Mostrar notificación específica según el cambio
+        if (nuevoEstado === "Activo") {
+          notificaciones.exito(
+            "✅ Usuario activado",
+            `${usuario.nombre} ${usuario.apellido} ahora puede acceder al sistema`,
+            "usuario"
+          );
+        } else {
+          notificaciones.advertencia(
+            "⚠️ Usuario suspendido",
+            `${usuario.nombre} ${usuario.apellido} ha sido suspendido del sistema`,
+            "bloqueo"
+          );
+        }
+        
+        cerrarAlertaActivar();
         obtenerUsuarios();
+      } else if (res.status === 403) {
+        notificaciones.advertencia(
+          "Permisos insuficientes",
+          "No tienes permisos para cambiar el estado de este usuario",
+          "bloqueo"
+        );
+        cerrarAlertaActivar();
       } else {
-        alert("Error al cambiar estado");
+        notificaciones.error(
+          "Error al cambiar estado",
+          "No se pudo actualizar el estado del usuario",
+          "error"
+        );
+        cerrarAlertaActivar();
       }
     } catch (e) {
-      alert("Error al cambiar estado: " + e.message);
+      notificaciones.error(
+        "Error de conexión",
+        "No se pudo conectar con el servidor",
+        "alerta"
+      );
+      cerrarAlertaActivar();
     }
   }
 
-  async function eliminarUsuario(id) {
+  // NUEVO: Función que realiza la eliminación
+  async function realizarEliminacion() {
+    if (!usuarioParaEliminar) return;
+    
+    const { id, usuario } = usuarioParaEliminar;
     const token = getToken();
-    if (!token) return alert("Inicia sesión.");
-
-    if (miIdUsuario === id) {
-      return alert("⚠️ No puedes eliminar tu propio usuario.\n\nEsto es por seguridad del sistema.");
-    }
-
-    if (!confirm("¿Estás seguro de eliminar este usuario?\n\nEsta acción no se puede deshacer.")) return;
 
     try {
       const res = await fetch(`${API}/${id}`, {
@@ -185,19 +313,48 @@ export default function UsuariosAdmin() {
       });
 
       if (res.ok) {
-        alert("✅ Usuario eliminado correctamente");
+        notificaciones.exito(
+          "🗑️ Usuario eliminado",
+          `${usuario.nombre} ${usuario.apellido} ha sido eliminado permanentemente del sistema`,
+          "check"
+        );
+        cerrarAlertaEliminar();
         obtenerUsuarios();
       } else if (res.status === 403) {
-        alert("⚠️ No tienes permisos para eliminar este usuario.");
+        notificaciones.advertencia(
+          "Permisos insuficientes",
+          "No tienes permisos para eliminar este usuario",
+          "bloqueo"
+        );
+        cerrarAlertaEliminar();
       } else {
-        alert("Error al eliminar usuario");
+        notificaciones.error(
+          "Error al eliminar",
+          "No se pudo eliminar el usuario del sistema",
+          "error"
+        );
+        cerrarAlertaEliminar();
       }
     } catch (e) {
-      alert("Error al eliminar usuario: " + e.message);
+      notificaciones.error(
+        "Error de conexión",
+        "No se pudo conectar con el servidor",
+        "alerta"
+      );
+      cerrarAlertaEliminar();
     }
   }
 
   function iniciarEdicion(usuario) {
+    if (miIdUsuario === usuario.id) {
+      notificaciones.advertencia(
+        "⚠️ Edición restringida",
+        "Por seguridad, no puedes editar tu propio usuario en este panel",
+        "bloqueo"
+      );
+      return;
+    }
+
     setEditando(usuario.id);
     setFormEdit({
       id: usuario.id,
@@ -209,23 +366,67 @@ export default function UsuariosAdmin() {
       estado: usuario.estado || "Activo",
       contrasena: ""
     });
+
+    notificaciones.info(
+      "✏️ Modo edición",
+      `Ahora puedes editar los datos de ${usuario.nombre} ${usuario.apellido}`,
+      "edit"
+    );
   }
 
   function cancelarEdicion() {
+    const usuario = usuarios.find(u => u.id === editando);
+    if (usuario) {
+      notificaciones.info(
+        "Edición cancelada",
+        `No se guardaron los cambios para ${usuario.nombre} ${usuario.apellido}`,
+        "x"
+      );
+    }
     setEditando(null);
     setFormEdit({});
   }
 
   async function guardarEdicion() {
     const token = getToken();
-    if (!token) return alert("Inicia sesión.");
+    const usuarioOriginal = usuarios.find(u => u.id === editando);
+    
+    if (!token) {
+      notificaciones.advertencia(
+        "Sesión requerida",
+        "Debes iniciar sesión para guardar cambios",
+        "bloqueo"
+      );
+      return;
+    }
 
     if (miIdUsuario === editando) {
-      return alert("⚠️ No puedes editar tu propio usuario por seguridad.\n\nPrueba editando otro usuario de la lista.");
+      notificaciones.advertencia(
+        "Edición restringida",
+        "No puedes editar tu propio usuario por seguridad",
+        "bloqueo"
+      );
+      return;
     }
 
     if (!formEdit.nombre || !formEdit.apellido || !formEdit.correo) {
-      return alert("Completa los campos obligatorios.");
+      notificaciones.advertencia(
+        "Campos incompletos",
+        "Completa todos los campos obligatorios (nombre, apellido y correo)",
+        "alerta"
+      );
+      return;
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formEdit.correo)) {
+      notificaciones.advertencia(
+        "Correo inválido",
+        "Ingresa un correo electrónico válido",
+        "correo"
+      );
+      return;
     }
 
     try {
@@ -234,6 +435,12 @@ export default function UsuariosAdmin() {
         ...formEdit,
         estado: formEdit.estado === "Suspendido" ? "Inactivo" : formEdit.estado
       };
+
+      notificaciones.info(
+        "Guardando cambios...",
+        "Actualizando datos del usuario",
+        "reloj"
+      );
 
       const res = await fetch(`${API}/${editando}`, {
         method: "PUT",
@@ -245,16 +452,32 @@ export default function UsuariosAdmin() {
       });
 
       if (res.ok) {
-        alert("✅ Usuario actualizado correctamente");
+        notificaciones.exito(
+          "✅ Cambios guardados",
+          `Usuario ${formEdit.nombre} ${formEdit.apellido} actualizado correctamente`,
+          "check"
+        );
         obtenerUsuarios();
         cancelarEdicion();
       } else if (res.status === 403) {
-        alert("⚠️ No tienes permisos para editar usuarios.");
+        notificaciones.advertencia(
+          "Permisos insuficientes",
+          "No tienes permisos para editar usuarios",
+          "bloqueo"
+        );
       } else {
-        alert("Error al actualizar usuario");
+        notificaciones.error(
+          "Error al guardar",
+          "No se pudieron guardar los cambios en el servidor",
+          "error"
+        );
       }
     } catch (e) {
-      alert("Error al guardar cambios: " + e.message);
+      notificaciones.error(
+        "Error de conexión",
+        "No se pudo conectar con el servidor para guardar los cambios",
+        "alerta"
+      );
     }
   }
 
@@ -279,9 +502,82 @@ export default function UsuariosAdmin() {
   const usuariosAdmin = usuarios.filter(u => u.rol === "ADMIN").length;
   const usuariosVendedor = usuarios.filter(u => u.rol === "VENDEDOR").length;
 
+  // NUEVO: Función para exportar datos
+  const handleExportarCSV = () => {
+    if (usuariosFiltrados.length === 0) {
+      notificaciones.advertencia(
+        "Sin datos",
+        "No hay datos para exportar con los filtros actuales",
+        "caja"
+      );
+      return;
+    }
+
+    try {
+      const headers = ['ID', 'Nombre', 'Apellido', 'Correo', 'Rol', 'Estado', 'Fecha Registro'];
+      const csvData = usuariosFiltrados.map(user => [
+        user.id,
+        user.nombre || '',
+        user.apellido || '',
+        user.correo || '',
+        user.rol || '',
+        user.estado || '',
+        user.fechaRegistro || ''
+      ]);
+      
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map(row => row.join(','))
+      ].join('\n');
+      
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `usuarios_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      notificaciones.exito(
+        "📥 Exportación exitosa",
+        `Se exportaron ${usuariosFiltrados.length} usuarios a CSV`,
+        "descarga"
+      );
+    } catch (error) {
+      notificaciones.error(
+        "Error al exportar",
+        "No se pudo generar el archivo CSV",
+        "error"
+      );
+    }
+  };
+
+  // NUEVO: Función para limpiar filtros
+  const limpiarFiltros = () => {
+    setBusqueda("");
+    setFiltroRol("todos");
+    setFiltroEstado("todos");
+    
+    notificaciones.info(
+      "Filtros limpiados",
+      "Se restablecieron todos los filtros de búsqueda",
+      "filter"
+    );
+  };
+
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
+        <Notificaciones 
+          notificacion={notificacion} 
+          setNotificacion={setNotificacion}
+          position="bottom-right"
+          autoClose={5000}
+          showProgress={true}
+          pauseOnHover={true}
+        />
         <div style={styles.spinner}></div>
         <div style={styles.loadingContent}>
           <h3 style={styles.loadingTitle}>Cargando usuarios...</h3>
@@ -293,6 +589,106 @@ export default function UsuariosAdmin() {
 
   return (
     <div style={styles.container}>
+      {/* Componente de Notificaciones */}
+      <Notificaciones 
+        notificacion={notificacion} 
+        setNotificacion={setNotificacion}
+        position="bottom-right"
+        autoClose={5000}
+        showProgress={true}
+        pauseOnHover={true}
+      />
+
+      {/* ALERTA PARA ACTIVAR/DESACTIVAR USUARIO */}
+      {alertaActivar && (
+        <div style={styles.alertaOverlay}>
+          <div style={styles.alertaModal}>
+            <div style={styles.alertaHeader}>
+              <div style={{...styles.alertaIcono, backgroundColor: `${alertaActivar.color}20`, color: alertaActivar.color}}>
+                {alertaActivar.icono}
+              </div>
+              <h3 style={styles.alertaTitulo}>{alertaActivar.titulo}</h3>
+            </div>
+            
+            <div style={styles.alertaContenido}>
+              <p style={styles.alertaMensaje}>{alertaActivar.mensaje}</p>
+              <p style={styles.alertaDetalles}>{alertaActivar.detalles}</p>
+              
+              {alertaActivar.tipo === "warning" && (
+                <div style={{...styles.alertaAdvertencia, borderColor: alertaActivar.color}}>
+                  <AlertTriangle size={16} style={{color: alertaActivar.color}} />
+                  <span>El usuario no podrá acceder al sistema</span>
+                </div>
+              )}
+            </div>
+            
+            <div style={styles.alertaBotones}>
+              <button
+                onClick={cerrarAlertaActivar}
+                style={styles.alertaBotonCancelar}
+              >
+                {alertaActivar.cancelar}
+              </button>
+              <button
+                onClick={realizarCambioEstado}
+                style={{...styles.alertaBotonAccion, backgroundColor: alertaActivar.color}}
+              >
+                {alertaActivar.accion}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ALERTA PARA ELIMINAR USUARIO */}
+      {alertaEliminar && (
+        <div style={styles.alertaOverlay}>
+          <div style={styles.alertaModal}>
+            <div style={styles.alertaHeader}>
+              <div style={{...styles.alertaIcono, backgroundColor: `${alertaEliminar.color}20`, color: alertaEliminar.color}}>
+                {alertaEliminar.icono}
+              </div>
+              <h3 style={styles.alertaTitulo}>{alertaEliminar.titulo}</h3>
+            </div>
+            
+            <div style={styles.alertaContenido}>
+              <p style={styles.alertaMensaje}>{alertaEliminar.mensaje}</p>
+              <p style={styles.alertaDetalles}>{alertaEliminar.detalles}</p>
+              
+              <div style={{...styles.alertaAdvertencia, borderColor: alertaEliminar.color, backgroundColor: `${alertaEliminar.color}10`}}>
+                <ShieldAlert size={16} style={{color: alertaEliminar.color}} />
+                <span style={{fontWeight: 'bold', color: alertaEliminar.color}}>{alertaEliminar.advertencia}</span>
+              </div>
+              
+              <div style={styles.alertaConsecuencias}>
+                <h4 style={styles.consecuenciasTitulo}>Esta acción eliminará:</h4>
+                <ul style={styles.consecuenciasLista}>
+                  <li>✓ Todos los datos personales del usuario</li>
+                  <li>✓ Historial de compras/ventas relacionadas</li>
+                  <li>✓ Acceso permanente al sistema</li>
+                  <li>✓ Información almacenada en la base de datos</li>
+                </ul>
+              </div>
+            </div>
+            
+            <div style={styles.alertaBotones}>
+              <button
+                onClick={cerrarAlertaEliminar}
+                style={styles.alertaBotonCancelar}
+              >
+                {alertaEliminar.cancelar}
+              </button>
+              <button
+                onClick={realizarEliminacion}
+                style={{...styles.alertaBotonAccion, backgroundColor: alertaEliminar.color}}
+              >
+                {alertaEliminar.accion}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header con diseño igual al Dashboard */}
       <div style={styles.headerContainer}>
         {circlePositions.map(circle => (
@@ -432,6 +828,15 @@ export default function UsuariosAdmin() {
               <option value="Suspendido">Suspendido</option>
             </select>
           </div>
+          {(busqueda || filtroRol !== "todos" || filtroEstado !== "todos") && (
+            <button
+              onClick={limpiarFiltros}
+              style={styles.limpiarFiltrosButton}
+              title="Limpiar filtros"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -442,7 +847,11 @@ export default function UsuariosAdmin() {
             Usuarios Registrados <span style={styles.tableCount}>({usuariosFiltrados.length})</span>
           </h3>
           <div style={styles.tableActions}>
-            <button style={styles.exportButton}>
+            <button 
+              style={styles.exportButton}
+              onClick={handleExportarCSV}
+              disabled={usuariosFiltrados.length === 0}
+            >
               Exportar CSV
             </button>
           </div>
@@ -472,6 +881,14 @@ export default function UsuariosAdmin() {
                         ? "Intenta con otros filtros de búsqueda" 
                         : "No hay usuarios registrados en el sistema"}
                     </p>
+                    {(busqueda || filtroRol !== "todos" || filtroEstado !== "todos") && (
+                      <button
+                        onClick={limpiarFiltros}
+                        style={styles.limpiarFiltrosEmptyButton}
+                      >
+                        Limpiar filtros
+                      </button>
+                    )}
                   </td>
                 </tr>
               ) : (
@@ -490,10 +907,16 @@ export default function UsuariosAdmin() {
                       <div style={styles.idCell}>
                         <span style={styles.idNumber}>#{usuario.id}</span>
                         {usuario.id === miIdUsuario && (
-                          <span style={styles.youBadge}>Tú</span>
+                          <span style={styles.youBadge}>
+                            <Info size={10} style={{marginRight: '3px'}} />
+                            Tú
+                          </span>
                         )}
                         {usuario.estado === 'Suspendido' && (
-                          <span style={styles.suspendedBadge}>SUSPENDIDO</span>
+                          <span style={styles.suspendedBadge}>
+                            <AlertTriangle size={10} style={{marginRight: '3px'}} />
+                            SUSPENDIDO
+                          </span>
                         )}
                       </div>
                     </td>
@@ -635,7 +1058,7 @@ export default function UsuariosAdmin() {
                             <Edit2 size={16} />
                           </button>
                           <button
-                            onClick={() => cambiarEstado(usuario.id)}
+                            onClick={() => mostrarAlertaActivar(usuario.id)}
                             style={{
                               ...styles.actionButton,
                               backgroundColor: usuario.estado === 'Activo' ? '#F59E0B10' : '#10B98110',
@@ -644,11 +1067,11 @@ export default function UsuariosAdmin() {
                             title={usuario.estado === 'Activo' ? 'Suspender usuario' : 'Activar usuario'}
                             disabled={usuario.id === miIdUsuario}
                           >
-                            {usuario.estado === 'Activo' ? <UserX size={16} /> : <UserCheck size={16} />}
+                            {usuario.estado === 'Activo' ? <Lock size={16} /> : <Unlock size={16} />}
                           </button>
                           {usuario.id !== miIdUsuario && (
                             <button
-                              onClick={() => eliminarUsuario(usuario.id)}
+                              onClick={() => mostrarAlertaEliminar(usuario.id)}
                               style={{...styles.actionButton, backgroundColor: '#EF444410', color: '#EF4444'}}
                               title="Eliminar usuario"
                             >
@@ -718,12 +1141,22 @@ export default function UsuariosAdmin() {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
       `}</style>
     </div>
   );
 }
 
-// Estilos mejorados - ERROR CORREGIDO
+// Estilos mejorados con alertas
 const styles = {
   container: {
     padding: '24px',
@@ -732,6 +1165,146 @@ const styles = {
     fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
   },
   
+  // ALERTAS
+  alertaOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backdropFilter: 'blur(4px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+    animation: 'fadeIn 0.3s ease-out'
+  },
+  
+  alertaModal: {
+    backgroundColor: 'white',
+    borderRadius: '16px',
+    boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+    width: '90%',
+    maxWidth: '500px',
+    overflow: 'hidden',
+    animation: 'slideUp 0.4s ease-out'
+  },
+  
+  alertaHeader: {
+    padding: '32px 32px 20px',
+    textAlign: 'center',
+    borderBottom: '1px solid #e5e7eb'
+  },
+  
+  alertaIcono: {
+    width: '80px',
+    height: '80px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: '0 auto 20px',
+    border: `2px solid currentColor`
+  },
+  
+  alertaTitulo: {
+    fontSize: '24px',
+    fontWeight: '700',
+    color: '#111827',
+    margin: 0
+  },
+  
+  alertaContenido: {
+    padding: '32px',
+    borderBottom: '1px solid #e5e7eb'
+  },
+  
+  alertaMensaje: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#374151',
+    margin: '0 0 16px 0',
+    textAlign: 'center'
+  },
+  
+  alertaDetalles: {
+    fontSize: '16px',
+    color: '#6b7280',
+    margin: '0 0 24px 0',
+    textAlign: 'center',
+    lineHeight: '1.6'
+  },
+  
+  alertaAdvertencia: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '16px',
+    borderRadius: '12px',
+    border: '2px solid',
+    marginBottom: '24px',
+    fontSize: '15px',
+    fontWeight: '500'
+  },
+  
+  alertaConsecuencias: {
+    marginTop: '24px',
+    padding: '20px',
+    backgroundColor: '#f9fafb',
+    borderRadius: '12px',
+    border: '1px solid #e5e7eb'
+  },
+  
+  consecuenciasTitulo: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#374151',
+    margin: '0 0 12px 0'
+  },
+  
+  consecuenciasLista: {
+    margin: 0,
+    paddingLeft: '20px',
+    color: '#6b7280',
+    fontSize: '14px',
+    lineHeight: '1.8'
+  },
+  
+  alertaBotones: {
+    padding: '24px 32px',
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'flex-end'
+  },
+  
+  alertaBotonCancelar: {
+    padding: '14px 28px',
+    backgroundColor: '#f3f4f6',
+    color: '#374151',
+    border: 'none',
+    borderRadius: '10px',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    minWidth: '120px'
+  },
+  
+  alertaBotonAccion: {
+    padding: '14px 28px',
+    backgroundColor: '#FF6B35',
+    color: 'white',
+    border: 'none',
+    borderRadius: '10px',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    minWidth: '120px'
+  },
+  
+  // ESTILOS EXISTENTES
   loadingContainer: {
     display: 'flex',
     flexDirection: 'column',
@@ -962,7 +1535,8 @@ const styles = {
   
   filterGroup: {
     display: 'flex',
-    gap: '12px'
+    gap: '12px',
+    alignItems: 'center'
   },
   
   filterSelect: {
@@ -981,6 +1555,19 @@ const styles = {
     minWidth: '140px',
     transition: 'all 0.2s ease',
     outline: 'none'
+  },
+  
+  limpiarFiltrosButton: {
+    padding: '10px',
+    background: '#f3f4f6',
+    border: 'none',
+    borderRadius: '8px',
+    color: '#6b7280',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   
   tableContainer: {
@@ -1080,21 +1667,25 @@ const styles = {
   youBadge: {
     background: '#FF6B3520',
     color: '#FF6B35',
-    padding: '2px 8px',
+    padding: '4px 8px',
     borderRadius: '12px',
     fontSize: '11px',
     fontWeight: '700',
-    display: 'inline-block'
+    display: 'inline-flex',
+    alignItems: 'center',
+    width: 'fit-content'
   },
   
   suspendedBadge: {
     background: '#EF444420',
     color: '#EF4444',
-    padding: '2px 8px',
+    padding: '4px 8px',
     borderRadius: '12px',
     fontSize: '10px',
     fontWeight: '700',
-    display: 'inline-block'
+    display: 'inline-flex',
+    alignItems: 'center',
+    width: 'fit-content'
   },
   
   userInfo: {
@@ -1264,10 +1855,22 @@ const styles = {
   emptyText: {
     fontSize: '14px',
     color: '#6b7280',
-    margin: 0,
+    margin: '0 0 16px 0',
     maxWidth: '300px',
     marginLeft: 'auto',
     marginRight: 'auto'
+  },
+  
+  limpiarFiltrosEmptyButton: {
+    padding: '8px 16px',
+    background: '#FF6B35',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
   },
   
   pagination: {
