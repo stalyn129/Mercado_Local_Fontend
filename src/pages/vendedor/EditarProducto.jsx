@@ -6,13 +6,14 @@ export default function EditarProducto() {
   const { id } = useParams();
   const navigate = useNavigate();
   // ✅ CORREGIDO: Usar tu IP en lugar de localhost
-  const API_URL = "http://192.168.1.13:8080";
+  const API_URL = "http://localhost:8080";
   const FASTAPI_URL = "http://localhost:8000";
 
   const [producto, setProducto] = useState(null);
   const [categorias, setCategorias] = useState([]);
   const [subcategorias, setSubcategorias] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [screenSize, setScreenSize] = useState("desktop");
   const [circlePositions, setCirclePositions] = useState([]);
@@ -29,13 +30,13 @@ export default function EditarProducto() {
   const token = localStorage.getItem("authToken");
   const vendedor = JSON.parse(localStorage.getItem("user"));
 
-  // ✅ FUNCIÓN PARA CONSTRUIR URLS DE IMÁGENES
+  // ✅ FUNCIÓN PARA CONSTRUIR URLS DE IMÁGENES (Ahora soporta Cloudinary y URLs locales)
   const getImageUrl = (imagePath) => {
     if (!imagePath) {
       return 'https://via.placeholder.com/150x150?text=Sin+Imagen';
     }
     
-    // Si ya es una URL completa
+    // Si ya es una URL completa (Cloudinary o externa)
     if (imagePath.startsWith('http')) {
       return imagePath;
     }
@@ -252,10 +253,16 @@ export default function EditarProducto() {
           ? data.subcategoria
           : { idSubcategoria: data.idSubcategoria },
         idCategoria: data.subcategoria?.idCategoria || data.idCategoria,
-        unidad: data.unidad || "kg"
+        unidad: data.unidad || "kg",
+        imagenProducto: data.imagenProducto || data.imagen // Asegurar compatibilidad
       };
       
       setProducto(productoNormalizado);
+      
+      // Configurar preview de imagen existente
+      if (productoNormalizado.imagenProducto) {
+        setImagePreview(getImageUrl(productoNormalizado.imagenProducto));
+      }
       
       if (productoNormalizado.idCategoria) {
         cargarSubcategoriasPorCategoria(productoNormalizado.idCategoria);
@@ -371,7 +378,7 @@ export default function EditarProducto() {
       newErrors.idSubcategoria = "Debe seleccionar una subcategoría";
     }
     
-    // ✅ CORREGIDO: Validar imagen solo si se seleccionó una nueva (no es obligatoria en edición)
+    // ✅ CORREGIDO: Validar imagen solo si se seleccionó una nueva
     if (selectedImage) {
       const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
       if (!allowedTypes.includes(selectedImage.type)) {
@@ -387,6 +394,7 @@ export default function EditarProducto() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // ✅✅✅ FUNCIÓN CORREGIDA: Ahora usa Cloudinary como AgregarProducto
   const actualizarProducto = async () => {
     if (isSubmitting || !producto) return;
     
@@ -418,39 +426,43 @@ export default function EditarProducto() {
     setIsSubmitting(true);
 
     try {
-      // ✅ PASO 1: Subir nueva imagen si se seleccionó una
-      let nuevaImagenPath = null;
+      let nuevaImagenUrl = null;
       
+      // ✅ PASO 1: Subir nueva imagen a Cloudinary si se seleccionó una
       if (selectedImage) {
-        console.log("📤 Subiendo nueva imagen...");
-        const formDataImagen = new FormData();
-        formDataImagen.append("file", selectedImage);
-        
-        const uploadResponse = await fetch(`${API_URL}/upload/producto`, {
+        console.log("📤 Subiendo nueva imagen a Cloudinary...");
+        console.log("🔗 Endpoint:", `${API_URL}/subir-imagen`);
+        console.log("📁 Archivo:", selectedImage.name, selectedImage.type);
+
+        const formData = new FormData();
+        formData.append("file", selectedImage);
+
+        // Usar el mismo endpoint que AgregarProducto para Cloudinary
+        const uploadResponse = await fetch(`${API_URL}/productos/subir-imagen`, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${token}`
           },
-          body: formDataImagen
+          body: formData
         });
-        
+
         console.log("📊 Status upload:", uploadResponse.status, uploadResponse.statusText);
-        
+
         if (!uploadResponse.ok) {
           const errorText = await uploadResponse.text();
           console.error("❌ Error al subir imagen:", errorText);
           throw new Error(`Error al subir imagen: ${uploadResponse.status} - ${errorText}`);
         }
-        
+
         const uploadResult = await uploadResponse.json();
         console.log("✅ Resultado upload:", uploadResult);
-        
-        if (!uploadResult.success) {
-          throw new Error(uploadResult.message || "Error desconocido al subir imagen");
+
+        if (!uploadResult.success && !uploadResult.imageUrl) {
+          throw new Error(uploadResult.error || "Error desconocido al subir imagen");
         }
-        
-        nuevaImagenPath = uploadResult.path;
-        console.log("🖼️ Nueva ruta de imagen:", nuevaImagenPath);
+
+        nuevaImagenUrl = uploadResult.imageUrl;
+        console.log("🖼️ URL de Cloudinary:", nuevaImagenUrl);
       }
       
       // ✅ PASO 2: Preparar datos para actualizar
@@ -465,8 +477,11 @@ export default function EditarProducto() {
       };
       
       // Agregar nueva imagen solo si se subió una
-      if (nuevaImagenPath) {
-        datosActualizacion.imagenProducto = nuevaImagenPath;
+      if (nuevaImagenUrl) {
+        datosActualizacion.imagenProducto = nuevaImagenUrl;
+      } else if (producto.imagenProducto) {
+        // Mantener la imagen existente
+        datosActualizacion.imagenProducto = producto.imagenProducto;
       }
       
       console.log("📦 Datos de actualización:", datosActualizacion);
@@ -557,6 +572,13 @@ export default function EditarProducto() {
 
     setSelectedImage(file);
     setErrors(prev => ({ ...prev, imagen: "" }));
+
+    // Crear preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   // ==================== FUNCIONES PARA IA ====================
@@ -797,6 +819,40 @@ export default function EditarProducto() {
           </div>
         )}
 
+        {/* Loading Overlay */}
+        {isSubmitting && (
+          <div style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.7)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            gap: "20px"
+          }}>
+            <div style={{
+              width: "60px",
+              height: "60px",
+              border: "5px solid rgba(255, 255, 255, 0.3)",
+              borderTop: "5px solid #FF6B35",
+              borderRadius: "50%",
+              animation: "spin 1s linear infinite"
+            }}></div>
+            <div style={{
+              color: "white",
+              fontSize: "18px",
+              fontWeight: "600"
+            }}>
+              Actualizando producto...
+            </div>
+          </div>
+        )}
+
         {/* Formulario */}
         <div style={{
           display: "flex",
@@ -840,7 +896,7 @@ export default function EditarProducto() {
                     position: "relative",
                     overflow: "hidden",
                     border: errors.imagen ? "3px dashed #EF4444" : 
-                           (selectedImage || producto.imagenProducto) ? "none" : "3px dashed #FF6B35",
+                           (imagePreview) ? "none" : "3px dashed #FF6B35",
                     transition: "all 0.3s ease",
                     cursor: "pointer",
                     minHeight: "400px"
@@ -848,10 +904,10 @@ export default function EditarProducto() {
                   onClick={triggerFileInput}
                   data-field="imagen"
                 >
-                  {selectedImage || producto.imagenProducto ? (
-                    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+                  {imagePreview ? (
+                    <>
                       <img 
-                        src={selectedImage ? URL.createObjectURL(selectedImage) : getImageUrl(producto.imagenProducto)}
+                        src={imagePreview}
                         alt={producto.nombreProducto}
                         style={{
                           width: "100%",
@@ -876,7 +932,7 @@ export default function EditarProducto() {
                           ✓ NUEVA
                         </div>
                       )}
-                    </div>
+                    </>
                   ) : (
                     <div style={{
                       display: "flex",
@@ -925,61 +981,68 @@ export default function EditarProducto() {
                   style={{ display: "none" }}
                 />
                 
-                <button
-                  type="button"
-                  onClick={triggerFileInput}
-                  style={{
-                    background: errors.imagen ? "#FEF2F2" : "white",
-                    color: errors.imagen ? "#EF4444" : "#FF6B35",
-                    border: `2px solid ${errors.imagen ? "#EF4444" : "#FF6B35"}`,
-                    borderRadius: "14px",
-                    padding: "16px 24px",
-                    fontSize: "15px",
-                    fontWeight: "700",
-                    cursor: "pointer",
-                    transition: "all 0.3s ease",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "10px",
-                    fontFamily: "'Inter', sans-serif"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = "translateY(-2px)";
-                    e.target.style.boxShadow = errors.imagen ? 
-                      "0 6px 20px rgba(239, 68, 68, 0.2)" : 
-                      "0 6px 20px rgba(255, 107, 53, 0.2)";
-                    e.target.style.background = errors.imagen ? "#EF4444" : "#FF6B35";
-                    e.target.style.color = "white";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = "translateY(0)";
-                    e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)";
-                    e.target.style.background = errors.imagen ? "#FEF2F2" : "white";
-                    e.target.style.color = errors.imagen ? "#EF4444" : "#FF6B35";
-                  }}
-                >
-                  {selectedImage || producto.imagenProducto ? "🔄 Cambiar Imagen" : "📤 Seleccionar Imagen"}
-                </button>
+                <div>
+                  <button
+                    type="button"
+                    onClick={triggerFileInput}
+                    style={{
+                      background: errors.imagen ? "#FEF2F2" : "white",
+                      color: errors.imagen ? "#EF4444" : "#FF6B35",
+                      border: `2px solid ${errors.imagen ? "#EF4444" : "#FF6B35"}`,
+                      borderRadius: "14px",
+                      padding: "16px 24px",
+                      fontSize: "15px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      transition: "all 0.3s ease",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "10px",
+                      fontFamily: "'Inter', sans-serif",
+                      width: "100%"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = "translateY(-2px)";
+                      e.target.style.boxShadow = errors.imagen ? 
+                        "0 6px 20px rgba(239, 68, 68, 0.2)" : 
+                        "0 6px 20px rgba(255, 107, 53, 0.2)";
+                      e.target.style.background = errors.imagen ? "#EF4444" : "#FF6B35";
+                      e.target.style.color = "white";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = "translateY(0)";
+                      e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)";
+                      e.target.style.background = errors.imagen ? "#FEF2F2" : "white";
+                      e.target.style.color = errors.imagen ? "#EF4444" : "#FF6B35";
+                    }}
+                  >
+                    {imagePreview ? "🔄 Cambiar Imagen" : "📤 Seleccionar Imagen"}
+                  </button>
 
-                {selectedImage && !errors.imagen && (
-                  <div style={{
-                    fontSize: "13px",
-                    color: "#10B981",
-                    fontWeight: "600",
-                    textAlign: "center",
-                    margin: "0",
-                    fontFamily: "'Inter', sans-serif",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px"
-                  }}>
-                    <span>✅</span>
-                    <span>Nueva imagen seleccionada: {selectedImage.name}</span>
-                  </div>
-                )}
+                  {/* Información de validación de imagen */}
+                  {selectedImage && !errors.imagen && (
+                    <div style={{
+                      marginTop: "10px",
+                      padding: "8px 12px",
+                      background: "#DCFCE7",
+                      borderRadius: "8px",
+                      border: "1px solid #BBF7D0",
+                      fontSize: "12px",
+                      color: "#065F46",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
+                      <span>✅</span>
+                      <span>
+                        Imagen válida: {selectedImage.name} • {(selectedImage.size / 1024).toFixed(1)} KB
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1498,11 +1561,11 @@ export default function EditarProducto() {
                   <label style={{
                     display: "block",
                     fontSize: "14px",
-                    fontWeight: "600",
-                    color: errors.stockProducto ? "#EF4444" : "#2C3E50",
-                    marginBottom: "8px",
-                    fontFamily: "'Inter', sans-serif"
-                  }}>
+                      fontWeight: "600",
+                      color: errors.stockProducto ? "#EF4444" : "#2C3E50",
+                      marginBottom: "8px",
+                      fontFamily: "'Inter', sans-serif"
+                    }}>
                     Stock
                   </label>
                   <input
