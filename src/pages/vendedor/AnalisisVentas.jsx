@@ -39,9 +39,9 @@ export default function ReportesAnalisis() {
   const [error, setError] = useState(null);
   const [circlePositions, setCirclePositions] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState("mes");
-  const [selectedProduct, setSelectedProduct] = useState("all");
+  const [backendDisponible, setBackendDisponible] = useState(true);
   
-  // Datos estadísticos
+  // Datos estadísticos con estructura inicial
   const [stats, setStats] = useState({
     totalPedidos: 0,
     totalIngresos: 0.0,
@@ -103,7 +103,7 @@ export default function ReportesAnalisis() {
   useEffect(() => {
     if (!user || !user.idVendedor) {
       alert("Debes iniciar sesión como vendedor");
-      window.location.href = "/loginmodal";
+      window.location.href = "/LoginModal";
       return;
     }
 
@@ -114,31 +114,24 @@ export default function ReportesAnalisis() {
     try {
       setLoading(true);
       setError(null);
-      const token = localStorage.getItem("authToken");
+      const token = localStorage.getItem("authToken") || user?.token;
 
       if (!token) {
         throw new Error("No hay token de autenticación");
       }
 
-      // ENDPOINTS CORREGIDOS según tu ReportesController
+      // ENDPOINTS para obtener datos
       const endpoints = [
-        // 1. Dashboard completo (contiene estadísticas básicas y varios datos)
         `${API_URL}/reportes/dashboard/${user.idVendedor}`,
-        // 2. Ventas mensuales específicas
         `${API_URL}/reportes/ventas-mensuales/${user.idVendedor}`,
-        // 3. Top productos
         `${API_URL}/reportes/productos-top/${user.idVendedor}`,
-        // 4. Clientes recurrentes
         `${API_URL}/reportes/clientes-recurrentes/${user.idVendedor}`,
-        // 5. Tendencia de ventas (últimos 30 días)
         `${API_URL}/reportes/tendencia-ventas/${user.idVendedor}`,
-        // 6. Estados de pedidos
         `${API_URL}/reportes/estados-pedidos/${user.idVendedor}`,
-        // 7. Productos por categoría (para categoriasTop)
         `${API_URL}/reportes/productos-categoria/${user.idVendedor}`
       ];
 
-      console.log("Cargando datos desde endpoints:", endpoints);
+      console.log("🔍 Intentando cargar datos de reportes...");
 
       const responses = await Promise.all(
         endpoints.map(url => 
@@ -146,21 +139,33 @@ export default function ReportesAnalisis() {
             headers: { 
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json"
-            }
-          }).then(res => {
+            },
+            signal: AbortSignal.timeout(10000) // Timeout de 10 segundos
+          }).then(async res => {
             if (!res.ok) {
-              console.warn(`Endpoint ${url} respondió con status: ${res.status}`);
+              console.warn(`⚠️ Endpoint ${url} respondió con status: ${res.status}`);
               return null;
             }
-            return res.json();
+            const data = await res.json();
+            console.log(`✅ Datos de ${url}:`, data);
+            return data;
           }).catch(err => {
-            console.error(`Error en endpoint ${url}:`, err);
+            console.error(`❌ Error en endpoint ${url}:`, err.message);
             return null;
           })
         )
       );
 
-      // Procesar las respuestas
+      // Debug: Ver estructura de datos
+      console.log("📊 Estructura de datos recibidos:");
+      responses.forEach((res, index) => {
+        console.log(`Endpoint ${index + 1}:`, res);
+        if (res && Array.isArray(res)) {
+          console.log(`Primer elemento:`, res[0]);
+          console.log(`Keys:`, res[0] ? Object.keys(res[0]) : 'vacío');
+        }
+      });
+
       const [
         dashboardData,
         ventasMensuales,
@@ -171,43 +176,105 @@ export default function ReportesAnalisis() {
         productosCategoria
       ] = responses;
 
-      console.log("Datos recibidos:", {
-        dashboardData,
-        ventasMensuales,
-        productosTop,
-        clientesRecurrentes,
-        tendenciaVentas,
-        estadosPedidos,
-        productosCategoria
-      });
+      // Función helper para procesar arrays
+      const safeArray = (data) => Array.isArray(data) ? data : [];
+
+      // Procesar productos más vendidos
+      const procesarProductosTop = (data) => {
+        if (!data || !Array.isArray(data)) return [];
+        
+        return data.map(item => ({
+          nombre: item.nombreProducto || item.nombre || item.producto || "Producto",
+          total: parseFloat(item.totalVentas || item.total || item.ventas || 0)
+        })).filter(p => p.total > 0);
+      };
+
+      // Procesar tendencia de ventas
+      const procesarTendenciaVentas = (data) => {
+        if (!data || !Array.isArray(data)) return [];
+        
+        return data.map(item => ({
+          fecha: item.fecha || item.dia || item.mes || "Fecha",
+          ventas: parseFloat(item.ventas || item.total || item.ingresos || 0)
+        }));
+      };
+
+      // Procesar ventas mensuales
+      const procesarVentasMensuales = (data) => {
+        if (!data || !Array.isArray(data)) return [];
+        
+        return data.map(item => ({
+          mes: item.mes || item.mesNombre || "Mes",
+          total: parseFloat(item.total || item.ventas || item.ingresos || 0)
+        }));
+      };
+
+      // Procesar estados de pedidos
+      const procesarEstadosPedidos = (data) => {
+        if (!data || !Array.isArray(data)) return [];
+        
+        return data.map(item => ({
+          estado: item.estado || item.status || "Estado",
+          cantidad: parseInt(item.cantidad || item.total || item.count || 0)
+        })).filter(e => e.cantidad > 0);
+      };
+
+      // Procesar categorías
+      const procesarCategorias = (data) => {
+        if (!data || !Array.isArray(data)) return [];
+        
+        return data.map(item => ({
+          categoria: item.categoria || item.nombreCategoria || "Categoría",
+          total: parseFloat(item.totalVentas || item.total || 0),
+          cantidad: parseInt(item.cantidadProductos || item.cantidad || 0)
+        }));
+      };
+
+      // Procesar clientes recurrentes
+      const procesarClientes = (data) => {
+        if (!data || !Array.isArray(data)) return [];
+        
+        return data.map(item => ({
+          nombre: item.nombre || item.nombreCliente || "Cliente",
+          totalComprado: parseFloat(item.totalComprado || item.total || item.ingresos || 0),
+          pedidos: parseInt(item.pedidos || item.totalPedidos || item.cantidadPedidos || 0),
+          ultimaCompra: item.ultimaCompra || item.fechaUltimaCompra
+        })).filter(c => c.totalComprado > 0);
+      };
 
       // Extraer datos del dashboard
-      const estadisticas = dashboardData?.estadisticas || {};
+      const estadisticas = dashboardData?.estadisticas || dashboardData || {};
       
-      // Transformar datos de categorías si es necesario
-      let categoriasTop = [];
-      if (productosCategoria && Array.isArray(productosCategoria)) {
-        categoriasTop = productosCategoria.map(cat => ({
-          categoria: cat.categoria || "Sin categoría",
-          total: cat.totalVentas || 0.0,
-          cantidad: cat.cantidadProductos || 0
-        }));
-      }
-
-      setStats({
+      console.log("🔄 Procesando datos finales...");
+      
+      const datosProcesados = {
         totalPedidos: estadisticas.totalPedidos || 0,
-        totalIngresos: estadisticas.ingresosTotales || 0.0,
-        ventasMensuales: dashboardData?.ventasMensuales || ventasMensuales || [],
-        productosTop: dashboardData?.productosTop || productosTop || [],
-        categoriasTop: categoriasTop,
-        tendenciaVentas: tendenciaVentas || [],
-        pedidosPorEstado: estadosPedidos || [],
-        clientesRecurrentes: dashboardData?.clientesRecurrentes || clientesRecurrentes || []
-      });
+        totalIngresos: parseFloat(estadisticas.ingresosTotales || estadisticas.totalIngresos || 0),
+        ventasMensuales: procesarVentasMensuales(ventasMensuales || dashboardData?.ventasMensuales),
+        productosTop: procesarProductosTop(productosTop || dashboardData?.productosTop),
+        categoriasTop: procesarCategorias(productosCategoria || dashboardData?.categoriasTop),
+        tendenciaVentas: procesarTendenciaVentas(tendenciaVentas || dashboardData?.tendenciaVentas),
+        pedidosPorEstado: procesarEstadosPedidos(estadosPedidos || dashboardData?.pedidosPorEstado),
+        clientesRecurrentes: procesarClientes(clientesRecurrentes || dashboardData?.clientesRecurrentes)
+      };
+
+      console.log("✅ Datos procesados finales:", datosProcesados);
+      setStats(datosProcesados);
+      setBackendDisponible(true);
 
     } catch (error) {
       console.error("❌ Error cargando reportes:", error);
-      setError("Error al cargar los datos del dashboard: " + error.message);
+      
+      if (error.name === 'AbortError' || error.message.includes('timeout')) {
+        setError("Timeout: El servidor no respondió en el tiempo esperado.");
+      } else if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+        setError("Error de red: No se pudo conectar con el servidor.");
+        setBackendDisponible(false);
+      } else if (error.message.includes('401') || error.message.includes('403')) {
+        setError("Error de autenticación. Por favor, inicia sesión nuevamente.");
+      } else {
+        setError("Error al cargar los datos: " + error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -217,13 +284,21 @@ export default function ReportesAnalisis() {
 
   // 1. Gráfico de Ventas Mensuales (Barras)
   const ventasMensualesData = {
-    labels: stats.ventasMensuales.map(item => item.mes || "Sin mes"),
+    labels: stats.ventasMensuales.length > 0 
+      ? stats.ventasMensuales.map(item => item.mes)
+      : ['Sin datos'],
     datasets: [
       {
         label: "Ventas ($)",
-        data: stats.ventasMensuales.map(item => item.total || 0),
-        backgroundColor: "rgba(59, 130, 246, 0.7)",
-        borderColor: "#3B82F6",
+        data: stats.ventasMensuales.length > 0 
+          ? stats.ventasMensuales.map(item => item.total)
+          : [0],
+        backgroundColor: stats.ventasMensuales.length > 0 
+          ? "rgba(59, 130, 246, 0.7)"
+          : "rgba(203, 213, 224, 0.7)",
+        borderColor: stats.ventasMensuales.length > 0 
+          ? "#3B82F6"
+          : "#CBD5E0",
         borderWidth: 2,
         borderRadius: 8,
         borderSkipped: false,
@@ -320,23 +395,34 @@ export default function ReportesAnalisis() {
 
   // 2. Gráfico de Productos Top (Doughnut)
   const productosTopData = {
-    labels: stats.productosTop.slice(0, 5).map(item => item.nombre || "Sin nombre"),
+    labels: stats.productosTop.length > 0 
+      ? stats.productosTop.slice(0, 5).map(item => {
+          const nombre = item.nombre || "Producto";
+          return nombre.length > 15 ? nombre.substring(0, 15) + "..." : nombre;
+        })
+      : ['Sin datos'],
     datasets: [{
-      data: stats.productosTop.slice(0, 5).map(item => item.total || 0),
-      backgroundColor: [
-        'rgba(255, 107, 53, 0.8)',
-        'rgba(59, 130, 246, 0.8)',
-        'rgba(52, 211, 153, 0.8)',
-        'rgba(168, 85, 247, 0.8)',
-        'rgba(245, 158, 11, 0.8)'
-      ],
-      borderColor: [
-        '#FF6B35',
-        '#3B82F6',
-        '#34D399',
-        '#A855F7',
-        '#F59E0B'
-      ],
+      data: stats.productosTop.length > 0 
+        ? stats.productosTop.slice(0, 5).map(item => item.total)
+        : [100],
+      backgroundColor: stats.productosTop.length > 0 
+        ? [
+            'rgba(255, 107, 53, 0.8)',
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(52, 211, 153, 0.8)',
+            'rgba(168, 85, 247, 0.8)',
+            'rgba(245, 158, 11, 0.8)'
+          ]
+        : ['rgba(203, 213, 224, 0.8)'],
+      borderColor: stats.productosTop.length > 0 
+        ? [
+            '#FF6B35',
+            '#3B82F6',
+            '#34D399',
+            '#A855F7',
+            '#F59E0B'
+          ]
+        : ['#CBD5E0'],
       borderWidth: 2,
       hoverOffset: 20
     }]
@@ -344,16 +430,22 @@ export default function ReportesAnalisis() {
 
   // 3. Gráfico de Tendencias (Línea)
   const tendenciaData = {
-    labels: stats.tendenciaVentas.map(item => item.fecha || "Sin fecha"),
+    labels: stats.tendenciaVentas.length > 0 
+      ? stats.tendenciaVentas.map(item => item.fecha)
+      : ['Sin datos'],
     datasets: [{
       label: 'Tendencia de Ventas',
-      data: stats.tendenciaVentas.map(item => item.ventas || item.total || 0),
-      borderColor: '#8B5CF6',
-      backgroundColor: 'rgba(139, 92, 246, 0.1)',
+      data: stats.tendenciaVentas.length > 0 
+        ? stats.tendenciaVentas.map(item => item.ventas)
+        : [0],
+      borderColor: stats.tendenciaVentas.length > 0 ? '#8B5CF6' : '#CBD5E0',
+      backgroundColor: stats.tendenciaVentas.length > 0 
+        ? 'rgba(139, 92, 246, 0.1)' 
+        : 'rgba(203, 213, 224, 0.1)',
       borderWidth: 3,
       fill: true,
       tension: 0.4,
-      pointBackgroundColor: '#8B5CF6',
+      pointBackgroundColor: stats.tendenciaVentas.length > 0 ? '#8B5CF6' : '#CBD5E0',
       pointBorderColor: '#ffffff',
       pointBorderWidth: 2,
       pointRadius: 6,
@@ -363,23 +455,31 @@ export default function ReportesAnalisis() {
 
   // 4. Gráfico de Estados de Pedidos (Pie)
   const estadosData = {
-    labels: stats.pedidosPorEstado.map(item => item.estado || "Sin estado"),
+    labels: stats.pedidosPorEstado.length > 0 
+      ? stats.pedidosPorEstado.map(item => item.estado)
+      : ['Sin datos'],
     datasets: [{
-      data: stats.pedidosPorEstado.map(item => item.cantidad || 0),
-      backgroundColor: [
-        'rgba(52, 211, 153, 0.8)',
-        'rgba(59, 130, 246, 0.8)',
-        'rgba(245, 158, 11, 0.8)',
-        'rgba(239, 68, 68, 0.8)',
-        'rgba(148, 163, 184, 0.8)'
-      ],
-      borderColor: [
-        '#34D399',
-        '#3B82F6',
-        '#F59E0B',
-        '#EF4444',
-        '#94A3B8'
-      ],
+      data: stats.pedidosPorEstado.length > 0 
+        ? stats.pedidosPorEstado.map(item => item.cantidad)
+        : [100],
+      backgroundColor: stats.pedidosPorEstado.length > 0 
+        ? [
+            'rgba(52, 211, 153, 0.8)',
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(245, 158, 11, 0.8)',
+            'rgba(239, 68, 68, 0.8)',
+            'rgba(148, 163, 184, 0.8)'
+          ]
+        : ['rgba(203, 213, 224, 0.8)'],
+      borderColor: stats.pedidosPorEstado.length > 0 
+        ? [
+            '#34D399',
+            '#3B82F6',
+            '#F59E0B',
+            '#EF4444',
+            '#94A3B8'
+          ]
+        : ['#CBD5E0'],
       borderWidth: 2
     }]
   };
@@ -392,6 +492,7 @@ export default function ReportesAnalisis() {
         (stats.ventasMensuales[stats.ventasMensuales.length - 2]?.total || 1) * 100).toFixed(1)
     : "0.0";
 
+  // ==================== RENDER ====================
   return (
     <div style={{ 
       minHeight: "100vh",
@@ -561,6 +662,47 @@ export default function ReportesAnalisis() {
             </div>
           </div>
         </div>
+
+        {/* Banner de advertencia si backend no disponible */}
+        {!backendDisponible && (
+          <div style={{
+            background: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)",
+            color: "white",
+            padding: "16px 24px",
+            borderRadius: "12px",
+            marginBottom: "24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            boxShadow: "0 8px 25px rgba(245, 158, 11, 0.3)"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span style={{ fontSize: "20px" }}>⚠️</span>
+              <div>
+                <strong>Backend no disponible</strong>
+                <p style={{ margin: "4px 0 0 0", fontSize: "14px", opacity: 0.9 }}>
+                  Mostrando datos de ejemplo. Conecta el backend para ver datos reales.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={cargarDatosReportes}
+              style={{
+                background: "rgba(255, 255, 255, 0.2)",
+                color: "white",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                fontSize: "14px",
+                fontWeight: "600",
+                cursor: "pointer",
+                transition: "all 0.3s ease"
+              }}
+            >
+              Reintentar conexión
+            </button>
+          </div>
+        )}
 
         {/* Loading State */}
         {loading ? (
@@ -964,6 +1106,16 @@ export default function ReportesAnalisis() {
                             }
                           }
                         }
+                      },
+                      scales: {
+                        y: {
+                          beginAtZero: true,
+                          ticks: {
+                            callback: function(value) {
+                              return '$' + value.toLocaleString('es-ES');
+                            }
+                          }
+                        }
                       }
                     }} 
                   />
@@ -1054,7 +1206,9 @@ export default function ReportesAnalisis() {
                         tooltip: {
                           callbacks: {
                             label: function(context) {
-                              return `$${context.parsed.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${((context.parsed / stats.totalIngresos) * 100).toFixed(1)}%)`;
+                              const total = stats.totalIngresos > 0 ? stats.totalIngresos : 1;
+                              const percentage = ((context.parsed / total) * 100).toFixed(1);
+                              return `$${context.parsed.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${percentage}%)`;
                             }
                           }
                         }
@@ -1418,9 +1572,9 @@ export default function ReportesAnalisis() {
                                 fontSize: "16px",
                                 boxShadow: "0 4px 12px rgba(139, 92, 246, 0.3)"
                               }}>
-                                {(cliente.nombre || cliente.nombreCliente || "C").charAt(0).toUpperCase()}
+                                {(cliente.nombre || "C").charAt(0).toUpperCase()}
                               </div>
-                              {cliente.nombre || cliente.nombreCliente || "Cliente Anónimo"}
+                              {cliente.nombre || "Cliente"}
                             </div>
                           </td>
                           <td style={{
@@ -1429,7 +1583,7 @@ export default function ReportesAnalisis() {
                             color: "#3B82F6",
                             fontSize: "15px"
                           }}>
-                            ${(cliente.total || cliente.totalComprado || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            ${(cliente.totalComprado || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td style={{
                             padding: "20px 24px",
@@ -1437,7 +1591,7 @@ export default function ReportesAnalisis() {
                             color: "#475569",
                             fontSize: "15px"
                           }}>
-                            {cliente.pedidos || cliente.cantidadPedidos || 0}
+                            {cliente.pedidos || 0}
                           </td>
                           <td style={{
                             padding: "20px 24px",
@@ -1463,11 +1617,11 @@ export default function ReportesAnalisis() {
                                 overflow: "hidden"
                               }}>
                                 <div style={{
-                                  width: `${Math.min((cliente.pedidos || cliente.cantidadPedidos || 0) * 20, 100)}%`,
+                                  width: `${Math.min((cliente.pedidos || 0) * 20, 100)}%`,
                                   height: "100%",
-                                  background: (cliente.pedidos || cliente.cantidadPedidos || 0) >= 5 
+                                  background: (cliente.pedidos || 0) >= 5 
                                     ? "linear-gradient(135deg, #10B981 0%, #34D399 100%)"
-                                    : (cliente.pedidos || cliente.cantidadPedidos || 0) >= 3
+                                    : (cliente.pedidos || 0) >= 3
                                     ? "linear-gradient(135deg, #F59E0B 0%, #FBBF24 100%)"
                                     : "linear-gradient(135deg, #6B7280 0%, #9CA3AF 100%)",
                                   borderRadius: "4px"
@@ -1479,8 +1633,8 @@ export default function ReportesAnalisis() {
                                 color: "#475569",
                                 minWidth: "40px"
                               }}>
-                                {(cliente.pedidos || cliente.cantidadPedidos || 0) >= 5 ? "Alta" : 
-                                 (cliente.pedidos || cliente.cantidadPedidos || 0) >= 3 ? "Media" : "Baja"}
+                                {(cliente.pedidos || 0) >= 5 ? "Alta" : 
+                                 (cliente.pedidos || 0) >= 3 ? "Media" : "Baja"}
                               </span>
                             </div>
                           </td>
@@ -1664,17 +1818,6 @@ export default function ReportesAnalisis() {
           }
         }
         
-        @keyframes slideDown {
-          0% { 
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          100% { 
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
         /* Estilos para el scroll */
         ::-webkit-scrollbar {
           width: 10px;
@@ -1694,59 +1837,6 @@ export default function ReportesAnalisis() {
         
         ::-webkit-scrollbar-thumb:hover {
           background: #94a3b8;
-        }
-        
-        /* Responsive */
-        @media (max-width: 1200px) {
-          .charts-grid {
-            grid-template-columns: 1fr !important;
-          }
-          
-          h1 {
-            font-size: 44px !important;
-          }
-        }
-        
-        @media (max-width: 768px) {
-          .main-container {
-            padding: 24px 16px !important;
-          }
-          
-          h1 {
-            font-size: 36px !important;
-          }
-          
-          .stats-grid {
-            grid-template-columns: 1fr !important;
-          }
-          
-          .filters-container {
-            flex-direction: column !important;
-            gap: 12px !important;
-          }
-          
-          .period-filters {
-            flex-wrap: wrap !important;
-            justify-content: center !important;
-          }
-          
-          .chart-container {
-            padding: 20px !important;
-          }
-        }
-        
-        @media (max-width: 480px) {
-          .header-section {
-            padding: 40px 24px !important;
-          }
-          
-          .metric-card {
-            padding: 24px !important;
-          }
-          
-          .summary-grid {
-            grid-templateColumns: 1fr !important;
-          }
         }
         
         * {
@@ -1780,24 +1870,6 @@ export default function ReportesAnalisis() {
         canvas {
           max-width: 100% !important;
           max-height: 100% !important;
-        }
-        
-        /* Mejoras para tablas */
-        table {
-          border-collapse: separate;
-          border-spacing: 0;
-        }
-        
-        th {
-          position: sticky;
-          top: 0;
-          background: #f8fafc;
-          z-index: 10;
-        }
-        
-        /* Animaciones suaves */
-        * {
-          transition: all 0.3s ease;
         }
       `}</style>
     </div>

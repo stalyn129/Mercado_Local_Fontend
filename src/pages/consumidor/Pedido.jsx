@@ -31,7 +31,7 @@ export default function Pedido() {
     
     if (!token) {
       notificaciones.advertenciaLogin();
-      setTimeout(() => navigate("/loginmodal"), 1500);
+      setTimeout(() => navigate("/LoginModal"), 1500);
       return;
     }
 
@@ -50,7 +50,7 @@ export default function Pedido() {
       if (!res.ok) {
         if (res.status === 401) {
           notificaciones.advertenciaLogin();
-          setTimeout(() => navigate("/loginmodal"), 1500);
+          setTimeout(() => navigate("/LoginModal"), 1500);
           return;
         }
         if (res.status === 404) {

@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import Footer from "../../components/Footer.jsx";
+import useNotification from "../../hooks/useNotification.jsx";
+import Notificaciones from "../../components/Notificaciones.jsx";
 
 export default function AgregarProducto() {
   const fileInputRef = useRef(null);
@@ -23,6 +25,9 @@ export default function AgregarProducto() {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [showValidationSummary, setShowValidationSummary] = useState(false);
+
+  // Estados para notificaciones
+  const { notificacion, setNotificacion, notificaciones, ocultarNotificacion } = useNotification();
 
   const [form, setForm] = useState({
     nombreProducto: "",
@@ -209,8 +214,14 @@ export default function AgregarProducto() {
   // Verificar si el usuario es vendedor
   useEffect(() => {
     if (!user || user.rol !== "VENDEDOR") {
-      alert("Debes iniciar sesión como vendedor");
-      window.location.href = "/login";
+      notificaciones.error(
+        "Acceso restringido",
+        "Debes iniciar sesión como vendedor para acceder a esta página.",
+        "bloqueo"
+      );
+      setTimeout(() => {
+        window.location.href = "/LoginModal";
+      }, 2000);
       return;
     }
 
@@ -225,6 +236,11 @@ export default function AgregarProducto() {
       } catch (err) {
         console.error("❌ Error cargando categorías:", err);
         setCategorias([]);
+        notificaciones.advertencia(
+          "Categorías no disponibles",
+          "No se pudieron cargar las categorías. Inténtalo nuevamente.",
+          "caja"
+        );
       }
     };
     cargarCategorias();
@@ -259,12 +275,22 @@ export default function AgregarProducto() {
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
       setErrors(prev => ({ ...prev, imagen: "Formato de imagen no válido. Use JPG, PNG o GIF" }));
+      notificaciones.error(
+        "Formato no válido",
+        "Solo se permiten imágenes JPG, PNG o GIF.",
+        "camera"
+      );
       return;
     }
 
     // ✅ CORREGIDO: 10MB
     if (file.size > 10 * 1024 * 1024) {
       setErrors(prev => ({ ...prev, imagen: "La imagen no puede superar los 10MB" }));
+      notificaciones.error(
+        "Imagen demasiado grande",
+        "La imagen no puede superar los 10MB.",
+        "alerta"
+      );
       return;
     }
 
@@ -276,13 +302,20 @@ export default function AgregarProducto() {
       setImagePreview(reader.result);
     };
     reader.readAsDataURL(file);
+
+    // Notificación de imagen cargada
+    notificaciones.info(
+      "Imagen cargada",
+      `"${file.name}" ha sido cargada correctamente.`,
+      "camera"
+    );
   };
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
 
-  // ✅✅✅ FUNCIÓN CORREGIDA handleSubmit - AHORA CON CLOUDINARY
+  // ✅✅✅ FUNCIÓN CORREGIDA handleSubmit - SIN NOTIFICACIÓN DE CLOUDINARY
   const handleSubmit = async () => {
     // Marcar todos los campos como tocados
     const allTouched = {};
@@ -294,9 +327,12 @@ export default function AgregarProducto() {
 
     // Validar formulario
     if (!validateForm()) {
-      // Mostrar resumen de errores
+      // Mostrar notificación de error
       const errorCount = Object.keys(errors).length;
-      alert(`Hay ${errorCount} error(es) en el formulario. Por favor, corrígelos antes de continuar.`);
+      notificaciones.error(
+        "Error en el formulario",
+        `Hay ${errorCount} error(es) en el formulario. Por favor, corrígelos antes de continuar.`
+      );
 
       // Hacer scroll al primer error
       const firstErrorField = Object.keys(errors)[0];
@@ -312,12 +348,20 @@ export default function AgregarProducto() {
     }
 
     if (!user || (!user.id && !user.idUsuario && !user.idVendedor)) {
-      alert("Error: No se pudo identificar el usuario. Por favor, inicie sesión nuevamente.");
+      notificaciones.error(
+        "Error de autenticación",
+        "No se pudo identificar el usuario. Por favor, inicie sesión nuevamente.",
+        "usuario"
+      );
       return;
     }
 
     if (!token) {
-      alert("Error: No hay token de autenticación. Por favor, inicie sesión nuevamente.");
+      notificaciones.error(
+        "Token no encontrado",
+        "No hay token de autenticación. Por favor, inicie sesión nuevamente.",
+        "bloqueo"
+      );
       return;
     }
 
@@ -331,6 +375,9 @@ export default function AgregarProducto() {
 
       const formData = new FormData();
       formData.append("file", selectedImageFile);
+
+      // ✅ QUITADA: Notificación de "Subiendo imagen a Cloudinary..."
+      // La subida ahora es silenciosa
 
       // Subir imagen usando el nuevo endpoint
       const uploadResponse = await fetch(`${API_URL}/productos/subir-imagen`, {
@@ -392,7 +439,13 @@ export default function AgregarProducto() {
       if (response.ok) {
         const result = await response.json();
         console.log("✅ Producto creado:", result);
-        alert("✅ Producto creado correctamente");
+        
+        // ✅ MOSTRAR NOTIFICACIÓN DE ÉXITO
+        notificaciones.exito(
+          "¡Producto creado exitosamente!",
+          `"${form.nombreProducto}" ha sido agregado a tu catálogo.`,
+          "paquete"
+        );
 
         // Limpiar formulario
         setForm({
@@ -411,19 +464,31 @@ export default function AgregarProducto() {
         setTouched({});
         setShowValidationSummary(false);
 
-        // Redirigir después de 1 segundo
+        // Redirigir después de 2 segundos (para que se vea la notificación)
         setTimeout(() => {
           window.location.href = "/vendedor/gestionar-productos";
-        }, 1000);
+        }, 2000);
 
       } else {
         const error = await response.text();
         console.error("❌ Error del servidor:", error);
-        alert(`❌ Error al crear producto: ${error}`);
+        
+        // Mostrar notificación de error
+        notificaciones.error(
+          "Error al crear producto",
+          "Hubo un problema al crear el producto. Inténtalo nuevamente.",
+          "caja"
+        );
       }
     } catch (error) {
       console.error("❌ Error en la petición:", error);
-      alert(`❌ Error: ${error.message}`);
+      
+      // Mostrar notificación de error
+      notificaciones.error(
+        "Error",
+        error.message || "Ocurrió un error inesperado. Inténtalo nuevamente.",
+        "error"
+      );
     } finally {
       setLoading(false);
     }
@@ -508,6 +573,11 @@ export default function AgregarProducto() {
 
       if (!res.ok) {
         console.error(`❌ Error HTTP: ${res.status} - ${res.statusText}`);
+        notificaciones.advertencia(
+          "Análisis no disponible",
+          "No se pudo conectar con el servicio de análisis de precios.",
+          "reloj"
+        );
         setPrecioIA(null);
         return;
       }
@@ -532,6 +602,11 @@ export default function AgregarProducto() {
           message: data.message || "Error en el análisis",
           similar_found: false
         });
+        notificaciones.advertencia(
+          "Análisis no disponible",
+          data.message || "No se pudo analizar el precio en este momento.",
+          "alerta"
+        );
       } else if (!data.similar_found) {
         // Caso: no se encontraron productos o no hay conversión posible
         console.log("⚠️ No se encontraron productos similares o conversión no posible");
@@ -544,10 +619,20 @@ export default function AgregarProducto() {
           unidad_sugerida: data.unidad_sugerida,
           consejo: data.consejo || "Intenta con otra unidad de medida"
         });
+        notificaciones.info(
+          "Sin productos comparables",
+          data.message || "No se encontraron productos similares para comparar.",
+          "search"
+        );
       } else {
         // Caso normal: productos encontrados
         console.log("✅ Productos similares encontrados:", data.total_productos);
         setPrecioIA(data);
+        notificaciones.info(
+          "Análisis completado",
+          `Se analizaron ${data.total_productos} productos similares.`,
+          "chart"
+        );
       }
 
     } catch (error) {
@@ -557,6 +642,11 @@ export default function AgregarProducto() {
         message: "Error de conexión con el servidor",
         similar_found: false
       });
+      notificaciones.error(
+        "Error de conexión",
+        "No se pudo conectar con el servidor de análisis.",
+        "error"
+      );
     } finally {
       setAnalizando(false);
     }
@@ -725,59 +815,6 @@ export default function AgregarProducto() {
             </p>
           </div>
         </div>
-
-        {/* Resumen de validación */}
-        {showValidationSummary && Object.keys(errors).length > 0 && (
-          <div style={{
-            background: "#FEF2F2",
-            borderRadius: "16px",
-            padding: "20px",
-            marginBottom: "20px",
-            border: "2px solid #FECACA",
-            animation: "fadeIn 0.3s ease"
-          }}>
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              marginBottom: "12px"
-            }}>
-              <div style={{
-                fontSize: "24px",
-                color: "#EF4444"
-              }}>
-                ⚠️
-              </div>
-              <h4 style={{
-                fontSize: "18px",
-                fontWeight: "700",
-                color: "#991B1B",
-                margin: "0"
-              }}>
-                Hay {Object.keys(errors).length} error(es) en el formulario
-              </h4>
-            </div>
-
-            <ul style={{
-              margin: "0",
-              paddingLeft: "20px",
-              fontSize: "14px",
-              color: "#7F1D1D"
-            }}>
-              {Object.entries(errors).map(([field, error]) => (
-                <li key={field} style={{ marginBottom: "4px" }}>
-                  <strong>{field === 'imagen' ? 'Imagen' :
-                    field === 'nombreProducto' ? 'Nombre' :
-                      field === 'descripcionProducto' ? 'Descripción' :
-                        field === 'precioProducto' ? 'Precio' :
-                          field === 'stockProducto' ? 'Stock' :
-                            field === 'idCategoria' ? 'Categoría' :
-                              field === 'idSubcategoria' ? 'Subcategoría' : field}:</strong> {error}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
 
         {/* Loading Overlay */}
         {loading && (
@@ -2298,9 +2335,21 @@ export default function AgregarProducto() {
               type="button"
               onClick={() => {
                 if (Object.keys(touched).length > 0) {
-                  if (confirm("¿Está seguro de cancelar? Se perderán los datos no guardados.")) {
-                    window.history.back();
-                  }
+                  const confirmarCancelar = () => {
+                    notificaciones.advertencia(
+                      "Cancelar operación",
+                      "¿Está seguro de cancelar? Se perderán los datos no guardados.",
+                      "alerta"
+                    );
+                    
+                    // Usar un setTimeout para dar tiempo a mostrar la notificación
+                    setTimeout(() => {
+                      if (window.confirm("¿Está seguro de cancelar? Se perderán los datos no guardados.")) {
+                        window.history.back();
+                      }
+                    }, 100);
+                  };
+                  confirmarCancelar();
                 } else {
                   window.history.back();
                 }
@@ -2388,6 +2437,16 @@ export default function AgregarProducto() {
           </div>
         </div>
       </div>
+
+      {/* COMPONENTE DE NOTIFICACIONES */}
+      <Notificaciones
+        notificacion={notificacion}
+        setNotificacion={setNotificacion}
+        position="top-right"
+        autoClose={5000}
+        showProgress={true}
+        pauseOnHover={true}
+      />
 
       <Footer />
 

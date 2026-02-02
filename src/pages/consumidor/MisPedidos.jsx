@@ -243,7 +243,7 @@ export default function MisPedidos({ modo: modoProp }) {
     const token = localStorage.getItem("authToken");
 
     if (!token) {
-      navigate("/loginmodal");
+      navigate("/LoginModal");
       return;
     }
 

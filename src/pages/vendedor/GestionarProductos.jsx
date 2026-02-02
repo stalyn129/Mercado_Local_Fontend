@@ -2,43 +2,36 @@ import { useEffect, useState } from "react";
 import Footer from "../../components/Footer.jsx";
 
 export default function GestionarProductos() {
-  // ✅ CORREGIDO: Usar localhost para desarrollo
-  const API_URL = "http://localhost:8080";
+  // ✅ CORREGIDO: Usar tu IP para que las imágenes carguen
+  const API_URL = "http://192.168.1.13:8080";
 
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [circlePositions, setCirclePositions] = useState([]);
 
-  // ✅ FUNCIÓN SIMPLIFICADA PARA CLOUDINARY
+  // ✅ AÑADIDO: Función para construir URLs de imágenes
   const getImageUrl = (imagePath) => {
-    // Si es undefined, null o string vacío
     if (!imagePath) {
-      return 'https://via.placeholder.com/150x150/FF6B35/ffffff?text=Producto';
+      return 'https://via.placeholder.com/150x150?text=Sin+Imagen';
     }
     
-    // Si ya es una URL completa de Cloudinary (https://res.cloudinary.com/...)
-    if (typeof imagePath === 'string' && 
-        (imagePath.startsWith('http://') || imagePath.startsWith('https://'))) {
+    // Si ya es una URL completa (http://...)
+    if (imagePath.startsWith('http')) {
       return imagePath;
     }
     
-    // Si es una URL de Cloudinary sin protocolo
-    if (typeof imagePath === 'string' && imagePath.includes('cloudinary.com')) {
-      return `https://${imagePath}`;
-    }
-    
-    // Si es una ruta relativa (/uploads/...)
-    if (typeof imagePath === 'string' && imagePath.startsWith('/')) {
+    // Si es una ruta relativa (/uploads/productos/...)
+    if (imagePath.startsWith('/uploads/')) {
       return `${API_URL}${imagePath}`;
     }
     
     // Si solo es un nombre de archivo
-    if (typeof imagePath === 'string' && imagePath.trim() !== '') {
+    if (imagePath && !imagePath.includes('/')) {
       return `${API_URL}/uploads/productos/${imagePath}`;
     }
     
-    // Por defecto, placeholder
-    return 'https://via.placeholder.com/150x150/FF6B35/ffffff?text=Producto';
+    // Si no reconocemos el formato, usar placeholder
+    return 'https://via.placeholder.com/150x150?text=Error+Imagen';
   };
 
   // ==================== ANIMACIÓN DE CÍRCULOS DE COLORES ====================
@@ -90,47 +83,24 @@ export default function GestionarProductos() {
 
   // ==================== CARGA DE PRODUCTOS ====================
   useEffect(() => {
-    const cargarProductos = async () => {
-      const user = JSON.parse(localStorage.getItem("user"));
+    const user = JSON.parse(localStorage.getItem("user"));
 
-      if (!user) {
-        console.warn("⚠ No hay sesión");
-        window.location.href = "/loginmodal";
-        return;
-      }
+    if (!user) {
+      console.warn("⚠ No hay sesión");
+      window.location.href = "/LoginModal";
+      return;
+    }
 
-      // Obtener idVendedor del usuario
-      let idVendedor = user.idVendedor || user.idUsuario || user.id;
-      
-      if (!idVendedor) {
-        console.warn("⚠ No se pudo obtener idVendedor del usuario");
-        alert("Error: No se pudo identificar al vendedor. Por favor, inicie sesión nuevamente.");
-        window.location.href = "/login";
-        return;
-      }
+    if (!user.idVendedor) {
+      console.warn("⚠ No existe idVendedor en el localStorage");
+      return;
+    }
 
-      console.log("🔍 Cargando productos para vendedor ID:", idVendedor);
-      
-      // Obtener token
-      const token = localStorage.getItem("authToken") || user.token;
-      
-      if (!token) {
-        console.warn("⚠ No hay token de autenticación");
-        alert("Error: Sesión expirada. Por favor, inicie sesión nuevamente.");
-        window.location.href = "/login";
-        return;
-      }
-
-      await obtenerProductos(idVendedor, token);
-    };
-
-    cargarProductos();
+    obtenerProductos(user.idVendedor, user.token);
   }, []);
 
   const obtenerProductos = async (idVendedor, token) => {
     try {
-      console.log("🔗 Llamando endpoint:", `${API_URL}/productos/vendedor/${idVendedor}`);
-      
       const res = await fetch(`${API_URL}/productos/vendedor/${idVendedor}`, {
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -138,93 +108,80 @@ export default function GestionarProductos() {
         }
       });
 
-      console.log("📊 Response status:", res.status, res.statusText);
-      
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error("❌ Error del servidor:", errorText);
-        throw new Error(`Error ${res.status}: ${errorText}`);
-      }
-
       const data = await res.json();
-      console.log("✅ Productos recibidos:", data);
+      console.log("📦 Productos cargados:", data);
       
-      // DEBUG: Verificar estructura de los productos
-      if (Array.isArray(data)) {
-        console.log(`📦 Total de productos: ${data.length}`);
-        
-        data.forEach((producto, index) => {
-          console.log(`\n=== PRODUCTO ${index + 1} ===`);
-          console.log("ID:", producto.idProducto);
-          console.log("Nombre:", producto.nombreProducto);
-          console.log("Imagen (raw):", producto.imagenProducto);
-          console.log("URL construida:", getImageUrl(producto.imagenProducto));
-          
-          // Verificar otros campos
-          console.log("Estado:", producto.estado);
-          console.log("Activo:", producto.activo);
-          console.log("Vendedor ID:", producto.idVendedor);
+      // ✅ DEBUG: Verificar URLs de imágenes
+      data.forEach((producto, index) => {
+        console.log(`🔍 Producto ${index + 1}:`, {
+          nombre: producto.nombreProducto,
+          imagenOriginal: producto.imagenProducto,
+          imagenConvertida: getImageUrl(producto.imagenProducto)
         });
-      } else {
-        console.warn("⚠ La respuesta no es un array:", data);
-      }
-      
+      });
+
       setProductos(data);
-    } catch (error) {
-      console.error("❌ Error al cargar productos:", error);
-      alert(`Error al cargar productos: ${error.message}`);
+    } catch (e) {
+      console.error("❌ Error al cargar productos:", e);
     } finally {
       setLoading(false);
     }
   };
 
-  // ==================== ELIMINAR PRODUCTO ====================
-  const eliminarProducto = async (idProducto, nombreProducto) => {
-    const confirmar = window.confirm(
-      `¿Estás seguro de eliminar el producto "${nombreProducto}"?\n\nEsta acción no se puede deshacer.`
-    );
+  // ==================== ELIMINAR PRODUCTO (BORRADO LÓGICO) ====================
+const eliminarProducto = async (idProducto, nombreProducto) => {
+  const motivo = prompt(
+    `¿Estás seguro de eliminar el producto "${nombreProducto}"?\n\n` +
+    `Esta acción marcará el producto como inactivo pero no lo eliminará permanentemente.\n\n` +
+    `Opcional: Ingresa una razón para la eliminación:`,
+    "Producto descontinuado por el vendedor"
+  );
 
-    if (!confirmar) {
-      return;
-    }
+  if (motivo === null) {
+    return; // El usuario canceló
+  }
 
-    try {
-      const user = JSON.parse(localStorage.getItem("user"));
-      const token = localStorage.getItem("authToken") || user.token;
-      
-      const res = await fetch(`${API_URL}/productos/eliminar/${idProducto}`, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      });
-
-      if (res.ok) {
-        setProductos(prev => prev.filter(p => p.idProducto !== idProducto));
-        alert(`🗑️ Producto "${nombreProducto}" eliminado exitosamente`);
-        console.log("✅ Producto eliminado:", idProducto);
-      } else {
-        const errorText = await res.text();
-        alert(`❌ No se pudo eliminar: ${errorText || 'Error inesperado'}`);
-      }
-    } catch (error) {
-      console.error("❌ Error al eliminar producto:", error);
-      alert("❌ Error de conexión. Verifica tu red e intenta nuevamente.");
-    }
-  };
-
-  // ==================== RECARGAR PRODUCTOS ====================
-  const recargarProductos = () => {
+  try {
     const user = JSON.parse(localStorage.getItem("user"));
-    const token = localStorage.getItem("authToken");
     
-    if (user && (user.idVendedor || user.idUsuario || user.id)) {
-      setLoading(true);
-      const idVendedor = user.idVendedor || user.idUsuario || user.id;
-      obtenerProductos(idVendedor, token);
+    const res = await fetch(`${API_URL}/productos/eliminar/${idProducto}`, {
+      method: "PUT",
+      headers: {
+        "Authorization": `Bearer ${user.token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ motivo: motivo || "Eliminado por el vendedor" })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      // ✅ Actualizar estado local (marcar como inactivo o filtrar)
+      setProductos(prev => prev.map(p => {
+        if (p.idProducto === idProducto) {
+          return {
+            ...p,
+            activo: false,
+            estado: "INACTIVO",
+            motivoDesactivacion: motivo
+          };
+        }
+        return p;
+      }));
+      
+      // O si prefieres eliminarlo de la vista:
+      // setProductos(prev => prev.filter(p => p.idProducto !== idProducto));
+      
+      alert(`✅ Producto "${nombreProducto}" marcado como inactivo exitosamente`);
+      console.log("🗑️ Producto desactivado (borrado lógico):", data);
+    } else {
+      alert(`❌ No se pudo eliminar: ${data.error || 'Error inesperado'}`);
     }
-  };
+  } catch (e) {
+    console.error("❌ Error al eliminar producto:", e);
+    alert("❌ Error de conexión. Verifica tu red e intenta nuevamente.");
+  }
+};
 
   return (
     <div style={{ 
@@ -251,7 +208,7 @@ export default function GestionarProductos() {
             animationDelay: circle.animationDelay,
             filter: `blur(${circle.blur})`,
             opacity: 0.7,
-            zIndex: 0,
+            zIndex: circle.zIndex,
             pointerEvents: "none"
           }}
         />
@@ -363,9 +320,7 @@ export default function GestionarProductos() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: "30px",
-            flexWrap: "wrap",
-            gap: "16px"
+            marginBottom: "30px"
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
               <div style={{
@@ -397,40 +352,27 @@ export default function GestionarProductos() {
                   margin: "0",
                   fontWeight: "500"
                 }}>
-                  {productos.length} {productos.length === 1 ? 'producto' : 'productos'} en total
+                  {productos.length} productos en total
                 </p>
               </div>
             </div>
             
-            <div style={{ display: "flex", gap: "12px" }}>
-              <button
-                onClick={recargarProductos}
-                style={{
-                  background: "#f1f5f9",
-                  color: "#475569",
-                  border: "1px solid #cbd5e1",
-                  padding: "10px 20px",
-                  borderRadius: "10px",
-                  cursor: "pointer",
-                  fontWeight: "600",
-                  fontSize: "14px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  transition: "all 0.3s ease"
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = "#e2e8f0";
-                  e.target.style.transform = "translateY(-2px)";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = "#f1f5f9";
-                  e.target.style.transform = "translateY(0)";
-                }}
-              >
-                🔄 Recargar
-              </button>
-            </div>
+            {productos.length > 0 && (
+              <div style={{
+                background: "#f1f5f9",
+                padding: "10px 20px",
+                borderRadius: "20px",
+                fontSize: "14px",
+                fontWeight: "600",
+                color: "#475569",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px"
+              }}>
+                <span>📈</span>
+                <span>Total: ${productos.reduce((sum, p) => sum + (p.precioProducto || 0), 0).toFixed(2)}</span>
+              </div>
+            )}
           </div>
 
           {/* Loading State */}
@@ -553,8 +495,7 @@ export default function GestionarProductos() {
                         color: "#475569",
                         textTransform: "uppercase",
                         letterSpacing: "0.8px",
-                        borderBottom: "2px solid #E2E8F0",
-                        width: "100px"
+                        borderBottom: "2px solid #E2E8F0"
                       }}>
                         Imagen
                       </th>
@@ -578,8 +519,7 @@ export default function GestionarProductos() {
                         color: "#475569",
                         textTransform: "uppercase",
                         letterSpacing: "0.8px",
-                        borderBottom: "2px solid #E2E8F0",
-                        width: "120px"
+                        borderBottom: "2px solid #E2E8F0"
                       }}>
                         Precio
                       </th>
@@ -591,8 +531,7 @@ export default function GestionarProductos() {
                         color: "#475569",
                         textTransform: "uppercase",
                         letterSpacing: "0.8px",
-                        borderBottom: "2px solid #E2E8F0",
-                        width: "120px"
+                        borderBottom: "2px solid #E2E8F0"
                       }}>
                         Stock
                       </th>
@@ -604,8 +543,7 @@ export default function GestionarProductos() {
                         color: "#475569",
                         textTransform: "uppercase",
                         letterSpacing: "0.8px",
-                        borderBottom: "2px solid #E2E8F0",
-                        width: "150px"
+                        borderBottom: "2px solid #E2E8F0"
                       }}>
                         Categoría
                       </th>
@@ -617,8 +555,7 @@ export default function GestionarProductos() {
                         color: "#475569",
                         textTransform: "uppercase",
                         letterSpacing: "0.8px",
-                        borderBottom: "2px solid #E2E8F0",
-                        width: "150px"
+                        borderBottom: "2px solid #E2E8F0"
                       }}>
                         Subcategoría
                       </th>
@@ -630,8 +567,7 @@ export default function GestionarProductos() {
                         color: "#475569",
                         textTransform: "uppercase",
                         letterSpacing: "0.8px",
-                        borderBottom: "2px solid #E2E8F0",
-                        width: "200px"
+                        borderBottom: "2px solid #E2E8F0"
                       }}>
                         Acciones
                       </th>
@@ -658,7 +594,7 @@ export default function GestionarProductos() {
                       >
                         {/* Imagen */}
                         <td style={{ 
-                          padding: "16px",
+                          padding: "20px",
                           borderLeft: "4px solid transparent",
                           borderImage: index % 3 === 0 ? "linear-gradient(135deg, #FF6B35 0%, #FF8E53 100%) 1" :
                                     index % 3 === 1 ? "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%) 1" :
@@ -672,6 +608,7 @@ export default function GestionarProductos() {
                             position: "relative",
                             boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)"
                           }}>
+                            {/* ✅ CORREGIDO: Usar getImageUrl para construir URL completa */}
                             <img 
                               src={getImageUrl(p.imagenProducto)} 
                               alt={p.nombreProducto}
@@ -679,31 +616,23 @@ export default function GestionarProductos() {
                                 width: "100%",
                                 height: "100%",
                                 objectFit: "cover",
-                                transition: "transform 0.3s ease",
-                                backgroundColor: "#f8f9fa"
+                                transition: "transform 0.3s ease"
                               }}
                               onMouseEnter={(e) => e.target.style.transform = "scale(1.1)"}
                               onMouseLeave={(e) => e.target.style.transform = "scale(1)"}
                               onError={(e) => {
-                                console.log('❌ Error cargando imagen para producto:', {
-                                  id: p.idProducto,
-                                  nombre: p.nombreProducto,
-                                  imagenOriginal: p.imagenProducto,
-                                  imagenIntentada: e.target.src
-                                });
-                                e.target.src = 'https://via.placeholder.com/150x150/FF6B35/ffffff?text=Producto';
-                                e.target.onerror = null;
+                                console.error('❌ Error cargando imagen:', p.imagenProducto);
+                                e.target.src = 'https://via.placeholder.com/150x150?text=Error+Imagen';
+                                e.target.onerror = null; // Prevenir bucles
                               }}
-                              onLoad={() => {
-                                console.log('✅ Imagen cargada:', p.nombreProducto);
-                              }}
+                              onLoad={() => console.log('✅ Imagen cargada exitosamente')}
                             />
                           </div>
                         </td>
                         
                         {/* Nombre del Producto */}
                         <td style={{ 
-                          padding: "16px",
+                          padding: "20px",
                           verticalAlign: "top"
                         }}>
                           <div style={{ 
@@ -727,30 +656,11 @@ export default function GestionarProductos() {
                               {p.descripcionProducto}
                             </div>
                           )}
-                          <div style={{
-                            fontSize: "12px",
-                            color: "#94a3b8",
-                            marginTop: "4px",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "6px"
-                          }}>
-                            <span style={{
-                              display: "inline-block",
-                              width: "8px",
-                              height: "8px",
-                              borderRadius: "50%",
-                              background: p.estado === 'disponible' ? "#10B981" : 
-                                        p.estado === 'agotado' ? "#EF4444" : 
-                                        p.activo ? "#3B82F6" : "#F59E0B"
-                            }}></span>
-                            <span>{p.estado || (p.activo ? 'Activo' : 'Inactivo')}</span>
-                          </div>
                         </td>
                         
                         {/* Precio */}
                         <td style={{ 
-                          padding: "16px",
+                          padding: "20px",
                           verticalAlign: "top"
                         }}>
                           <div style={{ 
@@ -759,49 +669,43 @@ export default function GestionarProductos() {
                             fontSize: "18px",
                             marginBottom: "6px"
                           }}>
-                            ${Number(p.precioProducto || 0).toFixed(2)}
-                          </div>
-                          <div style={{
-                            fontSize: "12px",
-                            color: "#94a3b8"
-                          }}>
-                            por {p.unidad || 'unidad'}
+                            ${Number(p.precioProducto).toFixed(2)}
                           </div>
                         </td>
                         
                         {/* Stock */}
-                        <td style={{ padding: "16px", verticalAlign: "top" }}>
+                        <td style={{ padding: "20px", verticalAlign: "top" }}>
                           <div style={{
                             background: p.stockProducto > 20 ? "linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%)" :
                                     p.stockProducto > 10 ? "linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)" :
                                     "linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)",
                             color: p.stockProducto > 20 ? "#065F46" :
                                    p.stockProducto > 10 ? "#92400E" : "#991B1B",
-                            padding: "8px 12px",
-                            borderRadius: "10px",
-                            fontSize: "13px",
+                            padding: "10px 16px",
+                            borderRadius: "12px",
+                            fontSize: "14px",
                             fontWeight: "800",
                             display: "inline-flex",
                             alignItems: "center",
-                            gap: "6px",
-                            boxShadow: "0 3px 8px rgba(0, 0, 0, 0.05)"
+                            gap: "8px",
+                            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)"
                           }}>
                             <span>📦</span>
-                            <span>{p.stockProducto || 0} {p.unidad || 'unidades'}</span>
+                            <span>{p.stockProducto} unidades</span>
                           </div>
                         </td>
                         
                         {/* Categoría */}
                         <td style={{ 
-                          padding: "16px",
+                          padding: "20px",
                           verticalAlign: "top"
                         }}>
                           <div style={{
                             background: "rgba(139, 92, 246, 0.1)",
                             color: "#7C3AED",
-                            padding: "8px 12px",
-                            borderRadius: "10px",
-                            fontSize: "13px",
+                            padding: "10px 16px",
+                            borderRadius: "12px",
+                            fontSize: "14px",
                             fontWeight: "700",
                             display: "inline-block"
                           }}>
@@ -811,15 +715,15 @@ export default function GestionarProductos() {
                         
                         {/* Subcategoría */}
                         <td style={{ 
-                          padding: "16px",
+                          padding: "20px",
                           verticalAlign: "top"
                         }}>
                           <div style={{
                             background: "rgba(255, 107, 53, 0.1)",
                             color: "#FF6B35",
-                            padding: "8px 12px",
-                            borderRadius: "10px",
-                            fontSize: "13px",
+                            padding: "10px 16px",
+                            borderRadius: "12px",
+                            fontSize: "14px",
                             fontWeight: "600",
                             display: "inline-block"
                           }}>
@@ -829,13 +733,13 @@ export default function GestionarProductos() {
                         
                         {/* Acciones */}
                         <td style={{ 
-                          padding: "16px",
+                          padding: "20px",
                           textAlign: "center",
                           verticalAlign: "top"
                         }}>
                           <div style={{ 
                             display: "flex", 
-                            gap: "8px",
+                            gap: "12px",
                             justifyContent: "center"
                           }}>
                             {/* Botón Editar */}
@@ -845,31 +749,31 @@ export default function GestionarProductos() {
                                 background: "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)",
                                 color: "white",
                                 border: "none",
-                                padding: "10px 16px",
-                                borderRadius: "10px",
+                                padding: "12px 24px",
+                                borderRadius: "12px",
                                 cursor: "pointer",
                                 fontWeight: "700",
                                 fontSize: "13px",
                                 transition: "all 0.3s ease",
                                 display: "flex",
                                 alignItems: "center",
-                                gap: "6px",
-                                minWidth: "90px",
+                                gap: "8px",
+                                minWidth: "100px",
                                 justifyContent: "center",
-                                boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)"
+                                boxShadow: "0 4px 15px rgba(59, 130, 246, 0.3)"
                               }}
                               onMouseEnter={(e) => {
-                                e.target.style.transform = "translateY(-2px)";
-                                e.target.style.boxShadow = "0 6px 20px rgba(59, 130, 246, 0.4)";
+                                e.target.style.transform = "translateY(-3px)";
+                                e.target.style.boxShadow = "0 8px 25px rgba(59, 130, 246, 0.4)";
                                 e.target.style.background = "linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)";
                               }}
                               onMouseLeave={(e) => {
                                 e.target.style.transform = "translateY(0)";
-                                e.target.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.3)";
+                                e.target.style.boxShadow = "0 4px 15px rgba(59, 130, 246, 0.3)";
                                 e.target.style.background = "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)";
                               }}
                             >
-                              <span style={{ fontSize: "14px" }}>✏️</span>
+                              <span style={{ fontSize: "16px" }}>✏️</span>
                               Editar
                             </button>
 
@@ -880,31 +784,31 @@ export default function GestionarProductos() {
                                 background: "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)",
                                 color: "white",
                                 border: "none",
-                                padding: "10px 16px",
-                                borderRadius: "10px",
+                                padding: "12px 24px",
+                                borderRadius: "12px",
                                 cursor: "pointer",
                                 fontWeight: "700",
                                 fontSize: "13px",
                                 transition: "all 0.3s ease",
                                 display: "flex",
                                 alignItems: "center",
-                                gap: "6px",
-                                minWidth: "90px",
+                                gap: "8px",
+                                minWidth: "100px",
                                 justifyContent: "center",
-                                boxShadow: "0 4px 12px rgba(239, 68, 68, 0.3)"
+                                boxShadow: "0 4px 15px rgba(239, 68, 68, 0.3)"
                               }}
                               onMouseEnter={(e) => {
-                                e.target.style.transform = "translateY(-2px)";
-                                e.target.style.boxShadow = "0 6px 20px rgba(239, 68, 68, 0.4)";
+                                e.target.style.transform = "translateY(-3px)";
+                                e.target.style.boxShadow = "0 8px 25px rgba(239, 68, 68, 0.4)";
                                 e.target.style.background = "linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)";
                               }}
                               onMouseLeave={(e) => {
                                 e.target.style.transform = "translateY(0)";
-                                e.target.style.boxShadow = "0 4px 12px rgba(239, 68, 68, 0.3)";
+                                e.target.style.boxShadow = "0 4px 15px rgba(239, 68, 68, 0.3)";
                                 e.target.style.background = "linear-gradient(135deg, #EF4444 0%, #DC2626 100%)";
                               }}
                             >
-                              <span style={{ fontSize: "14px" }}>🗑️</span>
+                              <span style={{ fontSize: "16px" }}>🗑️</span>
                               Eliminar
                             </button>
                           </div>
@@ -917,78 +821,57 @@ export default function GestionarProductos() {
 
               {/* Footer de estadísticas */}
               <div style={{
-                padding: "20px",
+                padding: "24px",
                 background: "linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)",
-                borderRadius: "14px",
+                borderRadius: "16px",
                 borderTop: "2px solid #E2E8F0",
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: "16px"
+                alignItems: "center"
               }}>
                 <div style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "16px",
-                  flexWrap: "wrap"
+                  gap: "16px"
                 }}>
                   <div style={{
                     background: "white",
-                    padding: "10px 16px",
-                    borderRadius: "10px",
+                    padding: "10px 20px",
+                    borderRadius: "12px",
                     fontWeight: "600",
                     color: "#475569",
-                    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.04)",
+                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
                     display: "flex",
                     alignItems: "center",
                     gap: "8px"
                   }}>
                     <span style={{ 
                       color: "#10B981",
-                      fontSize: "14px"
+                      fontSize: "16px"
                     }}>
                       ✅
                     </span>
                     <div>
                       <div style={{ fontSize: "12px", color: "#64748B" }}>
-                        Productos
+                        Total de productos
                       </div>
                       <div>
-                        <strong style={{ color: "#2C3E50", fontSize: "14px" }}>
+                        <strong style={{ color: "#2C3E50", fontSize: "15px" }}>
                           {productos.length}
-                        </strong>
+                        </strong> productos
                       </div>
                     </div>
                   </div>
                   
                   <div style={{
-                    background: "white",
-                    padding: "10px 16px",
-                    borderRadius: "10px",
-                    fontWeight: "600",
-                    color: "#475569",
-                    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.04)",
                     display: "flex",
                     alignItems: "center",
-                    gap: "8px"
+                    gap: "8px",
+                    color: "#64748B",
+                    fontSize: "14px"
                   }}>
-                    <span style={{ 
-                      color: "#FF6B35",
-                      fontSize: "14px"
-                    }}>
-                      💰
-                    </span>
-                    <div>
-                      <div style={{ fontSize: "12px", color: "#64748B" }}>
-                        Valor promedio
-                      </div>
-                      <div>
-                        <strong style={{ color: "#2C3E50", fontSize: "14px" }}>
-                          ${productos.length > 0 ? (productos.reduce((sum, p) => sum + (p.precioProducto || 0), 0) / productos.length).toFixed(2) : '0.00'}
-                        </strong>
-                      </div>
-                    </div>
+                    <span>🔄</span>
+                    <span>Última actualización: <strong>Ahora</strong></span>
                   </div>
                 </div>
                 
@@ -1001,10 +884,10 @@ export default function GestionarProductos() {
                     fontWeight: "600",
                     marginBottom: "4px"
                   }}>
-                    VALOR TOTAL
+                    VALOR TOTAL DEL INVENTARIO
                   </div>
                   <div style={{
-                    fontSize: "20px",
+                    fontSize: "24px",
                     fontWeight: "800",
                     color: "#10B981",
                     background: "linear-gradient(135deg, #10B981 0%, #34D399 100%)",

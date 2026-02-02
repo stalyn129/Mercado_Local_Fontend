@@ -116,7 +116,7 @@ export default function PedidoDetalle() {
     const token = localStorage.getItem("authToken");
     if (!token) {
       notificaciones.advertenciaLogin();
-      setTimeout(() => navigate("/loginmodal"), 1500);
+      setTimeout(() => navigate("/LoginModal"), 1500);
       return;
     }
 
@@ -218,7 +218,7 @@ export default function PedidoDetalle() {
     const token = localStorage.getItem("authToken");
     if (!token) {
       notificaciones.advertenciaLogin();
-      setTimeout(() => navigate("/loginmodal"), 1500);
+      setTimeout(() => navigate("/LoginModal"), 1500);
       return;
     }
 

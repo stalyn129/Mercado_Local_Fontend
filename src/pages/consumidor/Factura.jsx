@@ -415,7 +415,7 @@ export default function Factura() {
       // NUEVO: Mostrar notificación de advertencia
       notificaciones.advertenciaLogin();
       setTimeout(() => {
-        navigate("/loginmodal");
+        navigate("/LoginModal");
       }, 1500);
       return;
     }

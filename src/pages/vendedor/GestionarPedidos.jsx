@@ -56,7 +56,7 @@ export default function GestionarPedidos() {
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user"));
-    if (!user) return window.location.href = "/loginmodal";
+    if (!user) return window.location.href = "/LoginModal";
 
     cargarPedidos(user.idVendedor, user.token);
   }, []);

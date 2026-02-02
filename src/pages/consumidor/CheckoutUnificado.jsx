@@ -153,7 +153,7 @@ export default function CheckoutUnificado() {
     if (!token || !user?.idConsumidor) {
       notificaciones.advertencia("Inicia sesión", "Debes iniciar sesión como consumidor para finalizar la compra");
       setTimeout(() => {
-        navigate("/loginmodal");
+        navigate("/LoginModal");
       }, 1500);
       return;
     }

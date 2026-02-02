@@ -61,13 +61,13 @@ export default function ResenasVendedor() {
 
     if (!user || !user.idVendedor) {
       alert("⚠ Debes iniciar sesión como vendedor");
-      window.location.href = "/loginmodal";
+      window.location.href = "/LoginModal";
       return;
     }
 
     if (!token) {
       alert("⚠ No se encontró token de autenticación");
-      window.location.href = "/loginmodal";
+      window.location.href = "/LoginModal";
       return;
     }
 
@@ -92,7 +92,7 @@ export default function ResenasVendedor() {
     } catch (error) {
       console.error("❌ Error al cargar reseñas:", error);
       alert("Error al cargar las reseñas. Por favor, inicia sesión nuevamente.");
-      window.location.href = "/loginmodal";
+      window.location.href = "/LoginModal";
     } finally {
       setLoading(false);
     }

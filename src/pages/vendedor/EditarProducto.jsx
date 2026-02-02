@@ -231,7 +231,7 @@ export default function EditarProducto() {
 
   useEffect(() => {
     if (!token || vendedor?.rol !== "VENDEDOR") {
-      navigate("/login");
+      navigate("/LoginModal");
       return;
     }
     cargarProducto();

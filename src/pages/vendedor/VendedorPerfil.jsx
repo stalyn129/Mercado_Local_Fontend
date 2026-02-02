@@ -185,7 +185,7 @@ export default function VendedorPerfil() {
       
       // Redirigir después de un breve delay para que se vea la notificación
       setTimeout(() => {
-        navigate("/login");
+        navigate("/LoginModal");
       }, 1500);
       return;
     }
@@ -226,7 +226,7 @@ export default function VendedorPerfil() {
         );
         
         setTimeout(() => {
-          navigate("/login");
+          navigate("/LoginModal");
         }, 1500);
         return;
       }
@@ -598,7 +598,7 @@ export default function VendedorPerfil() {
                               );
                               
                               setTimeout(() => {
-                                navigate("/login");
+                                navigate("/LoginModal");
                               }, 1500);
                             }
                           }}
