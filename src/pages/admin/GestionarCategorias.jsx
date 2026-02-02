@@ -21,6 +21,10 @@ import {
   XCircle
 } from 'lucide-react';
 
+// NUEVO: Importar componentes de notificación
+import Notificaciones from '../../components/Notificaciones.jsx';
+import useNotification from '../../hooks/useNotification.jsx';
+
 // Función auxiliar para fetch con timeout
 const fetchWithTimeout = async (url, options = {}, timeout = 5000) => {
   const controller = new AbortController();
@@ -62,6 +66,14 @@ export default function GestionarCategorias() {
   // Estados para productos asociados
   const [categoriasConProductos, setCategoriasConProductos] = useState({});
   const [subcategoriasConProductos, setSubcategoriasConProductos] = useState({});
+
+  // NUEVO: Usar el hook de notificaciones
+  const {
+    notificacion,
+    setNotificacion,
+    notificaciones,
+    ocultarNotificacion
+  } = useNotification();
 
   const generarAbreviatura = (nombre) => {
     if (!nombre || !nombre.trim()) return 'CAT';
@@ -113,8 +125,16 @@ export default function GestionarCategorias() {
   const verificarAutenticacion = () => {
     const token = localStorage.getItem('token');
     if (!token) {
-      alert('Sesión expirada. Por favor, inicia sesión nuevamente.');
-      window.location.href = '/LoginModal';
+      // NUEVO: Reemplazar alert con notificación
+      notificaciones.advertencia(
+        "Sesión expirada",
+        "Por favor, inicia sesión nuevamente.",
+        "bloqueo"
+      );
+      
+      setTimeout(() => {
+        window.location.href = '/LoginModal';
+      }, 2000);
       return false;
     }
     
@@ -122,9 +142,17 @@ export default function GestionarCategorias() {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const expira = payload.exp * 1000;
       if (Date.now() >= expira) {
-        alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
-        localStorage.removeItem('token');
-        window.location.href = '/LoginModal';
+        // NUEVO: Reemplazar alert con notificación
+        notificaciones.advertencia(
+          "Sesión expirada",
+          "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
+          "reloj"
+        );
+        
+        setTimeout(() => {
+          localStorage.removeItem('token');
+          window.location.href = '/LoginModal';
+        }, 2000);
         return false;
       }
     } catch (error) {
@@ -211,11 +239,16 @@ export default function GestionarCategorias() {
     cargarCategorias();
   }, []);
 
-  // =================== FUNCIÓN PRINCIPAL MEJORADA CON DEPURACIÓN ===================
-  const cargarCategorias = async () => {
+  // =================== FUNCIÓN PRINCIPAL MEJORADA ===================
+  const cargarCategorias = async (mostrarNotificacion = true) => {
     try {
       setCargando(true);
       setError(null);
+      
+      // NUEVO: Mostrar notificación de carga
+      if (mostrarNotificacion) {
+        notificaciones.info("Cargando categorías", "Obteniendo datos del servidor...", "reloj");
+      }
       
       if (!verificarAutenticacion()) {
         return;
@@ -233,7 +266,12 @@ export default function GestionarCategorias() {
       
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('token');
-        window.location.href = '/LoginModal';
+        notificaciones.advertencia(
+          "Acceso restringido",
+          "No tienes permisos para acceder a esta sección",
+          "bloqueo"
+        );
+        setTimeout(() => window.location.href = '/LoginModal', 2000);
         return;
       }
       
@@ -268,7 +306,6 @@ export default function GestionarCategorias() {
               
               if (verificarResponse.ok) {
                 const resultado = await verificarResponse.json();
-                console.log(`✅ Categoría ${cat.idCategoria} (${cat.nombreCategoria}): Resultado API =`, resultado);
                 
                 // Interpretación detallada del resultado
                 if (resultado === true || resultado === false) {
@@ -283,16 +320,10 @@ export default function GestionarCategorias() {
                 } else if (typeof resultado === 'string') {
                   tieneProductosCategoria = resultado.toLowerCase() === 'true' || resultado === '1';
                 }
-                
-                console.log(`   Interpretado como: ${tieneProductosCategoria ? 'TIENE productos' : 'SIN productos'}`);
               } else {
-                console.warn(`⚠️ Error verificando categoría ${cat.idCategoria}: ${verificarResponse.status}`);
-                const errorText = await verificarResponse.text();
-                console.warn('   Error detallado:', errorText);
                 tieneProductosCategoria = true; // Por seguridad
               }
             } catch (error) {
-              console.error(`❌ Error verificando productos de categoría ${cat.idCategoria}:`, error);
               tieneProductosCategoria = true;
             }
             
@@ -335,11 +366,6 @@ export default function GestionarCategorias() {
                     
                     if (verificarSubResponse.ok) {
                       const resultado = await verificarSubResponse.json();
-                      console.log(`   ↳ Subcategoría ${sub.idSubcategoria} (${sub.nombreSubcategoria}): Resultado API =`, {
-                        resultado,
-                        tipo: typeof resultado,
-                        stringResult: JSON.stringify(resultado)
-                      });
                       
                       // Interpretación detallada
                       if (resultado === true || resultado === false) {
@@ -355,26 +381,18 @@ export default function GestionarCategorias() {
                         tieneProductosSub = resultado.toLowerCase() === 'true' || resultado === '1';
                       }
                       
-                      console.log(`     Interpretado como: ${tieneProductosSub ? 'TIENE productos' : 'SIN productos'}`);
-                      
                       // SEGUNDO: Verificación alternativa si el primer resultado parece incorrecto
                       if (tieneProductosSub) {
-                        console.log(`     ⚠️ Verificación alternativa para subcategoría ${sub.idSubcategoria}...`);
                         const verifAlternativa = await verificarManualProductos(sub.idSubcategoria, true);
                         if (!verifAlternativa) {
-                          console.log(`     ✅ Corrección: La subcategoría NO tiene productos realmente`);
                           tieneProductosSub = false;
                         }
                       }
                       
                     } else {
-                      console.warn(`   ↳ Error verificando subcategoría ${sub.idSubcategoria}: ${verificarSubResponse.status}`);
-                      const errorText = await verificarSubResponse.text();
-                      console.warn('     Error detallado:', errorText);
                       tieneProductosSub = true;
                     }
                   } catch (error) {
-                    console.error(`   ↳ Error verificando productos de subcategoría ${sub.idSubcategoria}:`, error);
                     tieneProductosSub = true;
                   }
                   
@@ -402,7 +420,7 @@ export default function GestionarCategorias() {
               subcategorias: subcategorias
             };
           } catch (error) {
-            console.error(`🔥 Error cargando categoría ${cat.idCategoria}:`, error);
+            console.error(`Error cargando categoría ${cat.idCategoria}:`, error);
             return {
               id: cat.idCategoria,
               nombre: cat.nombreCategoria,
@@ -420,18 +438,38 @@ export default function GestionarCategorias() {
       setCategoriasConProductos(nuevasCategoriasConProductos);
       setSubcategoriasConProductos(nuevasSubcategoriasConProductos);
       
-      console.log('📊 Estado final de productos:', {
-        categorias: nuevasCategoriasConProductos,
-        subcategorias: nuevasSubcategoriasConProductos
-      });
+      // NUEVO: Mostrar notificación de éxito
+      if (mostrarNotificacion) {
+        setTimeout(() => {
+          notificaciones.exito(
+            "Categorías cargadas",
+            `Se cargaron ${categoriasConSubcategorias.length} categorías con éxito`,
+            "caja"
+          );
+        }, 500);
+      }
       
     } catch (error) {
-      console.error('💥 Error en cargarCategorias:', error);
+      console.error('Error en cargarCategorias:', error);
+      
+      // NUEVO: Notificación de error
+      let mensajeError = 'Error al cargar las categorías';
       if (error.message.includes('Failed to fetch') || error.name === 'AbortError') {
-        setError('Error de conexión con el servidor. Verifica que el backend esté ejecutándose en http://localhost:8080');
+        mensajeError = 'Error de conexión con el servidor. Verifica que el backend esté ejecutándose en http://localhost:8080';
+        notificaciones.error(
+          "Error de conexión",
+          mensajeError,
+          "📡"
+        );
       } else {
-        setError(`Error al cargar las categorías: ${error.message}`);
+        notificaciones.error(
+          "Error al cargar",
+          `Error al cargar las categorías: ${error.message}`,
+          "❌"
+        );
       }
+      
+      setError(mensajeError);
     } finally {
       setCargando(false);
     }
@@ -494,11 +532,14 @@ export default function GestionarCategorias() {
   const cancelarEdicionInline = () => {
     setEditando(null);
     setFormEdit({});
+    // NUEVO: Notificación de cancelación
+    notificaciones.info("Edición cancelada", "Los cambios no se han guardado", "❌");
   };
 
   const guardarEdicionInline = async () => {
     if (!formEdit.nombreCategoria.trim()) {
-      alert('El nombre es requerido');
+      // NUEVO: Reemplazar alert con notificación
+      notificaciones.advertencia("Campo requerido", "El nombre es requerido", "⚠️");
       return;
     }
     
@@ -522,6 +563,9 @@ export default function GestionarCategorias() {
       
       const token = localStorage.getItem('token');
       
+      // NUEVO: Mostrar notificación de proceso
+      notificaciones.info("Guardando cambios", "Actualizando la categoría...", "reloj");
+      
       const response = await fetchWithTimeout(url, {
         method: 'PUT',
         headers: {
@@ -533,7 +577,12 @@ export default function GestionarCategorias() {
       
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('token');
-        window.location.href = '/LoginModal';
+        notificaciones.advertencia(
+          "Sesión expirada",
+          "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
+          "bloqueo"
+        );
+        setTimeout(() => window.location.href = '/LoginModal', 2000);
         return;
       }
       
@@ -542,18 +591,31 @@ export default function GestionarCategorias() {
         throw new Error(`Error ${response.status}: ${errorText}`);
       }
       
-      await cargarCategorias();
+      await cargarCategorias(false);
       cancelarEdicionInline();
-      alert('✅ Categoría actualizada exitosamente');
+      
+      // NUEVO: Reemplazar alert con notificación de éxito
+      notificaciones.exito(
+        "Categoría actualizada",
+        `${formEdit.esSubcategoria ? 'Subcategoría' : 'Categoría'} actualizada exitosamente`,
+        "check"
+      );
     } catch (error) {
       console.error('Error en guardarEdicionInline:', error);
-      alert(`Error al actualizar la categoría: ${error.message}`);
+      
+      // NUEVO: Reemplazar alert con notificación de error
+      notificaciones.error(
+        "Error al actualizar",
+        `Error al actualizar la categoría: ${error.message}`,
+        "❌"
+      );
     }
   };
 
   const handleSubmit = async () => {
     if (!formData.nombreCategoria.trim()) {
-      alert('El nombre es requerido');
+      // NUEVO: Reemplazar alert con notificación
+      notificaciones.advertencia("Campo requerido", "El nombre es requerido", "⚠️");
       return;
     }
     
@@ -584,6 +646,17 @@ export default function GestionarCategorias() {
       
       const token = localStorage.getItem('token');
       
+      // NUEVO: Mostrar notificación de proceso
+      const mensajeProceso = modoEdicion 
+        ? `Actualizando ${formData.esSubcategoria ? 'subcategoría' : 'categoría'}...`
+        : `Creando ${formData.esSubcategoria ? 'subcategoría' : 'categoría'}...`;
+      
+      notificaciones.info(
+        "Procesando",
+        mensajeProceso,
+        "reloj"
+      );
+      
       const response = await fetchWithTimeout(finalUrl, {
         method: method,
         headers: {
@@ -595,7 +668,12 @@ export default function GestionarCategorias() {
       
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('token');
-        window.location.href = '/LoginModal';
+        notificaciones.advertencia(
+          "Sesión expirada",
+          "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
+          "bloqueo"
+        );
+        setTimeout(() => window.location.href = '/LoginModal', 2000);
         return;
       }
       
@@ -604,16 +682,33 @@ export default function GestionarCategorias() {
         throw new Error(`Error ${response.status}: ${errorText || 'Error desconocido'}`);
       }
       
-      await cargarCategorias();
+      await cargarCategorias(false);
       cerrarModal();
-      alert(`✅ ${modoEdicion ? 'Categoría actualizada' : 'Categoría creada'} exitosamente`);
+      
+      // NUEVO: Reemplazar alert con notificación de éxito
+      const mensajeExito = modoEdicion 
+        ? `${formData.esSubcategoria ? 'Subcategoría' : 'Categoría'} actualizada exitosamente`
+        : `${formData.esSubcategoria ? 'Subcategoría' : 'Categoría'} creada exitosamente`;
+      
+      notificaciones.exito(
+        modoEdicion ? "Actualizado" : "Creado",
+        mensajeExito,
+        formData.esSubcategoria ? "etiqueta" : "caja"
+      );
     } catch (error) {
       console.error('Error en handleSubmit:', error);
-      alert(`Error al ${modoEdicion ? 'actualizar' : 'crear'} la categoría: ${error.message}`);
+      
+      // NUEVO: Reemplazar alert con notificación de error
+      const accion = modoEdicion ? 'actualizar' : 'crear';
+      notificaciones.error(
+        "Error",
+        `Error al ${accion} la ${formData.esSubcategoria ? 'subcategoría' : 'categoría'}: ${error.message}`,
+        "❌"
+      );
     }
   };
 
-  // =================== FUNCIÓN ELIMINAR MEJORADA CON DEPURACIÓN ===================
+  // =================== FUNCIÓN ELIMINAR MEJORADA ===================
   const eliminarCategoria = async (id, nombre, esSubcategoria = false) => {
     if (!verificarAutenticacion()) {
       return;
@@ -627,7 +722,12 @@ export default function GestionarCategorias() {
         ? `http://localhost:8080/subcategorias/${id}/productos-asociados`
         : `http://localhost:8080/categorias/${id}/productos-asociados`;
       
-      console.log(`🔍 Verificando productos para ${esSubcategoria ? 'subcategoría' : 'categoría'} ID: ${id}, Nombre: "${nombre}"`);
+      // NUEVO: Mostrar notificación de verificación
+      notificaciones.info(
+        "Verificando",
+        `Verificando productos en ${esSubcategoria ? 'subcategoría' : 'categoría'} "${nombre}"...`,
+        "reloj"
+      );
       
       const responseVerificar = await fetchWithTimeout(urlVerificar, {
         headers: {
@@ -636,21 +736,9 @@ export default function GestionarCategorias() {
         }
       }, 5000);
       
-      // DEPURACIÓN DETALLADA
-      console.log('📊 Estado de la respuesta:', {
-        ok: responseVerificar.ok,
-        status: responseVerificar.status,
-        statusText: responseVerificar.statusText
-      });
-      
       let tieneProductos = false;
       if (responseVerificar.ok) {
         const resultado = await responseVerificar.json();
-        console.log('📊 Resultado crudo de la API:', {
-          resultado,
-          tipo: typeof resultado,
-          stringResult: JSON.stringify(resultado)
-        });
         
         // Análisis detallado del resultado
         if (resultado === true || resultado === false) {
@@ -666,38 +754,48 @@ export default function GestionarCategorias() {
           tieneProductos = resultado.toLowerCase() === 'true' || resultado === '1';
         }
         
-        console.log(`📊 Resultado interpretado: ${tieneProductos ? 'TIENE productos' : 'NO tiene productos'}`);
-        
         // VERIFICACIÓN ALTERNATIVA SI EL RESULTADO PARECE SOSPECHOSO
         if (tieneProductos) {
-          console.log('🔍 Realizando verificación alternativa...');
           const verifAlternativa = await verificarManualProductos(id, esSubcategoria);
-          console.log(`📊 Verificación alternativa: ${verifAlternativa ? 'TIENE productos' : 'NO tiene productos'}`);
-          
           if (!verifAlternativa) {
-            console.log('✅ Corrección aplicada: La categoría NO tiene productos realmente');
             tieneProductos = false;
           }
         }
       } else {
         const errorText = await responseVerificar.text();
-        console.error('❌ Error en verificación:', {
-          status: responseVerificar.status,
-          errorText
-        });
+        console.error('Error en verificación:', errorText);
         tieneProductos = true; // Por seguridad
       }
       
-      // 2. SI TIENE PRODUCTOS, MOSTRAR ERROR
+      // 2. SI TIENE PRODUCTOS, MOSTRAR ERROR CON NOTIFICACIÓN
       if (tieneProductos) {
-        alert(`⚠️ No se puede eliminar ${esSubcategoria ? 'la subcategoría' : 'la categoría'} "${nombre}"\n\nTiene productos asociados. Primero debes eliminar o reasignar los productos.`);
+        // NUEVO: Reemplazar alert con notificación
+        notificaciones.error(
+          "No se puede eliminar",
+          `La ${esSubcategoria ? 'subcategoría' : 'categoría'} "${nombre}" tiene productos asociados.`,
+          "⚠️"
+        );
         return;
       }
       
       // 3. CONFIRMACIÓN FINAL
-      if (!confirm(`¿Estás seguro de eliminar ${esSubcategoria ? 'la subcategoría' : 'la categoría'} "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
+      // Mantenemos window.confirm para la confirmación del usuario
+      if (!window.confirm(`¿Estás seguro de eliminar ${esSubcategoria ? 'la subcategoría' : 'la categoría'} "${nombre}"?\n\nEsta acción no se puede deshacer.`)) {
+        // NUEVO: Notificación de cancelación
+        notificaciones.info(
+          "Eliminación cancelada",
+          `La ${esSubcategoria ? 'subcategoría' : 'categoría'} no fue eliminada`,
+          "❌"
+        );
         return;
       }
+      
+      // NUEVO: Mostrar notificación de proceso de eliminación
+      notificaciones.info(
+        "Eliminando",
+        `Eliminando ${esSubcategoria ? 'subcategoría' : 'categoría'} "${nombre}"...`,
+        "reloj"
+      );
       
       // 4. ELIMINAR
       const urlEliminar = esSubcategoria 
@@ -713,13 +811,23 @@ export default function GestionarCategorias() {
       
       if (responseEliminar.status === 401 || responseEliminar.status === 403) {
         localStorage.removeItem('token');
-        window.location.href = '/LoginModal';
+        notificaciones.advertencia(
+          "Sesión expirada",
+          "Tu sesión ha expirado. Por favor, inicia sesión nuevamente.",
+          "bloqueo"
+        );
+        setTimeout(() => window.location.href = '/LoginModal', 2000);
         return;
       }
       
       if (responseEliminar.status === 409) {
         const errorText = await responseEliminar.text();
-        alert(`⚠️ ${errorText}`);
+        // NUEVO: Reemplazar alert con notificación
+        notificaciones.error(
+          "Error de conflicto",
+          errorText,
+          "❌"
+        );
         return;
       }
       
@@ -728,16 +836,32 @@ export default function GestionarCategorias() {
         throw new Error(`Error ${responseEliminar.status}: ${errorText || 'Error al eliminar'}`);
       }
       
-      // 5. RECARGAR Y MOSTRAR CONFIRMACIÓN
-      await cargarCategorias();
-      alert(`✅ ${esSubcategoria ? 'Subcategoría' : 'Categoría'} "${nombre}" eliminada exitosamente`);
+      // 5. RECARGAR Y MOSTRAR NOTIFICACIÓN DE CONFIRMACIÓN
+      await cargarCategorias(false);
+      
+      // NUEVO: Reemplazar alert con notificación de éxito
+      notificaciones.exito(
+        "Eliminado exitosamente",
+        `${esSubcategoria ? 'Subcategoría' : 'Categoría'} "${nombre}" eliminada exitosamente`,
+        "🗑️"
+      );
       
     } catch (error) {
-      console.error('💥 Error en eliminarCategoria:', error);
+      console.error('Error en eliminarCategoria:', error);
+      
+      // NUEVO: Reemplazar alert con notificación de error
       if (error.name === 'AbortError') {
-        alert('⚠️ Tiempo de espera agotado. Verifica la conexión con el servidor.');
+        notificaciones.error(
+          "Tiempo agotado",
+          "Tiempo de espera agotado. Verifica la conexión con el servidor.",
+          "📡"
+        );
       } else {
-        alert(`❌ Error al eliminar: ${error.message}`);
+        notificaciones.error(
+          "Error al eliminar",
+          `Error: ${error.message}`,
+          "❌"
+        );
       }
     }
   };
@@ -749,7 +873,13 @@ export default function GestionarCategorias() {
     }
     
     const token = localStorage.getItem('token');
-    console.log('🔍 INICIANDO DEPURACIÓN COMPLETA DE LA API 🔍');
+    
+    // NUEVO: Notificación de inicio de depuración
+    notificaciones.info(
+      "Depuración iniciada",
+      "Iniciando depuración completa de la API...",
+      "config"
+    );
     
     try {
       // Depurar todas las categorías
@@ -865,11 +995,23 @@ export default function GestionarCategorias() {
       }
       
       console.log('\n✅ DEPURACIÓN COMPLETADA ✅');
-      alert('Depuración completada. Revisa la consola para ver los resultados detallados.');
+      
+      // NUEVO: Notificación de finalización
+      notificaciones.exito(
+        "Depuración completada",
+        "Revisa la consola para ver los resultados detallados.",
+        "✅"
+      );
       
     } catch (error) {
-      console.error('💥 Error en depuración:', error);
-      alert('Error durante la depuración. Revisa la consola.');
+      console.error('Error en depuración:', error);
+      
+      // NUEVO: Notificación de error en depuración
+      notificaciones.error(
+        "Error en depuración",
+        "Error durante la depuración. Revisa la consola.",
+        "❌"
+      );
     }
   };
 
@@ -892,6 +1034,16 @@ export default function GestionarCategorias() {
   if (cargando) {
     return (
       <div style={styles.loadingContainer}>
+        {/* NUEVO: Componente de notificaciones */}
+        <Notificaciones
+          notificacion={notificacion}
+          setNotificacion={setNotificacion}
+          position="top-right"
+          autoClose={4000}
+          showProgress={true}
+          pauseOnHover={true}
+        />
+        
         <div style={styles.spinner}></div>
         <div style={styles.loadingContent}>
           <h3 style={styles.loadingTitle}>Cargando categorías...</h3>
@@ -908,6 +1060,16 @@ export default function GestionarCategorias() {
 
   return (
     <div style={styles.container}>
+      {/* NUEVO: Componente de notificaciones */}
+      <Notificaciones
+        notificacion={notificacion}
+        setNotificacion={setNotificacion}
+        position="top-right"
+        autoClose={4000}
+        showProgress={true}
+        pauseOnHover={true}
+      />
+      
       <div style={styles.headerContainer}>
         {circlePositions.map(circle => (
           <div 
@@ -943,7 +1105,7 @@ export default function GestionarCategorias() {
           <div style={styles.refreshButtonContainer}>
             <button
               style={styles.refreshButton}
-              onClick={cargarCategorias}
+              onClick={() => cargarCategorias(true)}
               disabled={cargando}
             >
               <RefreshCcw size={18} /> {cargando ? "Actualizando..." : "Actualizar"}
@@ -1036,7 +1198,11 @@ export default function GestionarCategorias() {
         <div style={styles.filterActions}>
           {busqueda && (
             <button
-              onClick={() => setBusqueda('')}
+              onClick={() => {
+                setBusqueda('');
+                // NUEVO: Notificación de limpieza
+                notificaciones.info("Búsqueda limpiada", "Se limpió el filtro de búsqueda", "🗑️");
+              }}
               style={styles.clearButton}
             >
               <X size={14} />
@@ -1057,9 +1223,19 @@ export default function GestionarCategorias() {
           <button
             onClick={async () => {
               setCargando(true);
-              console.log('🔄 Verificando productos en todas las categorías...');
-              await cargarCategorias();
-              alert('✅ Verificación completada. Revisa la consola para detalles.');
+              // NUEVO: Notificación de verificación
+              notificaciones.info(
+                "Verificando productos",
+                "Verificando productos en todas las categorías...",
+                "reloj"
+              );
+              await cargarCategorias(false);
+              // NUEVO: Notificación de éxito
+              notificaciones.exito(
+                "Verificación completada",
+                "Revisa la consola para detalles.",
+                "✅"
+              );
             }}
             style={styles.verifyButton}
             title="Verificar productos en todas las categorías"
@@ -1068,7 +1244,15 @@ export default function GestionarCategorias() {
             Verificar Productos
           </button>
           <button
-            onClick={() => abrirModalCrear()}
+            onClick={() => {
+              abrirModalCrear();
+              // NUEVO: Notificación informativa
+              notificaciones.info(
+                "Crear categoría",
+                "Completa los datos para crear una nueva categoría",
+                "caja"
+              );
+            }}
             style={styles.addButton}
           >
             <Plus size={16} />
@@ -1103,7 +1287,7 @@ export default function GestionarCategorias() {
             <p style={styles.errorText}>
               {error}
             </p>
-            <button onClick={cargarCategorias} style={styles.errorButton}>
+            <button onClick={() => cargarCategorias(true)} style={styles.errorButton}>
               <RefreshCcw size={16} />
               Reintentar
             </button>
@@ -1115,7 +1299,14 @@ export default function GestionarCategorias() {
             <p style={styles.emptyText}>
               Comienza creando tu primera categoría para organizar los productos del sistema
             </p>
-            <button onClick={() => abrirModalCrear()} style={styles.emptyButton}>
+            <button onClick={() => {
+              abrirModalCrear();
+              notificaciones.info(
+                "Crear primera categoría",
+                "Completa los datos para crear tu primera categoría",
+                "caja"
+              );
+            }} style={styles.emptyButton}>
               <Plus size={16} />
               Crear primera categoría
             </button>
@@ -1129,7 +1320,10 @@ export default function GestionarCategorias() {
                 <p style={styles.noResultsText}>
                   No hay categorías que coincidan con "{busqueda}"
                 </p>
-                <button onClick={() => setBusqueda('')} style={styles.noResultsButton}>
+                <button onClick={() => {
+                  setBusqueda('');
+                  notificaciones.info("Búsqueda limpiada", "Se limpió el filtro de búsqueda", "🗑️");
+                }} style={styles.noResultsButton}>
                   Limpiar búsqueda
                 </button>
               </div>
@@ -1237,7 +1431,14 @@ export default function GestionarCategorias() {
                                 {categoria.subcategorias?.length || 0}
                               </span>
                               <button
-                                onClick={() => abrirModalCrear(true, categoria.id)}
+                                onClick={() => {
+                                  abrirModalCrear(true, categoria.id);
+                                  notificaciones.info(
+                                    "Crear subcategoría",
+                                    `Creando subcategoría para "${categoria.nombre}"`,
+                                    "etiqueta"
+                                  );
+                                }}
                                 style={styles.addSubcategoryButton}
                                 title="Agregar subcategoría"
                               >
@@ -1261,7 +1462,14 @@ export default function GestionarCategorias() {
                             ) : (
                               <div style={styles.actions}>
                                 <button
-                                  onClick={() => abrirModalEditar(categoria, false)}
+                                  onClick={() => {
+                                    abrirModalEditar(categoria, false);
+                                    notificaciones.info(
+                                      "Editando categoría",
+                                      `Editando categoría: "${categoria.nombre}"`,
+                                      "edit"
+                                    );
+                                  }}
                                   style={{...styles.actionButton, backgroundColor: '#10B98110', color: '#10B981'}}
                                   title="Editar categoría"
                                 >
@@ -1401,7 +1609,14 @@ export default function GestionarCategorias() {
                                 ) : (
                                   <div style={styles.actions}>
                                     <button
-                                      onClick={() => abrirModalEditar(sub, true, categoria.id)}
+                                      onClick={() => {
+                                        abrirModalEditar(sub, true, categoria.id);
+                                        notificaciones.info(
+                                          "Editando subcategoría",
+                                          `Editando subcategoría: "${sub.nombre}"`,
+                                          "edit"
+                                        );
+                                      }}
                                       style={{...styles.actionButton, backgroundColor: '#10B98110', color: '#10B981'}}
                                       title="Editar subcategoría"
                                     >
@@ -1489,7 +1704,10 @@ export default function GestionarCategorias() {
                 </p>
               </div>
               <button
-                onClick={cerrarModal}
+                onClick={() => {
+                  cerrarModal();
+                  notificaciones.info("Modal cerrado", "La ventana de edición ha sido cerrada", "❌");
+                }}
                 style={styles.modalClose}
               >
                 <X size={20} />
@@ -1534,7 +1752,10 @@ export default function GestionarCategorias() {
 
             <div style={styles.modalFooter}>
               <button
-                onClick={cerrarModal}
+                onClick={() => {
+                  cerrarModal();
+                  notificaciones.info("Operación cancelada", "La operación ha sido cancelada", "❌");
+                }}
                 style={styles.modalCancelButton}
               >
                 Cancelar
