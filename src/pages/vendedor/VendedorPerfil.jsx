@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useCarrito } from "../../context/CarritoContext.jsx";
 import StarRating from "../../components/StarRating.jsx";
 import Footer from "../../components/Footer.jsx";
-import API_URL from "../../config/api.js";
+import API_URL from "../config/api.js";
 
 export default function VendedorPerfil() {
   const { id } = useParams();

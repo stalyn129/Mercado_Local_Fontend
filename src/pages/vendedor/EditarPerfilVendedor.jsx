@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { obtenerPerfil, actualizarPerfil } from "../../services/perfilService";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import Footer from "../../components/Footer";
+import Footer from "../components/Footer";
 
 export default function EditarPerfilVendedor() {
   const [perfil, setPerfil] = useState(null);

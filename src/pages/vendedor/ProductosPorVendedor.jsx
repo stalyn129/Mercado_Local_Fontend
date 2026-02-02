@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import API_URL from "../../config/api.js";
+import API_URL from "../config/api.js";
 
 export default function ProductosPorVendedor() {
   const { id } = useParams();

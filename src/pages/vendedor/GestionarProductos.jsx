@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Footer from "../../components/Footer.jsx";
-import API_URL from "../../config/api.js";
+import API_URL from "../config/api.js";
 
 export default function GestionarProductos() {
 

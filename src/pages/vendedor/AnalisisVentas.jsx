@@ -15,7 +15,7 @@ import {
   RadialLinearScale
 } from 'chart.js';
 import Footer from "../../components/Footer.jsx";
-import API_URL from "../../config/api.js";
+import API_URL from "../config/api.js";
 
 // Registrar componentes de Chart.js
 ChartJS.register(

@@ -5,7 +5,7 @@ import html2canvas from "html2canvas";
 import Footer from "../../components/Footer.jsx";
 import Notificaciones from "../../components/Notificaciones"; // NUEVO: Importar componente de notificaciones
 import useNotification from "../../hooks/useNotification"; // NUEVO: Importar hook de notificaciones
-import API_URL from "../../config/api.js";
+import API_URL from "../config/api.js";
 
 export default function Factura() {
   const { idPedido, idCompra } = useParams();

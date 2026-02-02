@@ -5,7 +5,7 @@ import { useFavoritos } from "../../context/FavoritosContext.jsx";
 import Footer from "../../components/Footer.jsx";
 import Notificaciones from "../../components/Notificaciones.jsx";
 import useNotification from "../../hooks/useNotification.jsx";
-import API_URL from "../../config/api.js";
+import API_URL from "../config/api.js";
 
 export default function ProductoDetalle() {
   const { id } = useParams();

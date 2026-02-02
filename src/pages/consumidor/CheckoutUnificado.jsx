@@ -4,7 +4,7 @@ import { useCarrito } from "../../context/CarritoContext.jsx";
 import Notificaciones from "../../components/Notificaciones.jsx";
 import useNotification from "../../hooks/useNotification.jsx";
 import Footer from "../../components/Footer.jsx";
-import API_URL from "../../config/api.js";
+import API_URL from "../config/api.js";
 
 export default function CheckoutUnificado() {
   const { carrito, limpiarCarrito } = useCarrito();

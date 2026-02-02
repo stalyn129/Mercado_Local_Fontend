@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import useNotification from "../../hooks/useNotification";
 import Notificaciones from "../../components/Notificaciones";
-import API_URL from "../../config/api";
+import API_URL from "../config/api";
 
 // =================== COMPONENTE DE INPUT NUMÉRICO SEPARADO ===================
 const NumberInputComponent = ({ label, value, onChange, min, max, unit, colorPalette }) => {

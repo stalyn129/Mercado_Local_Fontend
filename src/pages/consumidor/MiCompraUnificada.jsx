@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from "react-router-dom";
 import Footer from "../../components/Footer.jsx";
 import Notificaciones from "../../components/Notificaciones.jsx";
 import useNotification from "../../hooks/useNotification.jsx";
-import API_URL from "../../config/api.js";
+import API_URL from "../config/api.js";
 
 // Helper para formatear dinero
 const money = (value) =>

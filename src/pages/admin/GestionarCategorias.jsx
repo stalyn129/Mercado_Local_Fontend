@@ -20,7 +20,7 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react';
-import API_URL from "../../config/api";
+import API_URL from "../config/api";
 
 // NUEVO: Importar componentes de notificación
 import Notificaciones from '../../components/Notificaciones.jsx';

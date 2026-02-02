@@ -10,7 +10,7 @@ import GestionarCategorias from "./GestionarCategorias.jsx";
 
 // Importar el logo
 import logo from '../../assets/Logo.png'; // Ajusta la ruta según tu estructura
-import API_URL from "../../config/api";
+import API_URL from "../config/api";
 
 // ==================== COMPONENTE DASHBOARD ====================
 function DashboardAdmin() {
